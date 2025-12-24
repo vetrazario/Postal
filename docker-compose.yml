@@ -297,6 +297,35 @@ services:
       - "5000:5000"
     environment:
       POSTAL_SIGNING_KEY: ${POSTAL_SIGNING_KEY}
+      # Main DB
+      POSTAL_MAIN_DB_HOST: mariadb
+      POSTAL_MAIN_DB_PORT: "3306"
+      POSTAL_MAIN_DB_USERNAME: postal
+      POSTAL_MAIN_DB_PASSWORD: ${MARIADB_PASSWORD}
+      POSTAL_MAIN_DB_DATABASE: postal
+      # Message DB
+      POSTAL_MESSAGE_DB_HOST: mariadb
+      POSTAL_MESSAGE_DB_PORT: "3306"
+      POSTAL_MESSAGE_DB_USERNAME: postal
+      POSTAL_MESSAGE_DB_PASSWORD: ${MARIADB_PASSWORD}
+      POSTAL_MESSAGE_DB_PREFIX: postal
+      # RabbitMQ
+      POSTAL_RABBITMQ_HOST: rabbitmq
+      POSTAL_RABBITMQ_PORT: "5672"
+      POSTAL_RABBITMQ_USERNAME: postal
+      POSTAL_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      POSTAL_RABBITMQ_VHOST: postal
+      # Web
+      POSTAL_WEB_HOST: ${DOMAIN}
+      POSTAL_WEB_PROTOCOL: https
+      # DNS
+      POSTAL_DNS_MX_RECORDS: ${DOMAIN}
+      POSTAL_DNS_SMTP_SERVER_HOSTNAME: ${DOMAIN}
+      POSTAL_DNS_RETURN_PATH: rp.${DOMAIN}
+      POSTAL_DNS_ROUTE_DOMAIN: routes.${DOMAIN}
+      POSTAL_DNS_TRACK_DOMAIN: ${DOMAIN}
+      # Rails
+      POSTAL_RAILS_SECRET_KEY: ${SECRET_KEY_BASE}
     volumes:
       - ./config/postal.yml:/config/postal.yml:ro
       - ./config/postal.yml:/opt/postal/config/postal.yml:ro
