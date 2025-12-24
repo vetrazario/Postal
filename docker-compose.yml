@@ -276,15 +276,6 @@ services:
     image: ghcr.io/postalserver/postal:latest
     container_name: email_postal
     restart: unless-stopped
-    command: >
-      sh -c "
-        postal initialize-db || true &&
-        postal make-user || true &&
-        postal web-server &
-        postal smtp-server &
-        postal worker &
-        wait
-      "
     depends_on:
       mariadb:
         condition: service_healthy
@@ -306,7 +297,7 @@ services:
         reservations:
           memory: 200M
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:5000 || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
