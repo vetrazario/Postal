@@ -1066,6 +1066,93 @@ echo "Backup completed: ${DATE}"
 
 ---
 
+## Развертывание на сервере с ограниченными ресурсами (2GB RAM)
+
+### Оптимизация для маломощных серверов
+
+Проект оптимизирован для работы на серверах с ограниченной памятью (2GB RAM). Все настройки уже применены в `docker-compose.yml` и конфигурационных файлах.
+
+#### Распределение памяти
+
+| Сервис | Лимит памяти | Резерв |
+|--------|-------------|--------|
+| PostgreSQL | 350MB | 200MB |
+| Redis | 250MB | 150MB |
+| MariaDB | 300MB | 200MB |
+| RabbitMQ | 200MB | 100MB |
+| API (Puma) | 400MB | 250MB |
+| Sidekiq | 250MB | 150MB |
+| Tracking | 150MB | 100MB |
+| Postal | 350MB | 200MB |
+| Nginx | ~50MB | - |
+| **Итого** | **~2.1GB** | **~1.2GB** |
+
+#### Оптимизации
+
+**PostgreSQL:**
+- `shared_buffers`: 128MB (вместо дефолтных 128MB)
+- `effective_cache_size`: 256MB
+- `work_mem`: 4MB
+- `maintenance_work_mem`: 64MB
+
+**Redis:**
+- `maxmemory`: 200MB (вместо 256MB)
+- Политика: `allkeys-lru`
+
+**MariaDB:**
+- `innodb-buffer-pool-size`: 200MB
+- `max-connections`: 50
+
+**RabbitMQ:**
+- `RABBITMQ_VM_MEMORY_HIGH_WATERMARK`: 0.15 (15% от доступной памяти)
+
+**Puma (Rails API):**
+- Workers: 1 (вместо 2)
+- Threads: 5 (максимум)
+
+**Sidekiq:**
+- Concurrency: 5 (вместо 10)
+
+#### Рекомендации
+
+1. **Мониторинг памяти:**
+   ```bash
+   # Проверка использования памяти контейнерами
+   docker stats
+   
+   # Проверка общей памяти системы
+   free -h
+   ```
+
+2. **При нехватке памяти:**
+   - Уменьшите `SIDEKIQ_CONCURRENCY` до 3
+   - Уменьшите `RAILS_MAX_THREADS` до 3
+   - Уменьшите лимиты памяти для менее критичных сервисов
+
+3. **Оптимизация диска:**
+   - Используйте SSD для лучшей производительности
+   - Настройте ротацию логов
+   - Регулярно очищайте старые данные
+
+4. **Масштабирование:**
+   - При росте нагрузки рассмотрите увеличение RAM до 4GB
+   - Для высоконагруженных систем рекомендуется 8GB+
+
+#### Проверка производительности
+
+```bash
+# Проверка использования ресурсов
+docker stats --no-stream
+
+# Проверка логов на ошибки нехватки памяти
+docker compose logs | grep -i "out of memory\|oom\|killed"
+
+# Мониторинг производительности PostgreSQL
+docker compose exec postgres psql -U email_sender -d email_sender -c "SELECT * FROM pg_stat_activity;"
+```
+
+---
+
 ## Мониторинг
 
 ### Логи

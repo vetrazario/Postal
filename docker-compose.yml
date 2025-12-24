@@ -24,8 +24,28 @@ services:
       POSTGRES_DB: email_sender
       POSTGRES_USER: email_sender
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_INITDB_ARGS: "-E UTF8"
+    command: >
+      postgres
+      -c shared_buffers=128MB
+      -c effective_cache_size=256MB
+      -c maintenance_work_mem=64MB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=16MB
+      -c default_statistics_target=100
+      -c random_page_cost=1.1
+      -c effective_io_concurrency=200
+      -c work_mem=4MB
+      -c min_wal_size=1GB
+      -c max_wal_size=2GB
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    deploy:
+      resources:
+        limits:
+          memory: 350M
+        reservations:
+          memory: 200M
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U email_sender -d email_sender"]
       interval: 10s
@@ -42,10 +62,16 @@ services:
     command: >
       redis-server 
       --appendonly yes 
-      --maxmemory 256mb 
+      --maxmemory 200mb 
       --maxmemory-policy allkeys-lru
     volumes:
       - redis_data:/data
+    deploy:
+      resources:
+        limits:
+          memory: 250M
+        reservations:
+          memory: 150M
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -63,8 +89,19 @@ services:
       MYSQL_DATABASE: postal
       MYSQL_USER: postal
       MYSQL_PASSWORD: ${MARIADB_PASSWORD}
+    command: >
+      --innodb-buffer-pool-size=200M
+      --max-connections=50
+      --query-cache-size=0
+      --query-cache-type=0
     volumes:
       - mariadb_data:/var/lib/mysql
+    deploy:
+      resources:
+        limits:
+          memory: 300M
+        reservations:
+          memory: 200M
     healthcheck:
       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
       interval: 10s
@@ -82,8 +119,15 @@ services:
       RABBITMQ_DEFAULT_USER: postal
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
       RABBITMQ_DEFAULT_VHOST: postal
+      RABBITMQ_VM_MEMORY_HIGH_WATERMARK: 0.15
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
+    deploy:
+      resources:
+        limits:
+          memory: 200M
+        reservations:
+          memory: 100M
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "check_running"]
       interval: 30s
@@ -132,8 +176,16 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS:-}
       SIDEKIQ_WEB_USERNAME: ${SIDEKIQ_WEB_USERNAME:-}
       SIDEKIQ_WEB_PASSWORD: ${SIDEKIQ_WEB_PASSWORD:-}
+      WEB_CONCURRENCY: 1
+      RAILS_MAX_THREADS: 5
     volumes:
       - api_logs:/app/log
+    deploy:
+      resources:
+        limits:
+          memory: 400M
+        reservations:
+          memory: 250M
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/api/v1/health"]
       interval: 30s
@@ -168,13 +220,19 @@ services:
       POSTAL_API_KEY: ${POSTAL_SIGNING_KEY}
       AMS_CALLBACK_URL: ${AMS_CALLBACK_URL}
       WEBHOOK_SECRET: ${WEBHOOK_SECRET}
-      SIDEKIQ_CONCURRENCY: ${SIDEKIQ_CONCURRENCY:-10}
+      SIDEKIQ_CONCURRENCY: ${SIDEKIQ_CONCURRENCY:-5}
       ENCRYPTION_PRIMARY_KEY: ${ENCRYPTION_PRIMARY_KEY}
       ENCRYPTION_DETERMINISTIC_KEY: ${ENCRYPTION_DETERMINISTIC_KEY}
       ENCRYPTION_KEY_DERIVATION_SALT: ${ENCRYPTION_KEY_DERIVATION_SALT}
       POSTAL_WEBHOOK_PUBLIC_KEY: ${POSTAL_WEBHOOK_PUBLIC_KEY}
     volumes:
       - api_logs:/app/log
+    deploy:
+      resources:
+        limits:
+          memory: 250M
+        reservations:
+          memory: 150M
     networks:
       - backend
 
@@ -195,6 +253,12 @@ services:
       AMS_CALLBACK_URL: ${AMS_CALLBACK_URL}
       WEBHOOK_SECRET: ${WEBHOOK_SECRET}
       DOMAIN: ${DOMAIN}
+    deploy:
+      resources:
+        limits:
+          memory: 150M
+        reservations:
+          memory: 100M
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
       interval: 30s
@@ -235,6 +299,12 @@ services:
     volumes:
       - ./config/postal.yml:/opt/postal/config/postal.yml:ro
       - postal_data:/opt/postal/data
+    deploy:
+      resources:
+        limits:
+          memory: 350M
+        reservations:
+          memory: 200M
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
       interval: 30s

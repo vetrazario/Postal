@@ -1,14 +1,14 @@
 # ===========================================
 # POSTAL MAIL SERVER
-# Configuration File (Local Development)
+# Configuration File (Production)
 # ==========================================
 
 general:
   use_ip_pools: false
 
 web:
-  host: localhost
-  protocol: http
+  host: linenarrow.com
+  protocol: https
 
 main_db:
   host: mariadb
@@ -41,11 +41,11 @@ smtp_server:
 
 dns:
   mx_records:
-    - localhost
-  smtp_server_hostname: localhost
-  return_path: rp.localhost
-  route_domain: routes.localhost
-  track_domain: localhost
+    - linenarrow.com
+  smtp_server_hostname: linenarrow.com
+  return_path: rp.linenarrow.com
+  route_domain: routes.linenarrow.com
+  track_domain: linenarrow.com
   dkim_identifier: postal
   check_ptr: false
 
@@ -60,7 +60,7 @@ rails:
 smtp_client:
   open_timeout: 30
   read_timeout: 60
-  helo_hostname: localhost
+  helo_hostname: linenarrow.com
 
 
 
