@@ -281,8 +281,7 @@ services:
     command: >
       sh -c "
         postal initialize-db || true &&
-        postal make-user || true &&
-        postal web-server &
+        bundle exec puma -b tcp://0.0.0.0:5000 -C /opt/postal/app/config/puma.rb &
         postal smtp-server &
         postal worker &
         wait
