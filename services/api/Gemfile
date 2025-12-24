@@ -21,6 +21,7 @@ gem 'sidekiq', '~> 7.2'
 
 # Redis
 gem 'redis', '~> 5.0'
+gem 'connection_pool', '~> 2.4'
 
 # Template Engine
 gem 'liquid', '~> 5.4'
@@ -65,4 +66,3 @@ group :test do
   gem 'webmock', '~> 3.19'
   gem 'simplecov', '~> 0.22', require: false
 end
-

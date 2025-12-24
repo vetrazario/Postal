@@ -48,7 +48,7 @@ module EmailSenderApi
         end
       end
     elsif Rails.env.production?
-      Rails.logger.warn("CORS_ORIGINS not set in production - CORS disabled")
+      Rails.logger&.warn("CORS_ORIGINS not set in production - CORS disabled")
     end
 
 
@@ -56,4 +56,3 @@ module EmailSenderApi
     config.log_level = ENV.fetch("LOG_LEVEL", "info").to_sym
   end
 end
-
