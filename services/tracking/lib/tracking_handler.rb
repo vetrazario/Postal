@@ -20,31 +20,34 @@ class TrackingHandler
     return { success: false } unless email && campaign_id && message_id
     
     # Find email log
-    conn = PG.connect(@database_url)
-    result = conn.exec_params(
-      "SELECT id, external_message_id, campaign_id FROM email_logs WHERE external_message_id = $1",
-      [message_id]
-    )
-    
-    return { success: false } if result.rows.empty?
-    
-    email_log_id = result.rows.first[0]
-    
-    # Create tracking event
-    conn.exec_params(
-      "INSERT INTO tracking_events (email_log_id, event_type, event_data, ip_address, user_agent, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, NOW(), NOW())",
-      [email_log_id, 'open', { email: email, campaign_id: campaign_id }.to_json, ip, user_agent]
-    )
-    
-    # Enqueue webhook job
-    enqueue_webhook_job(message_id, 'opened', { ip: ip, user_agent: user_agent })
-    
-    conn.close
-    
-    { success: true }
-  rescue => e
-    puts "TrackingHandler error: #{e.message}"
-    { success: false }
+    conn = nil
+    begin
+      conn = PG.connect(@database_url)
+      result = conn.exec_params(
+        "SELECT id, external_message_id, campaign_id FROM email_logs WHERE external_message_id = $1",
+        [message_id]
+      )
+      
+      return { success: false } if result.rows.empty?
+      
+      email_log_id = result.rows.first[0]
+      
+      # Create tracking event
+      conn.exec_params(
+        "INSERT INTO tracking_events (email_log_id, event_type, event_data, ip_address, user_agent, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, NOW(), NOW())",
+        [email_log_id, 'open', { email: email, campaign_id: campaign_id }.to_json, ip, user_agent]
+      )
+      
+      # Enqueue webhook job
+      enqueue_webhook_job(message_id, 'opened', { ip: ip, user_agent: user_agent })
+      
+      { success: true }
+    rescue => e
+      puts "TrackingHandler error: #{e.message}"
+      { success: false }
+    ensure
+      conn&.close
+    end
   end
 
   def handle_click(url:, eid:, cid:, mid:, ip:, user_agent:)
@@ -59,31 +62,34 @@ class TrackingHandler
     return { success: false, url: nil } unless original_url && email && campaign_id && message_id
     
     # Find email log
-    conn = PG.connect(@database_url)
-    result = conn.exec_params(
-      "SELECT id, external_message_id, campaign_id FROM email_logs WHERE external_message_id = $1",
-      [message_id]
-    )
-    
-    return { success: false, url: nil } if result.rows.empty?
-    
-    email_log_id = result.rows.first[0]
-    
-    # Create tracking event
-    conn.exec_params(
-      "INSERT INTO tracking_events (email_log_id, event_type, event_data, ip_address, user_agent, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, NOW(), NOW())",
-      [email_log_id, 'click', { url: original_url, email: email, campaign_id: campaign_id }.to_json, ip, user_agent]
-    )
-    
-    # Enqueue webhook job
-    enqueue_webhook_job(message_id, 'clicked', { url: original_url, ip: ip, user_agent: user_agent })
-    
-    conn.close
-    
-    { success: true, url: original_url }
-  rescue => e
-    puts "TrackingHandler error: #{e.message}"
-    { success: false, url: nil }
+    conn = nil
+    begin
+      conn = PG.connect(@database_url)
+      result = conn.exec_params(
+        "SELECT id, external_message_id, campaign_id FROM email_logs WHERE external_message_id = $1",
+        [message_id]
+      )
+      
+      return { success: false, url: nil } if result.rows.empty?
+      
+      email_log_id = result.rows.first[0]
+      
+      # Create tracking event
+      conn.exec_params(
+        "INSERT INTO tracking_events (email_log_id, event_type, event_data, ip_address, user_agent, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, NOW(), NOW())",
+        [email_log_id, 'click', { url: original_url, email: email, campaign_id: campaign_id }.to_json, ip, user_agent]
+      )
+      
+      # Enqueue webhook job
+      enqueue_webhook_job(message_id, 'clicked', { url: original_url, ip: ip, user_agent: user_agent })
+      
+      { success: true, url: original_url }
+    rescue => e
+      puts "TrackingHandler error: #{e.message}"
+      { success: false, url: nil }
+    ensure
+      conn&.close
+    end
   end
 
   private

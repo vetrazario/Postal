@@ -8,8 +8,8 @@ REQUIRED_ENV = {
   'ENCRYPTION_KEY_DERIVATION_SALT' => 'Encryption key derivation salt',
   'DASHBOARD_USERNAME' => 'Dashboard username',
   'DASHBOARD_PASSWORD' => 'Dashboard password',
-  'POSTAL_SIGNING_KEY' => 'Postal signing key',
-  'POSTAL_WEBHOOK_PUBLIC_KEY' => 'Postal webhook public key'
+  'POSTAL_SIGNING_KEY' => 'Postal signing key'
+  # POSTAL_WEBHOOK_PUBLIC_KEY is optional - webhook verification will be skipped if not set
 }.freeze
 
 missing = REQUIRED_ENV.select { |var, _| ENV[var].blank? }

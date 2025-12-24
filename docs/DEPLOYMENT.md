@@ -39,6 +39,46 @@ cp env.example.txt .env
 #   SIDEKIQ_WEB_PASSWORD=admin
 #   CORS_ORIGINS=*  # или оставить пустым для dev
 
+# 3.1. Генерация config/postal.yml из шаблона
+# Postal не поддерживает переменные окружения в YAML файле напрямую.
+# Нужно сгенерировать config/postal.yml из шаблона перед запуском.
+
+# Вариант 1: Используя скрипт (рекомендуется)
+bash scripts/generate-postal-config.sh
+
+# Вариант 2: Используя envsubst
+export $(grep -v '^#' .env | xargs)
+envsubst < config/postal.yml.example > config/postal.yml
+
+# Вариант 3: Вручную - скопировать шаблон и заменить ${VAR} на реальные значения
+cp config/postal.yml.example config/postal.yml
+# Затем отредактировать config/postal.yml и заменить:
+#   ${DOMAIN} -> localhost (или ваш домен)
+#   ${MARIADB_PASSWORD} -> значение из .env
+#   ${RABBITMQ_PASSWORD} -> значение из .env
+#   ${SECRET_KEY_BASE} -> значение из .env
+
+# 3.2. Создать файл htpasswd для Nginx Basic Auth
+# Файл config/htpasswd необходим для базовой аутентификации в Nginx.
+# Если файл отсутствует, контейнер nginx не сможет запуститься.
+
+# Вариант 1: Используя скрипт (рекомендуется)
+bash scripts/create-htpasswd.sh admin admin123
+
+# Вариант 2: Используя htpasswd (если установлен)
+htpasswd -bc config/htpasswd admin admin123
+
+# Вариант 3: Используя Docker
+docker run --rm -v "$PWD/config:/config" httpd:2.4-alpine htpasswd -b -c /config/htpasswd admin admin123
+
+# Вариант 4: Используя openssl
+HASH=$(openssl passwd -apr1 admin123)
+echo "admin:$HASH" > config/htpasswd
+chmod 600 config/htpasswd
+
+# Примечание: По умолчанию создан пример файл с admin/admin123.
+# Для production обязательно измените пароль!
+
 # 4. Запустить все сервисы
 # Docker Compose автоматически подтянет переменные из .env файла
 docker compose up -d

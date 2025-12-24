@@ -12,6 +12,9 @@ get-*.rb
 !.env.example
 !env.example.txt
 
+# Nginx htpasswd (contains passwords)
+config/htpasswd
+
 # Logs
 *.log
 

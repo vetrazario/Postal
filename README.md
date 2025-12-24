@@ -74,6 +74,59 @@ openssl rand -hex 32  # для SECRET_KEY_BASE, POSTAL_SIGNING_KEY, WEBHOOK_SECR
 openssl rand -hex 24  # для API_KEY
 ```
 
+### 1.1. Генерация config/postal.yml из шаблона
+
+Postal не поддерживает переменные окружения в YAML файле напрямую. Нужно сгенерировать `config/postal.yml` из шаблона:
+
+**Вариант 1: Используя скрипт (Linux/Mac/Git Bash)**
+```bash
+bash scripts/generate-postal-config.sh
+```
+
+**Вариант 2: Вручную**
+```bash
+# Скопировать шаблон
+cp config/postal.yml.example config/postal.yml
+
+# Заменить переменные ${VAR} на реальные значения из .env
+# Используйте любой текстовый редактор
+```
+
+**Вариант 3: Используя envsubst (если установлен)**
+```bash
+export $(grep -v '^#' .env | xargs)
+envsubst < config/postal.yml.example > config/postal.yml
+```
+
+### 1.2. Создание файла htpasswd для Nginx Basic Auth
+
+Файл `config/htpasswd` используется для базовой аутентификации в Nginx. Создайте его одним из способов:
+
+**Вариант 1: Используя скрипт (Linux/Mac/Git Bash)**
+```bash
+bash scripts/create-htpasswd.sh admin admin123
+```
+
+**Вариант 2: Используя htpasswd (если установлен)**
+```bash
+htpasswd -bc config/htpasswd admin admin123
+```
+
+**Вариант 3: Используя Docker (если Docker запущен)**
+```bash
+docker run --rm -v "$PWD/config:/config" httpd:2.4-alpine htpasswd -b -c /config/htpasswd admin admin123
+```
+
+**Вариант 4: Используя openssl (если htpasswd недоступен)**
+```bash
+# Генерация хеша пароля
+HASH=$(openssl passwd -apr1 admin123)
+echo "admin:$HASH" > config/htpasswd
+chmod 600 config/htpasswd
+```
+
+**Примечание:** Если файл `config/htpasswd` отсутствует, Nginx не сможет запуститься. По умолчанию создан пример файл с пользователем `admin` и паролем `admin123` (измените его для production!).
+
 ### 2. Запуск через Docker Compose
 
 ```bash
