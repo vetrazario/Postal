@@ -281,7 +281,7 @@ services:
     command: >
       sh -c "
         postal initialize-db || true &&
-        bundle exec puma -b tcp://0.0.0.0:5000 -C /opt/postal/app/config/puma.rb &
+        postal web-server &
         postal smtp-server &
         postal worker &
         wait
@@ -326,8 +326,6 @@ services:
       POSTAL_DNS_TRACK_DOMAIN: ${DOMAIN}
       # Rails
       POSTAL_RAILS_SECRET_KEY: ${SECRET_KEY_BASE}
-      # Web server bind address
-      POSTAL_WEB_BIND_ADDRESS: 0.0.0.0
     volumes:
       - ./config/postal.yml:/config/postal.yml:ro
       - ./config/postal.yml:/opt/postal/config/postal.yml:ro
