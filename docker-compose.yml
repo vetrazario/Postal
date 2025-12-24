@@ -158,6 +158,7 @@ services:
       SECRET_KEY_BASE: ${SECRET_KEY_BASE}
       POSTAL_API_URL: http://postal:5000
       POSTAL_API_KEY: ${POSTAL_SIGNING_KEY}
+      POSTAL_SIGNING_KEY: ${POSTAL_SIGNING_KEY}
       AMS_CALLBACK_URL: ${AMS_CALLBACK_URL}
       AMS_API_KEY: ${AMS_API_KEY}
       ALLOWED_SENDER_DOMAINS: ${ALLOWED_SENDER_DOMAINS}
@@ -276,6 +277,15 @@ services:
     image: ghcr.io/postalserver/postal:latest
     container_name: email_postal
     restart: unless-stopped
+    command: >
+      sh -c "
+        postal initialize-db || true &&
+        postal make-user || true &&
+        postal web-server &
+        postal smtp-server &
+        postal worker &
+        wait
+      "
     depends_on:
       mariadb:
         condition: service_healthy
