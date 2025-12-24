@@ -298,6 +298,7 @@ services:
     environment:
       POSTAL_SIGNING_KEY: ${POSTAL_SIGNING_KEY}
     volumes:
+      - ./config/postal.yml:/config/postal.yml:ro
       - ./config/postal.yml:/opt/postal/config/postal.yml:ro
       - postal_data:/opt/postal/data
     deploy:
