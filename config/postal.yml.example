@@ -37,6 +37,7 @@ main_db:
   password: ${MARIADB_PASSWORD}
   database: postal
   pool_size: 5
+  socket: false
 
 # ===========================================
 # MESSAGE DATABASE
@@ -47,6 +48,7 @@ message_db:
   username: postal
   password: ${MARIADB_PASSWORD}
   prefix: postal
+  socket: false
 
 # ===========================================
 # RABBITMQ
