@@ -1,0 +1,322 @@
+# ===========================================
+# EMAIL SENDER INFRASTRUCTURE
+# Docker Compose Configuration
+# ===========================================
+#
+# Использование:
+#   docker compose up -d          # Запуск всех сервисов
+#   docker compose logs -f        # Просмотр логов
+#   docker compose ps             # Статус сервисов
+#   docker compose down           # Остановка
+#
+# ===========================================
+
+services:
+  # ===========================================
+  # DATABASES
+  # ===========================================
+  
+  postgres:
+    image: postgres:15-alpine
+    container_name: email_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: email_sender
+      POSTGRES_USER: email_sender
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U email_sender -d email_sender"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - backend
+
+  redis:
+    image: redis:7-alpine
+    container_name: email_redis
+    restart: unless-stopped
+    command: >
+      redis-server 
+      --appendonly yes 
+      --maxmemory 256mb 
+      --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - backend
+
+  mariadb:
+    image: mariadb:10.11
+    container_name: email_mariadb
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MARIADB_PASSWORD}
+      MYSQL_DATABASE: postal
+      MYSQL_USER: postal
+      MYSQL_PASSWORD: ${MARIADB_PASSWORD}
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    networks:
+      - backend
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: email_rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: postal
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+      RABBITMQ_DEFAULT_VHOST: postal
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_running"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - backend
+
+  # ===========================================
+  # APPLICATION SERVICES
+  # ===========================================
+
+  api:
+    build:
+      context: ./services/api
+      dockerfile: Dockerfile
+    container_name: email_api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      RAILS_ENV: ${RAILS_ENV:-production}
+      DATABASE_URL: postgres://email_sender:${POSTGRES_PASSWORD}@postgres:5432/email_sender
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE}
+      POSTAL_API_URL: http://postal:5000
+      POSTAL_API_KEY: ${POSTAL_SIGNING_KEY}
+      AMS_CALLBACK_URL: ${AMS_CALLBACK_URL}
+      AMS_API_KEY: ${AMS_API_KEY}
+      ALLOWED_SENDER_DOMAINS: ${ALLOWED_SENDER_DOMAINS}
+      DAILY_LIMIT: ${DAILY_LIMIT:-50000}
+      DOMAIN: ${DOMAIN}
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      DASHBOARD_USERNAME: ${DASHBOARD_USERNAME}
+      DASHBOARD_PASSWORD: ${DASHBOARD_PASSWORD}
+      ENCRYPTION_PRIMARY_KEY: ${ENCRYPTION_PRIMARY_KEY}
+      ENCRYPTION_DETERMINISTIC_KEY: ${ENCRYPTION_DETERMINISTIC_KEY}
+      ENCRYPTION_KEY_DERIVATION_SALT: ${ENCRYPTION_KEY_DERIVATION_SALT}
+      POSTAL_WEBHOOK_PUBLIC_KEY: ${POSTAL_WEBHOOK_PUBLIC_KEY}
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+      SIDEKIQ_WEB_USERNAME: ${SIDEKIQ_WEB_USERNAME:-}
+      SIDEKIQ_WEB_PASSWORD: ${SIDEKIQ_WEB_PASSWORD:-}
+    volumes:
+      - api_logs:/app/log
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - frontend
+      - backend
+
+  sidekiq:
+    build:
+      context: ./services/api
+      dockerfile: Dockerfile
+    container_name: email_sidekiq
+    restart: unless-stopped
+    # Entrypoint выполнит миграции перед запуском sidekiq
+    command: bundle exec sidekiq -C config/sidekiq.yml
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    environment:
+      RAILS_ENV: ${RAILS_ENV:-production}
+      DATABASE_URL: postgres://email_sender:${POSTGRES_PASSWORD}@postgres:5432/email_sender
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE}
+      POSTAL_API_URL: http://postal:5000
+      POSTAL_API_KEY: ${POSTAL_SIGNING_KEY}
+      AMS_CALLBACK_URL: ${AMS_CALLBACK_URL}
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET}
+      SIDEKIQ_CONCURRENCY: ${SIDEKIQ_CONCURRENCY:-10}
+      ENCRYPTION_PRIMARY_KEY: ${ENCRYPTION_PRIMARY_KEY}
+      ENCRYPTION_DETERMINISTIC_KEY: ${ENCRYPTION_DETERMINISTIC_KEY}
+      ENCRYPTION_KEY_DERIVATION_SALT: ${ENCRYPTION_KEY_DERIVATION_SALT}
+      POSTAL_WEBHOOK_PUBLIC_KEY: ${POSTAL_WEBHOOK_PUBLIC_KEY}
+    volumes:
+      - api_logs:/app/log
+    networks:
+      - backend
+
+  tracking:
+    build:
+      context: ./services/tracking
+      dockerfile: Dockerfile
+    container_name: email_tracking
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://email_sender:${POSTGRES_PASSWORD}@postgres:5432/email_sender
+      REDIS_URL: redis://redis:6379/0
+      AMS_CALLBACK_URL: ${AMS_CALLBACK_URL}
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET}
+      DOMAIN: ${DOMAIN}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - frontend
+      - backend
+
+  # ===========================================
+  # POSTAL MAIL SERVER
+  # ===========================================
+
+  postal:
+    image: ghcr.io/postalserver/postal:latest
+    container_name: email_postal
+    restart: unless-stopped
+    command: >
+      sh -c "
+        postal initialize-db || true &&
+        postal make-user || true &&
+        postal web-server &
+        postal smtp-server &
+        postal worker &
+        wait
+      "
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    ports:
+      - "25:25"      # SMTP
+      - "587:587"    # Submission (optional)
+      - "5000:5000"  # Web interface
+    environment:
+      POSTAL_SIGNING_KEY: ${POSTAL_SIGNING_KEY}
+    volumes:
+      - ./config/postal.yml:/opt/postal/config/postal.yml:ro
+      - postal_data:/opt/postal/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+    networks:
+      - frontend
+      - backend
+
+  # ===========================================
+  # REVERSE PROXY
+  # ===========================================
+
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: email_nginx
+    restart: unless-stopped
+    depends_on:
+      - api
+      - tracking
+      - postal
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./config/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./config/htpasswd:/etc/nginx/.htpasswd:ro
+      - certbot_certs:/etc/nginx/certs:ro
+      - certbot_www:/var/www/certbot:ro
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+    networks:
+      - frontend
+
+  # ===========================================
+  # SSL CERTIFICATE MANAGEMENT
+  # ===========================================
+
+  certbot:
+    image: certbot/certbot:latest
+    container_name: email_certbot
+    volumes:
+      - certbot_certs:/etc/letsencrypt
+      - certbot_www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+    networks:
+      - frontend
+
+# ===========================================
+# VOLUMES
+# ===========================================
+
+volumes:
+  postgres_data:
+    name: email_postgres_data
+  redis_data:
+    name: email_redis_data
+  mariadb_data:
+    name: email_mariadb_data
+  rabbitmq_data:
+    name: email_rabbitmq_data
+  postal_data:
+    name: email_postal_data
+  api_logs:
+    name: email_api_logs
+  certbot_certs:
+    name: email_certbot_certs
+  certbot_www:
+    name: email_certbot_www
+
+# ===========================================
+# NETWORKS
+# ===========================================
+
+networks:
+  frontend:
+    name: email_frontend
+  backend:
+    name: email_backend
+    internal: true  # Изолированная сеть, недоступная извне
+

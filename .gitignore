@@ -1,0 +1,30 @@
+# Temporary test scripts
+check-*.rb
+test-*.ps1
+test-*.py
+get-*.rb
+
+# Local env files (never commit these!)
+.env
+.env.local
+.env.*.local
+.env.*
+!.env.example
+!env.example.txt
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Docker
+docker-compose.override.yml
+

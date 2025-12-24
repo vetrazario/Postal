@@ -1,0 +1,20 @@
+default: &default
+  adapter: postgresql
+  encoding: unicode
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+  url: <%= ENV.fetch("DATABASE_URL") { "postgres://email_sender:password@localhost:5432/email_sender" } %>
+
+development:
+  <<: *default
+
+test:
+  <<: *default
+  database: email_sender_test
+
+production:
+  <<: *default
+
+
+
+
+

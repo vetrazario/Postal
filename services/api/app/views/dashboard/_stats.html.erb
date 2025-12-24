@@ -1,0 +1,74 @@
+<div class="filters">
+  <form method="get" action="<%= dashboard_index_path %>">
+    <div class="form-group">
+      <label>Период</label>
+      <select name="period">
+        <option value="today" <%= 'selected' if period == 'today' %>>Сегодня</option>
+        <option value="yesterday" <%= 'selected' if period == 'yesterday' %>>Вчера</option>
+        <option value="week" <%= 'selected' if period == 'week' %>>Неделя</option>
+        <option value="month" <%= 'selected' if period == 'month' %>>Месяц</option>
+      </select>
+    </div>
+    <button type="submit">Применить</button>
+  </form>
+</div>
+
+<div class="stats-grid">
+  <div class="stat-card">
+    <h3>Отправлено</h3>
+    <div class="value"><%= stats[:summary][:total_sent] %></div>
+  </div>
+  
+  <div class="stat-card">
+    <h3>Доставлено</h3>
+    <div class="value"><%= stats[:summary][:total_delivered] %></div>
+    <div class="rate">
+      <%= stats[:rates][:delivery_rate] %>% доставка
+    </div>
+  </div>
+  
+  <div class="stat-card">
+    <h3>Открыто</h3>
+    <div class="value"><%= stats[:summary][:total_opened] %></div>
+    <div class="rate">
+      <%= stats[:rates][:open_rate] %>% открытий
+    </div>
+  </div>
+  
+  <div class="stat-card">
+    <h3>Клики</h3>
+    <div class="value"><%= stats[:summary][:total_clicked] %></div>
+    <div class="rate">
+      <%= stats[:rates][:click_rate] %>% кликов
+    </div>
+  </div>
+  
+  <div class="stat-card">
+    <h3>Bounce Rate</h3>
+    <div class="value"><%= stats[:summary][:total_bounced] %></div>
+    <div class="rate <%= 'negative' if stats[:rates][:bounce_rate] > 2 %>">
+      <%= stats[:rates][:bounce_rate] %>%
+    </div>
+  </div>
+  
+  <div class="stat-card">
+    <h3>Ошибки</h3>
+    <div class="value"><%= stats[:summary][:total_failed] %></div>
+    <div class="rate <%= 'negative' if stats[:summary][:total_failed] > 0 %>">
+      <%= stats[:summary][:total_failed] > 0 ? 'Есть ошибки' : 'Нет ошибок' %>
+    </div>
+  </div>
+  
+  <div class="stat-card">
+    <h3>Жалобы</h3>
+    <div class="value"><%= stats[:summary][:total_complained] %></div>
+    <div class="rate <%= 'negative' if stats[:rates][:complaint_rate] > 0.1 %>">
+      <%= stats[:rates][:complaint_rate] %>%
+    </div>
+  </div>
+</div>
+
+
+
+
+

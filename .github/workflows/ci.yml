@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  api:
+    name: Services API
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: email_sender_test
+          POSTGRES_USER: email_sender
+          POSTGRES_PASSWORD: test_password
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+    
+    env:
+      RAILS_ENV: test
+      DATABASE_URL: postgres://email_sender:test_password@localhost:5432/email_sender_test
+      REDIS_URL: redis://localhost:6379/0
+      SECRET_KEY_BASE: test_secret_key_base_for_ci_1234567890123456789012345678901234567890123456789012345678901234
+      ENCRYPTION_PRIMARY_KEY: test_encryption_primary_key_32_chars
+      ENCRYPTION_DETERMINISTIC_KEY: test_encryption_deterministic_key_32_chars
+      ENCRYPTION_KEY_DERIVATION_SALT: test_encryption_salt_32_chars
+      DASHBOARD_USERNAME: test_admin
+      DASHBOARD_PASSWORD: test_password
+      SIDEKIQ_WEB_USERNAME: test_admin
+      SIDEKIQ_WEB_PASSWORD: test_password
+      POSTAL_SIGNING_KEY: test_postal_signing_key_64_hex_chars_1234567890123456789012345678901234567890123456789012345678901234
+      POSTAL_WEBHOOK_PUBLIC_KEY: test_public_key
+      CORS_ORIGINS: http://localhost:3000
+      ALLOWED_SENDER_DOMAINS: example.com
+      LOG_LEVEL: info
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 3.2
+          bundler-cache: true
+          working-directory: services/api
+      
+      - name: Install dependencies
+        working-directory: services/api
+        run: bundle install
+      
+      - name: Setup database
+        working-directory: services/api
+        run: |
+          bundle exec rails db:create
+          bundle exec rails db:schema:load
+      
+      - name: Run RuboCop
+        working-directory: services/api
+        run: bundle exec rubocop
+      
+      - name: Run RSpec
+        working-directory: services/api
+        run: bundle exec rspec
+      
+      - name: Run Brakeman
+        working-directory: services/api
+        run: bundle exec brakeman --no-pager --quiet
+

@@ -1,0 +1,58 @@
+GEM
+  remote: https://rubygems.org/
+  specs:
+    base64 (0.3.0)
+    bigdecimal (4.0.1)
+    connection_pool (3.0.2)
+    logger (1.7.0)
+    mustermann (3.0.4)
+      ruby2_keywords (~> 0.0.1)
+    nio4r (2.7.5)
+    oj (3.16.13)
+      bigdecimal (>= 3.0)
+      ostruct (>= 0.2)
+    ostruct (0.6.3)
+    pg (1.6.2-x86_64-linux)
+    puma (6.6.1)
+      nio4r (~> 2.0)
+    rack (2.2.21)
+    rack-protection (3.2.0)
+      base64 (>= 0.1.0)
+      rack (~> 2.2, >= 2.2.4)
+    redis (5.4.1)
+      redis-client (>= 0.22.0)
+    redis-client (0.26.2)
+      connection_pool
+    ruby2_keywords (0.0.5)
+    sidekiq (7.3.9)
+      base64
+      connection_pool (>= 2.3.0)
+      logger
+      rack (>= 2.2.4)
+      redis-client (>= 0.22.2)
+    sinatra (3.2.0)
+      mustermann (~> 3.0)
+      rack (~> 2.2, >= 2.2.4)
+      rack-protection (= 3.2.0)
+      tilt (~> 2.0)
+    tilt (2.6.1)
+
+PLATFORMS
+  x86_64-linux
+
+DEPENDENCIES
+  oj (~> 3.16)
+  pg (~> 1.5)
+  puma (~> 6.4)
+  redis (~> 5.0)
+  sidekiq (~> 7.2)
+  sinatra (~> 3.1)
+
+RUBY VERSION
+   ruby 3.2.9p265
+
+BUNDLED WITH
+   2.4.19
+
+
+

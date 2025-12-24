@@ -1,0 +1,13 @@
+source 'https://rubygems.org'
+
+ruby '~> 3.2.0'
+
+gem 'sinatra', '~> 3.1'
+gem 'puma', '~> 6.4'
+gem 'pg', '~> 1.5'
+gem 'redis', '~> 5.0'
+gem 'sidekiq', '~> 7.2'
+gem 'oj', '~> 3.16'
+gem 'activesupport', '~> 7.1'
+
+

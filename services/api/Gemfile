@@ -1,0 +1,68 @@
+# ===========================================
+# EMAIL SENDER API
+# Gemfile
+# ===========================================
+
+source 'https://rubygems.org'
+
+ruby '~> 3.2.0'
+
+# Rails
+gem 'rails', '~> 7.1.0'
+
+# Database
+gem 'pg', '~> 1.5'
+
+# Web Server
+gem 'puma', '~> 6.4'
+
+# Background Jobs
+gem 'sidekiq', '~> 7.2'
+
+# Redis
+gem 'redis', '~> 5.0'
+
+# Template Engine
+gem 'liquid', '~> 5.4'
+
+# HTTP Client (для Postal API и webhooks)
+gem 'httparty', '~> 0.21'
+
+# JSON
+gem 'oj', '~> 3.16'
+
+# Rate Limiting
+gem 'rack-attack', '~> 6.7'
+
+# CORS
+gem 'rack-cors', '~> 2.0'
+
+# Environment Variables
+gem 'dotenv-rails', '~> 2.8'
+
+# Bootsnap for faster boot
+gem 'bootsnap', '~> 1.18', require: false
+
+# Monitoring (optional)
+gem 'sentry-ruby', '~> 5.15'
+gem 'sentry-rails', '~> 5.15'
+
+# Encryption
+gem 'bcrypt', '~> 3.1'
+
+group :development, :test do
+  gem 'rspec-rails', '~> 6.1'
+  gem 'factory_bot_rails', '~> 6.4'
+  gem 'faker', '~> 3.2'
+  gem 'rubocop', '~> 1.59'
+  gem 'rubocop-rails', '~> 2.23'
+  gem 'pry-rails', '~> 0.3'
+  gem 'brakeman', '~> 6.0'
+end
+
+group :test do
+  gem 'shoulda-matchers', '~> 5.3'
+  gem 'webmock', '~> 3.19'
+  gem 'simplecov', '~> 0.22', require: false
+end
+

@@ -1,0 +1,169 @@
+# ===========================================
+# POSTAL MAIL SERVER
+# Configuration File
+# ===========================================
+#
+# Замените переменные ${...} на реальные значения
+# или используйте environment variables
+#
+# Документация: https://docs.postalserver.io/
+#
+# ===========================================
+
+# ===========================================
+# GENERAL
+# ===========================================
+general:
+  # Использовать IP пулы для отправки
+  use_ip_pools: false
+
+# ===========================================
+# WEB INTERFACE
+# ===========================================
+web:
+  # Домен веб-интерфейса
+  host: ${DOMAIN}
+  
+  # Протокол (http или https)
+  protocol: https
+
+# ===========================================
+# MAIN DATABASE (MariaDB)
+# ===========================================
+main_db:
+  host: mariadb
+  port: 3306
+  username: postal
+  password: ${MARIADB_PASSWORD}
+  database: postal
+  pool_size: 5
+
+# ===========================================
+# MESSAGE DATABASE
+# ===========================================
+message_db:
+  host: mariadb
+  port: 3306
+  username: postal
+  password: ${MARIADB_PASSWORD}
+  prefix: postal
+
+# ===========================================
+# RABBITMQ
+# ===========================================
+rabbitmq:
+  host: rabbitmq
+  port: 5672
+  username: postal
+  password: ${RABBITMQ_PASSWORD}
+  vhost: postal
+
+# ===========================================
+# SMTP SERVER
+# ===========================================
+smtp_server:
+  # Порт для приёма входящей почты
+  port: 25
+  
+  # Логировать подключения
+  log_connect: true
+  
+  # Прокси-протокол (если за load balancer)
+  proxy_protocol: false
+  
+  # SSL режим (none, starttls, tls)
+  ssl_mode: starttls
+  
+  # Максимальный размер сообщения (в байтах)
+  max_message_size: 14680064  # 14MB
+
+# ===========================================
+# DNS
+# ===========================================
+dns:
+  # MX записи для сервера
+  mx_records:
+    - ${DOMAIN}
+  
+  # Hostname SMTP сервера
+  smtp_server_hostname: ${DOMAIN}
+  
+  # SPF include (если используется)
+  # spf_include: spf.${DOMAIN}
+  
+  # Return-Path домен
+  return_path: rp.${DOMAIN}
+  
+  # Route домен (для входящей почты)
+  route_domain: routes.${DOMAIN}
+  
+  # Track домен (для трекинга)
+  track_domain: ${DOMAIN}
+  
+  # DKIM идентификатор
+  dkim_identifier: postal
+  
+  # Проверять PTR при получении
+  check_ptr: false
+
+# ===========================================
+# LOGGING
+# ===========================================
+logging:
+  # Логировать Rails запросы
+  rails_log: true
+  
+  # Уровень (debug, info, warn, error)
+  log_level: info
+
+# ===========================================
+# RAILS
+# ===========================================
+rails:
+  # Secret key (должен совпадать с SECRET_KEY_BASE)
+  secret_key: ${SECRET_KEY_BASE}
+  
+  # Environment
+  environment: production
+
+# ===========================================
+# SMTP RELAYS (опционально)
+# ===========================================
+# Если нужно отправлять через внешний SMTP
+# smtp_relays:
+#   default:
+#     host: smtp.example.com
+#     port: 587
+#     ssl_mode: starttls
+#     username: user
+#     password: pass
+
+# ===========================================
+# SMTP CLIENT
+# ===========================================
+smtp_client:
+  # Таймаут открытия соединения (секунды)
+  open_timeout: 30
+  
+  # Таймаут чтения (секунды)  
+  read_timeout: 60
+  
+  # HELO/EHLO hostname
+  helo_hostname: ${DOMAIN}
+
+# ===========================================
+# WORKERS
+# ===========================================
+workers:
+  # Количество worker процессов
+  # processes: 2
+  
+  # Потоков на процесс
+  # threads: 4
+
+# ===========================================
+# WEBHOOKS (наши внутренние)
+# ===========================================
+# Postal будет отправлять события на этот URL
+# Настраивается через веб-интерфейс Postal
+
