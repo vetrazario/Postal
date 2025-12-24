@@ -333,9 +333,9 @@ services:
     deploy:
       resources:
         limits:
-          memory: 350M
+          memory: 512M
         reservations:
-          memory: 200M
+          memory: 300M
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://localhost:5000 || exit 1"]
       interval: 30s
