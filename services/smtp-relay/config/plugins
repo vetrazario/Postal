@@ -1,0 +1,16 @@
+# Haraka Plugin Loading Configuration
+# Plugins are loaded in the order specified below
+
+# Core Haraka plugins
+tls
+auth/flat_file
+data.headers
+data.uribl
+record_envelope_addresses
+
+# Custom plugins (in ./plugins/ directory)
+smtp_auth
+parse_email
+rebuild_headers
+inject_tracking
+forward_to_api

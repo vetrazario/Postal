@@ -347,6 +347,55 @@ services:
       - backend
 
   # ===========================================
+  # SMTP RELAY
+  # ===========================================
+
+  smtp-relay:
+    build:
+      context: ./services/smtp-relay
+      dockerfile: Dockerfile
+    container_name: email_smtp_relay
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    ports:
+      - "587:587"
+    environment:
+      # SMTP Configuration
+      SMTP_RELAY_PORT: 587
+      SMTP_RELAY_TLS: "true"
+      SMTP_RELAY_AUTH_REQUIRED: "true"
+      # API Integration
+      API_URL: http://api:3000
+      SMTP_RELAY_API_KEY: ${SMTP_RELAY_API_KEY:-}
+      # Database
+      POSTGRES_URL: postgres://email_sender:${POSTGRES_PASSWORD}@postgres:5432/email_sender
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      # General
+      DOMAIN: ${DOMAIN}
+      NODE_ENV: production
+    volumes:
+      - smtp_relay_logs:/app/logs
+    deploy:
+      resources:
+        limits:
+          memory: 300M
+        reservations:
+          memory: 150M
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 587 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - frontend
+      - backend
+
+  # ===========================================
   # REVERSE PROXY
   # ===========================================
 
@@ -405,6 +454,8 @@ volumes:
     name: email_postal_data
   api_logs:
     name: email_api_logs
+  smtp_relay_logs:
+    name: email_smtp_relay_logs
   certbot_certs:
     name: email_certbot_certs
   certbot_www:
