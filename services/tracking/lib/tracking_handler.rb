@@ -32,10 +32,10 @@ class TrackingHandler
       
       email_log_id = result.rows.first[0]
       
-      # Create tracking event
+      # Create tracking event (don't store decrypted email for PII protection)
       conn.exec_params(
         "INSERT INTO tracking_events (email_log_id, event_type, event_data, ip_address, user_agent, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, NOW(), NOW())",
-        [email_log_id, 'open', { email: email, campaign_id: campaign_id }.to_json, ip, user_agent]
+        [email_log_id, 'open', { campaign_id: campaign_id }.to_json, ip, user_agent]
       )
       
       # Enqueue webhook job
@@ -74,10 +74,10 @@ class TrackingHandler
       
       email_log_id = result.rows.first[0]
       
-      # Create tracking event
+      # Create tracking event (don't store decrypted email for PII protection)
       conn.exec_params(
         "INSERT INTO tracking_events (email_log_id, event_type, event_data, ip_address, user_agent, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, NOW(), NOW())",
-        [email_log_id, 'click', { url: original_url, email: email, campaign_id: campaign_id }.to_json, ip, user_agent]
+        [email_log_id, 'click', { url: original_url, campaign_id: campaign_id }.to_json, ip, user_agent]
       )
       
       # Enqueue webhook job

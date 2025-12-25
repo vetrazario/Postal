@@ -19,8 +19,8 @@ RUN apt-get update -qq && \
 # Рабочая директория
 WORKDIR /app
 
-# Копирование Gemfile
-COPY Gemfile Gemfile.lock* ./
+# Копирование Gemfile (require Gemfile.lock for stable dependencies)
+COPY Gemfile Gemfile.lock ./
 
 # Установка gems
 RUN bundle config set --local without 'development test' && \
