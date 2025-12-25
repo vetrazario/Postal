@@ -1,0 +1,83 @@
+<div class="space-y-6">
+  <div>
+    <h1 class="text-3xl font-bold text-gray-900">Email Logs</h1>
+    <p class="mt-2 text-sm text-gray-700">View and search all email logs</p>
+  </div>
+
+  <!-- Filters -->
+  <%= form_with url: dashboard_logs_path, method: :get, class: "rounded-lg bg-white p-6 shadow" do |f| %>
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-4">
+      <div>
+        <%= f.label :status, "Status", class: "block text-sm font-medium text-gray-700" %>
+        <%= f.select :status, options_for_select([['All', ''], ['Queued', 'queued'], ['Processing', 'processing'], ['Sent', 'sent'], ['Delivered', 'delivered'], ['Bounced', 'bounced'], ['Failed', 'failed']], params[:status]), {}, class: "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" %>
+      </div>
+      <div>
+        <%= f.label :recipient, "Recipient", class: "block text-sm font-medium text-gray-700" %>
+        <%= f.text_field :recipient, value: params[:recipient], placeholder: "Search recipient", class: "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" %>
+      </div>
+      <div>
+        <%= f.label :campaign_id, "Campaign ID", class: "block text-sm font-medium text-gray-700" %>
+        <%= f.text_field :campaign_id, value: params[:campaign_id], placeholder: "Campaign ID", class: "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" %>
+      </div>
+      <div class="flex items-end">
+        <%= f.submit "Filter", class: "rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 w-full" %>
+      </div>
+    </div>
+  <% end %>
+
+  <!-- Stats -->
+  <div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
+    <div class="rounded-lg bg-white p-4 shadow">
+      <div class="text-sm text-gray-500">Total</div>
+      <div class="mt-1 text-2xl font-semibold text-gray-900"><%= @stats[:total] %></div>
+    </div>
+    <div class="rounded-lg bg-white p-4 shadow">
+      <div class="text-sm text-gray-500">Delivered</div>
+      <div class="mt-1 text-2xl font-semibold text-green-600"><%= @stats[:delivered] %></div>
+    </div>
+    <div class="rounded-lg bg-white p-4 shadow">
+      <div class="text-sm text-gray-500">Bounced</div>
+      <div class="mt-1 text-2xl font-semibold text-red-600"><%= @stats[:bounced] %></div>
+    </div>
+    <div class="rounded-lg bg-white p-4 shadow">
+      <div class="text-sm text-gray-500">Failed</div>
+      <div class="mt-1 text-2xl font-semibold text-red-600"><%= @stats[:failed] %></div>
+    </div>
+  </div>
+
+  <!-- Logs table -->
+  <div class="overflow-hidden bg-white shadow sm:rounded-lg">
+    <table class="min-w-full divide-y divide-gray-300">
+      <thead class="bg-gray-50">
+        <tr>
+          <th class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900">Recipient</th>
+          <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Subject</th>
+          <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Campaign</th>
+          <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Status</th>
+          <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Created</th>
+          <th class="relative py-3.5 pl-3 pr-4"><span class="sr-only">View</span></th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-200">
+        <% @logs.each do |log| %>
+          <tr>
+            <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900"><%= log.recipient_masked %></td>
+            <td class="px-3 py-4 text-sm text-gray-500"><%= truncate(log.subject, length: 40) %></td>
+            <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500"><%= log.campaign_id %></td>
+            <td class="whitespace-nowrap px-3 py-4 text-sm"><span class="inline-flex rounded-full px-2 text-xs font-semibold leading-5 <%= log.status == 'delivered' ? 'bg-green-100 text-green-800' : log.status == 'failed' || log.status == 'bounced' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800' %>"><%= log.status.capitalize %></span></td>
+            <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500"><%= log.created_at.strftime('%Y-%m-%d %H:%M') %></td>
+            <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium">
+              <%= link_to "View", dashboard_log_path(log), class: "text-indigo-600 hover:text-indigo-900" %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination would go here -->
+  <div class="flex justify-between items-center">
+    <div class="text-sm text-gray-700">Showing <%= @logs.size %> results</div>
+    <%= link_to "Export to CSV", export_dashboard_logs_path(request.query_parameters), class: "rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50" %>
+  </div>
+</div>

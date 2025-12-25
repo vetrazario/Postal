@@ -1,0 +1,97 @@
+<div class="space-y-8" x-data="{ activeTab: 'bounces' }">
+  <div>
+    <h1 class="text-3xl font-bold text-gray-900">AI Analytics</h1>
+    <p class="mt-2 text-sm text-gray-700">AI-powered insights for email performance optimization</p>
+  </div>
+
+  <!-- AI Settings Status -->
+  <div class="rounded-lg <%= @ai_settings.enabled? ? 'bg-green-50' : 'bg-yellow-50' %> p-4">
+    <div class="flex items-center justify-between">
+      <div>
+        <h3 class="text-sm font-medium <%= @ai_settings.enabled? ? 'text-green-800' : 'text-yellow-800' %>">
+          AI Analytics <%= @ai_settings.enabled? ? 'Enabled' : 'Disabled' %>
+        </h3>
+        <p class="mt-1 text-sm <%= @ai_settings.enabled? ? 'text-green-700' : 'text-yellow-700' %>">
+          <% if @ai_settings.enabled? %>
+            Model: <%= @ai_settings.model_name %> | Total Cost: $<%= @total_cost %>
+          <% else %>
+            Configure AI settings to enable analytics features
+          <% end %>
+        </p>
+      </div>
+      <%= link_to "Settings", dashboard_settings_path, class: "rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm hover:bg-gray-50" %>
+    </div>
+  </div>
+
+  <% if @ai_settings.enabled? %>
+    <!-- AI Analysis Actions -->
+    <div class="grid grid-cols-1 gap-6 sm:grid-cols-3">
+      <div class="rounded-lg bg-white p-6 shadow">
+        <h3 class="text-lg font-medium text-gray-900">Analyze Bounces</h3>
+        <p class="mt-2 text-sm text-gray-500">Get AI insights on why emails are bouncing and how to reduce bounce rates</p>
+        <%= button_to "Run Analysis", analyze_bounces_dashboard_ai_analytics_path, method: :post, class: "mt-4 w-full rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500" %>
+      </div>
+
+      <div class="rounded-lg bg-white p-6 shadow">
+        <h3 class="text-lg font-medium text-gray-900">Optimize Send Time</h3>
+        <p class="mt-2 text-sm text-gray-500">Discover the best times to send emails for maximum engagement</p>
+        <form action="<%= optimize_timing_dashboard_ai_analytics_path %>" method="post" class="mt-4">
+          <%= hidden_field_tag :authenticity_token, form_authenticity_token %>
+          <input type="text" name="campaign_id" placeholder="Campaign ID" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm mb-2" required>
+          <button type="submit" class="w-full rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">Run Analysis</button>
+        </form>
+      </div>
+
+      <div class="rounded-lg bg-white p-6 shadow">
+        <h3 class="text-lg font-medium text-gray-900">Compare Campaigns</h3>
+        <p class="mt-2 text-sm text-gray-500">Compare multiple campaigns to identify success factors</p>
+        <form action="<%= compare_campaigns_dashboard_ai_analytics_path %>" method="post" class="mt-4">
+          <%= hidden_field_tag :authenticity_token, form_authenticity_token %>
+          <input type="text" name="campaign_ids[]" placeholder="Campaign ID 1" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm mb-2" required>
+          <input type="text" name="campaign_ids[]" placeholder="Campaign ID 2" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm mb-2" required>
+          <button type="submit" class="w-full rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">Run Analysis</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Recent Analyses -->
+    <div class="rounded-lg bg-white shadow">
+      <div class="px-4 py-5 sm:p-6">
+        <h3 class="text-lg font-medium text-gray-900">Recent Analyses</h3>
+        <div class="mt-4 divide-y divide-gray-200">
+          <% if @recent_analyses.empty? %>
+            <p class="py-4 text-center text-sm text-gray-500">No analyses yet. Run your first analysis above.</p>
+          <% else %>
+            <% @recent_analyses.each do |analysis| %>
+              <div class="py-4">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <h4 class="text-sm font-medium text-gray-900"><%= analysis.analysis_type.titleize %></h4>
+                    <p class="mt-1 text-sm text-gray-500"><%= analysis.created_at.strftime('%Y-%m-%d %H:%M') %> | Tokens: <%= analysis.total_tokens %></p>
+                  </div>
+                  <button @click="console.log(<%= analysis.analysis_result.to_json.html_safe %>)" class="text-sm text-indigo-600 hover:text-indigo-900">View Details</button>
+                </div>
+                <% if analysis.analysis_result['summary'] %>
+                  <p class="mt-2 text-sm text-gray-700"><%= analysis.analysis_result['summary'] %></p>
+                <% end %>
+              </div>
+            <% end %>
+          <% end %>
+        </div>
+      </div>
+    </div>
+  <% else %>
+    <div class="rounded-lg bg-gray-50 p-12 text-center">
+      <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+      </svg>
+      <h3 class="mt-2 text-sm font-semibold text-gray-900">AI Analytics Not Configured</h3>
+      <p class="mt-1 text-sm text-gray-500">Enable AI analytics in settings to start analyzing your email performance</p>
+      <div class="mt-6">
+        <%= link_to dashboard_settings_path, class: "inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500" do %>
+          Configure AI Settings
+        <% end %>
+      </div>
+    </div>
+  <% end %>
+</div>

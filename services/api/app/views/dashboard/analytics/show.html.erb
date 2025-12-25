@@ -1,0 +1,131 @@
+<div class="space-y-8" x-data="analyticsData()">
+  <div>
+    <h1 class="text-3xl font-bold text-gray-900">Analytics Dashboard</h1>
+    <p class="mt-2 text-sm text-gray-700">Email performance metrics and insights</p>
+  </div>
+
+  <!-- Overview Stats -->
+  <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+    <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
+      <dt class="truncate text-sm font-medium text-gray-500">Total Sent</dt>
+      <dd class="mt-1 text-3xl font-semibold tracking-tight text-gray-900"><%= number_with_delimiter(@overview_stats[:total_sent]) %></dd>
+    </div>
+    <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
+      <dt class="truncate text-sm font-medium text-gray-500">Delivery Rate</dt>
+      <dd class="mt-1 text-3xl font-semibold tracking-tight text-green-600">
+        <% if @overview_stats[:total_sent] > 0 %>
+          <%= ((@overview_stats[:total_delivered].to_f / @overview_stats[:total_sent]) * 100).round(1) %>%
+        <% else %>
+          0%
+        <% end %>
+      </dd>
+    </div>
+    <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
+      <dt class="truncate text-sm font-medium text-gray-500">Open Rate</dt>
+      <dd class="mt-1 text-3xl font-semibold tracking-tight text-blue-600">
+        <% if @overview_stats[:total_delivered] > 0 %>
+          <%= ((@overview_stats[:unique_opens].to_f / @overview_stats[:total_delivered]) * 100).round(1) %>%
+        <% else %>
+          0%
+        <% end %>
+      </dd>
+    </div>
+    <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
+      <dt class="truncate text-sm font-medium text-gray-500">Click Rate</dt>
+      <dd class="mt-1 text-3xl font-semibold tracking-tight text-purple-600">
+        <% if @overview_stats[:total_delivered] > 0 %>
+          <%= ((@overview_stats[:total_clicks].to_f / @overview_stats[:total_delivered]) * 100).round(1) %>%
+        <% else %>
+          0%
+        <% end %>
+      </dd>
+    </div>
+    <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
+      <dt class="truncate text-sm font-medium text-gray-500">Bounce Rate</dt>
+      <dd class="mt-1 text-3xl font-semibold tracking-tight text-red-600">
+        <% if @overview_stats[:total_sent] > 0 %>
+          <%= ((@overview_stats[:total_bounced].to_f / @overview_stats[:total_sent]) * 100).round(1) %>%
+        <% else %>
+          0%
+        <% end %>
+      </dd>
+    </div>
+    <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
+      <dt class="truncate text-sm font-medium text-gray-500">Total Campaigns</dt>
+      <dd class="mt-1 text-3xl font-semibold tracking-tight text-gray-900"><%= @overview_stats[:total_campaigns] %></dd>
+    </div>
+  </div>
+
+  <!-- Daily Performance Chart -->
+  <div class="rounded-lg bg-white p-6 shadow">
+    <h3 class="text-lg font-medium text-gray-900 mb-4">Daily Performance (Last 30 Days)</h3>
+    <canvas id="dailyChart" width="400" height="100"></canvas>
+  </div>
+
+  <!-- Top Campaigns -->
+  <div class="rounded-lg bg-white shadow">
+    <div class="px-4 py-5 sm:p-6">
+      <h3 class="text-lg font-medium text-gray-900">Top Campaigns</h3>
+      <div class="mt-4">
+        <table class="min-w-full divide-y divide-gray-300">
+          <thead>
+            <tr>
+              <th class="py-3 text-left text-sm font-semibold text-gray-900">Campaign ID</th>
+              <th class="px-3 py-3 text-left text-sm font-semibold text-gray-900">Emails Sent</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-200">
+            <% @campaign_stats.each do |stat| %>
+              <tr>
+                <td class="whitespace-nowrap py-4 text-sm font-medium text-gray-900"><%= stat[:campaign_id] %></td>
+                <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500"><%= number_with_delimiter(stat[:count]) %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function analyticsData() {
+  return {
+    init() {
+      this.loadDailyChart();
+    },
+    async loadDailyChart() {
+      const response = await fetch('<%= daily_dashboard_analytics_path %>');
+      const data = await response.json();
+      
+      const ctx = document.getElementById('dailyChart').getContext('2d');
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: data.map(d => d.label),
+          datasets: [{
+            label: 'Sent',
+            data: data.map(d => d.sent),
+            borderColor: 'rgb(99, 102, 241)',
+            backgroundColor: 'rgba(99, 102, 241, 0.1)',
+          }, {
+            label: 'Delivered',
+            data: data.map(d => d.delivered),
+            borderColor: 'rgb(34, 197, 94)',
+            backgroundColor: 'rgba(34, 197, 94, 0.1)',
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          scales: {
+            y: {
+              beginAtZero: true
+            }
+          }
+        }
+      });
+    }
+  }
+}
+</script>

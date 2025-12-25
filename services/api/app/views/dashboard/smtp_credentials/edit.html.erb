@@ -1,0 +1,35 @@
+<div class="space-y-10">
+  <div>
+    <h1 class="text-3xl font-bold tracking-tight text-gray-900">Edit SMTP Credential</h1>
+    <p class="mt-2 text-sm text-gray-700">Update credential settings (password cannot be changed)</p>
+  </div>
+
+  <div class="mx-auto max-w-2xl">
+    <%= form_with model: @smtp_credential, url: dashboard_smtp_credential_path(@smtp_credential), method: :patch, class: "space-y-6" do |form| %>
+      <div class="rounded-md bg-white shadow-sm ring-1 ring-gray-900/5">
+        <div class="px-4 py-6 sm:p-8">
+          <div class="grid max-w-2xl grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
+            <div class="sm:col-span-6">
+              <%= form.label :description, "Description", class: "block text-sm font-medium leading-6 text-gray-900" %>
+              <div class="mt-2">
+                <%= form.text_field :description, class: "block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm" %>
+              </div>
+            </div>
+
+            <div class="sm:col-span-6">
+              <%= form.label :rate_limit, "Rate Limit (emails/minute)", class: "block text-sm font-medium leading-6 text-gray-900" %>
+              <div class="mt-2">
+                <%= form.number_field :rate_limit, min: 1, max: 1000, class: "block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm" %>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end gap-x-6">
+        <%= link_to "Cancel", dashboard_smtp_credentials_path, class: "text-sm font-semibold text-gray-900" %>
+        <%= form.submit "Update", class: "rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500" %>
+      </div>
+    <% end %>
+  </div>
+</div>

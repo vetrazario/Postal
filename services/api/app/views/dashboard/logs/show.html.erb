@@ -1,0 +1,85 @@
+<div class="space-y-6">
+  <div>
+    <h1 class="text-3xl font-bold text-gray-900">Email Log Details</h1>
+    <p class="mt-2 text-sm text-gray-700">Message ID: <%= @log.message_id %></p>
+  </div>
+
+  <div class="overflow-hidden bg-white shadow sm:rounded-lg">
+    <div class="px-4 py-6 sm:px-6">
+      <h3 class="text-base font-semibold text-gray-900">Email Information</h3>
+    </div>
+    <div class="border-t border-gray-100">
+      <dl class="divide-y divide-gray-100">
+        <div class="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+          <dt class="text-sm font-medium text-gray-900">Recipient</dt>
+          <dd class="mt-1 text-sm text-gray-700 sm:col-span-2 sm:mt-0"><%= @log.recipient_masked %></dd>
+        </div>
+        <div class="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+          <dt class="text-sm font-medium text-gray-900">Sender</dt>
+          <dd class="mt-1 text-sm text-gray-700 sm:col-span-2 sm:mt-0"><%= @log.sender %></dd>
+        </div>
+        <div class="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+          <dt class="text-sm font-medium text-gray-900">Subject</dt>
+          <dd class="mt-1 text-sm text-gray-700 sm:col-span-2 sm:mt-0"><%= @log.subject %></dd>
+        </div>
+        <div class="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+          <dt class="text-sm font-medium text-gray-900">Campaign ID</dt>
+          <dd class="mt-1 text-sm text-gray-700 sm:col-span-2 sm:mt-0"><%= @log.campaign_id %></dd>
+        </div>
+        <div class="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+          <dt class="text-sm font-medium text-gray-900">Status</dt>
+          <dd class="mt-1 text-sm text-gray-700 sm:col-span-2 sm:mt-0">
+            <span class="inline-flex rounded-full px-2 text-xs font-semibold <%= @log.status == 'delivered' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800' %>">
+              <%= @log.status.capitalize %>
+            </span>
+          </dd>
+        </div>
+        <div class="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+          <dt class="text-sm font-medium text-gray-900">Created At</dt>
+          <dd class="mt-1 text-sm text-gray-700 sm:col-span-2 sm:mt-0"><%= @log.created_at.strftime('%Y-%m-%d %H:%M:%S') %></dd>
+        </div>
+        <% if @log.sent_at %>
+          <div class="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+            <dt class="text-sm font-medium text-gray-900">Sent At</dt>
+            <dd class="mt-1 text-sm text-gray-700 sm:col-span-2 sm:mt-0"><%= @log.sent_at.strftime('%Y-%m-%d %H:%M:%S') %></dd>
+          </div>
+        <% end %>
+        <% if @log.delivered_at %>
+          <div class="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+            <dt class="text-sm font-medium text-gray-900">Delivered At</dt>
+            <dd class="mt-1 text-sm text-gray-700 sm:col-span-2 sm:mt-0"><%= @log.delivered_at.strftime('%Y-%m-%d %H:%M:%S') %></dd>
+          </div>
+        <% end %>
+      </dl>
+    </div>
+  </div>
+
+  <!-- Tracking Events -->
+  <% if @tracking_events.any? %>
+    <div class="overflow-hidden bg-white shadow sm:rounded-lg">
+      <div class="px-4 py-6 sm:px-6">
+        <h3 class="text-base font-semibold text-gray-900">Tracking Events</h3>
+      </div>
+      <table class="min-w-full divide-y divide-gray-300">
+        <thead class="bg-gray-50">
+          <tr>
+            <th class="py-3 pl-4 pr-3 text-left text-sm font-semibold text-gray-900">Event Type</th>
+            <th class="px-3 py-3 text-left text-sm font-semibold text-gray-900">Timestamp</th>
+            <th class="px-3 py-3 text-left text-sm font-semibold text-gray-900">Details</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-200">
+          <% @tracking_events.each do |event| %>
+            <tr>
+              <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900"><%= event.event_type.capitalize %></td>
+              <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500"><%= event.created_at.strftime('%Y-%m-%d %H:%M:%S') %></td>
+              <td class="px-3 py-4 text-sm text-gray-500"><%= event.event_data.to_json %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% end %>
+
+  <%= link_to "← Back to Logs", dashboard_logs_path, class: "text-sm font-medium text-indigo-600 hover:text-indigo-500" %>
+</div>

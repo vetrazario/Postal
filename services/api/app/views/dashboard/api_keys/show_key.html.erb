@@ -1,0 +1,33 @@
+<div class="space-y-10">
+  <div>
+    <h1 class="text-3xl font-bold text-gray-900">API Key Generated Successfully</h1>
+    <p class="mt-2 text-sm text-gray-700">Save this key now - it won't be shown again</p>
+  </div>
+
+  <div class="rounded-md bg-red-50 p-4">
+    <h3 class="text-sm font-medium text-red-800">This is your only chance to copy the API key!</h3>
+    <p class="mt-2 text-sm text-red-700">For security reasons, we cannot show you this key again.</p>
+  </div>
+
+  <div class="mx-auto max-w-4xl bg-white shadow sm:rounded-lg">
+    <div class="px-4 py-6 sm:px-6">
+      <h3 class="text-base font-semibold text-gray-900">API Key</h3>
+    </div>
+    <div class="border-t border-gray-100 px-4 py-6 sm:px-6 bg-yellow-50">
+      <div class="flex items-center gap-2">
+        <code class="flex-1 rounded bg-white px-3 py-2 font-mono text-sm font-bold text-red-600"><%= @generated_key %></code>
+        <button onclick="copyToClipboard('<%= @generated_key %>')" class="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500">Copy Key</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="flex justify-end">
+    <%= link_to "Back to API Keys", dashboard_api_keys_path, class: "rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500" %>
+  </div>
+</div>
+
+<script>
+function copyToClipboard(text) {
+  navigator.clipboard.writeText(text).then(() => alert('Copied to clipboard!'));
+}
+</script>

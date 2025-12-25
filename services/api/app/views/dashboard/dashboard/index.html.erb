@@ -1,0 +1,235 @@
+<div class="space-y-8">
+  <!-- Page header -->
+  <div>
+    <h1 class="text-3xl font-bold tracking-tight text-gray-900">Dashboard Overview</h1>
+    <p class="mt-2 text-sm text-gray-700">Monitor your email sending infrastructure and system health</p>
+  </div>
+
+  <!-- System Health Status -->
+  <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+    <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
+      <dt class="truncate text-sm font-medium text-gray-500">Database</dt>
+      <dd class="mt-1 flex items-center">
+        <% if @system_health[:database] %>
+          <span class="inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
+            <svg class="mr-1 h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+              <circle cx="10" cy="10" r="10"/>
+            </svg>
+            Healthy
+          </span>
+        <% else %>
+          <span class="inline-flex items-center rounded-md bg-red-50 px-2 py-1 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-600/20">
+            <svg class="mr-1 h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+              <circle cx="10" cy="10" r="10"/>
+            </svg>
+            Down
+          </span>
+        <% end %>
+      </dd>
+    </div>
+
+    <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
+      <dt class="truncate text-sm font-medium text-gray-500">Redis</dt>
+      <dd class="mt-1 flex items-center">
+        <% if @system_health[:redis] %>
+          <span class="inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
+            <svg class="mr-1 h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+              <circle cx="10" cy="10" r="10"/>
+            </svg>
+            Healthy
+          </span>
+        <% else %>
+          <span class="inline-flex items-center rounded-md bg-red-50 px-2 py-1 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-600/20">
+            <svg class="mr-1 h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+              <circle cx="10" cy="10" r="10"/>
+            </svg>
+            Down
+          </span>
+        <% end %>
+      </dd>
+    </div>
+
+    <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
+      <dt class="truncate text-sm font-medium text-gray-500">Sidekiq</dt>
+      <dd class="mt-1 flex items-center">
+        <% if @system_health[:sidekiq] %>
+          <span class="inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
+            <svg class="mr-1 h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+              <circle cx="10" cy="10" r="10"/>
+            </svg>
+            Healthy
+          </span>
+        <% else %>
+          <span class="inline-flex items-center rounded-md bg-red-50 px-2 py-1 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-600/20">
+            <svg class="mr-1 h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+              <circle cx="10" cy="10" r="10"/>
+            </svg>
+            Down
+          </span>
+        <% end %>
+      </dd>
+    </div>
+
+    <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
+      <dt class="truncate text-sm font-medium text-gray-500">Postal</dt>
+      <dd class="mt-1 flex items-center">
+        <% if @system_health[:postal] %>
+          <span class="inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
+            <svg class="mr-1 h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+              <circle cx="10" cy="10" r="10"/>
+            </svg>
+            Healthy
+          </span>
+        <% else %>
+          <span class="inline-flex items-center rounded-md bg-red-50 px-2 py-1 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-600/20">
+            <svg class="mr-1 h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+              <circle cx="10" cy="10" r="10"/>
+            </svg>
+            Down
+          </span>
+        <% end %>
+      </dd>
+    </div>
+  </div>
+
+  <!-- Quick Stats -->
+  <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+    <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
+      <dt class="truncate text-sm font-medium text-gray-500">Total Emails Sent</dt>
+      <dd class="mt-1 text-3xl font-semibold tracking-tight text-gray-900"><%= number_with_delimiter(@total_sent) %></dd>
+    </div>
+
+    <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
+      <dt class="truncate text-sm font-medium text-gray-500">API Keys</dt>
+      <dd class="mt-1 text-3xl font-semibold tracking-tight text-gray-900"><%= @total_api_keys %></dd>
+    </div>
+
+    <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
+      <dt class="truncate text-sm font-medium text-gray-500">SMTP Credentials</dt>
+      <dd class="mt-1 text-3xl font-semibold tracking-tight text-gray-900"><%= @total_smtp_credentials %></dd>
+    </div>
+
+    <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
+      <dt class="truncate text-sm font-medium text-gray-500">Webhooks</dt>
+      <dd class="mt-1 text-3xl font-semibold tracking-tight text-gray-900"><%= @total_webhooks %></dd>
+    </div>
+  </div>
+
+  <!-- Today's Performance -->
+  <div class="rounded-lg bg-white shadow">
+    <div class="px-4 py-5 sm:p-6">
+      <h3 class="text-lg font-medium leading-6 text-gray-900">Today's Performance</h3>
+      <dl class="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        <div class="overflow-hidden rounded-lg bg-gray-50 px-4 py-5">
+          <dt class="truncate text-sm font-medium text-gray-500">Sent</dt>
+          <dd class="mt-1 text-3xl font-semibold text-gray-900"><%= @stats_today[:sent] %></dd>
+          <% change = @stats_yesterday[:sent] > 0 ? ((@stats_today[:sent] - @stats_yesterday[:sent]).to_f / @stats_yesterday[:sent] * 100).round(1) : 0 %>
+          <dd class="mt-1 text-sm text-gray-600">
+            <% if change > 0 %>
+              <span class="text-green-600">+<%= change %>%</span> from yesterday
+            <% elsif change < 0 %>
+              <span class="text-red-600"><%= change %>%</span> from yesterday
+            <% else %>
+              No change
+            <% end %>
+          </dd>
+        </div>
+
+        <div class="overflow-hidden rounded-lg bg-gray-50 px-4 py-5">
+          <dt class="truncate text-sm font-medium text-gray-500">Delivered</dt>
+          <dd class="mt-1 text-3xl font-semibold text-gray-900"><%= @stats_today[:delivered] %></dd>
+          <dd class="mt-1 text-sm text-gray-600">
+            <% if @stats_today[:sent] > 0 %>
+              <%= ((@stats_today[:delivered].to_f / @stats_today[:sent]) * 100).round(1) %>% delivery rate
+            <% else %>
+              N/A
+            <% end %>
+          </dd>
+        </div>
+
+        <div class="overflow-hidden rounded-lg bg-gray-50 px-4 py-5">
+          <dt class="truncate text-sm font-medium text-gray-500">Opened</dt>
+          <dd class="mt-1 text-3xl font-semibold text-gray-900"><%= @stats_today[:opened] %></dd>
+          <dd class="mt-1 text-sm text-gray-600">
+            <% if @stats_today[:delivered] > 0 %>
+              <%= ((@stats_today[:opened].to_f / @stats_today[:delivered]) * 100).round(1) %>% open rate
+            <% else %>
+              N/A
+            <% end %>
+          </dd>
+        </div>
+
+        <div class="overflow-hidden rounded-lg bg-gray-50 px-4 py-5">
+          <dt class="truncate text-sm font-medium text-gray-500">Clicked</dt>
+          <dd class="mt-1 text-3xl font-semibold text-gray-900"><%= @stats_today[:clicked] %></dd>
+          <dd class="mt-1 text-sm text-gray-600">
+            <% if @stats_today[:delivered] > 0 %>
+              <%= ((@stats_today[:clicked].to_f / @stats_today[:delivered]) * 100).round(1) %>% click rate
+            <% else %>
+              N/A
+            <% end %>
+          </dd>
+        </div>
+      </dl>
+    </div>
+  </div>
+
+  <!-- Recent Email Logs -->
+  <div class="rounded-lg bg-white shadow">
+    <div class="px-4 py-5 sm:p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-medium leading-6 text-gray-900">Recent Email Logs</h3>
+        <%= link_to dashboard_logs_path, class: "text-sm font-medium text-indigo-600 hover:text-indigo-500" do %>
+          View all
+          <span aria-hidden="true"> &rarr;</span>
+        <% end %>
+      </div>
+      <div class="flow-root">
+        <div class="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
+          <div class="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
+            <table class="min-w-full divide-y divide-gray-300">
+              <thead>
+                <tr>
+                  <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-0">Recipient</th>
+                  <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Subject</th>
+                  <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Status</th>
+                  <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Time</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-200">
+                <% @recent_logs.each do |log| %>
+                  <tr>
+                    <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-0">
+                      <%= log.recipient_masked %>
+                    </td>
+                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                      <%= truncate(log.subject, length: 50) %>
+                    </td>
+                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                      <% status_colors = {
+                        'queued' => 'gray',
+                        'processing' => 'yellow',
+                        'sent' => 'blue',
+                        'delivered' => 'green',
+                        'bounced' => 'red',
+                        'failed' => 'red',
+                        'complained' => 'orange'
+                      } %>
+                      <% color = status_colors[log.status] || 'gray' %>
+                      <span class="inline-flex items-center rounded-md bg-<%= color %>-50 px-2 py-1 text-xs font-medium text-<%= color %>-700 ring-1 ring-inset ring-<%= color %>-600/20">
+                        <%= log.status.capitalize %>
+                      </span>
+                    </td>
+                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                      <%= time_ago_in_words(log.created_at) %> ago
+                    </td>
+                  </tr>
+                <% end %>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
