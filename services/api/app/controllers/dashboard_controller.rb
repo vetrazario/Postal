@@ -1,28 +1,12 @@
 class DashboardController < ActionController::Base
   # Skip CSRF for now (dashboard is internal)
   skip_before_action :verify_authenticity_token
-  
-<<<<<<< HEAD
+
   # Explicitly use application layout
   layout 'application'
-  
-  # Basic HTTP authentication
-  before_action :authenticate_dashboard
-=======
-  # Basic HTTP authentication (optional - if credentials are set)
-  if ENV["DASHBOARD_USERNAME"].present? && ENV["DASHBOARD_PASSWORD"].present?
-    http_basic_authenticate_with(
-      name: ENV.fetch("DASHBOARD_USERNAME"),
-      password: ENV.fetch("DASHBOARD_PASSWORD")
-    )
-  else
-    before_action :warn_no_auth
 
-    def warn_no_auth
-      Rails.logger.warn("⚠️  Dashboard accessed WITHOUT authentication! Set DASHBOARD_USERNAME and DASHBOARD_PASSWORD to enable auth.")
-    end
-  end
->>>>>>> claude/fix-ubuntu-installation-NOTvk
+  # Basic HTTP authentication (optional if credentials not configured)
+  before_action :authenticate_dashboard
 
   def index
     @period = params[:period] || 'today'
@@ -71,8 +55,11 @@ class DashboardController < ActionController::Base
 
   def authenticate_dashboard
     # Skip authentication if credentials not configured
-    return true unless ENV["DASHBOARD_USERNAME"].present? && ENV["DASHBOARD_PASSWORD"].present?
-    
+    unless ENV["DASHBOARD_USERNAME"].present? && ENV["DASHBOARD_PASSWORD"].present?
+      Rails.logger.warn("⚠️  Dashboard accessed WITHOUT authentication! Set DASHBOARD_USERNAME and DASHBOARD_PASSWORD to enable auth.")
+      return true
+    end
+
     authenticate_or_request_with_http_basic("Dashboard") do |username, password|
       ActiveSupport::SecurityUtils.secure_compare(username, ENV["DASHBOARD_USERNAME"]) &&
         ActiveSupport::SecurityUtils.secure_compare(password, ENV["DASHBOARD_PASSWORD"])
