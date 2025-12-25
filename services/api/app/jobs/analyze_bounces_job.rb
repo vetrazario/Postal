@@ -4,7 +4,7 @@ class AnalyzeBouncesJob < ApplicationJob
   queue_as :default
 
   def perform(bounced_log_ids)
-    analyzer = AI::LogAnalyzer.new
+    analyzer = Ai::LogAnalyzer.new
     result = analyzer.analyze_bounces(bounced_log_ids)
 
     Rails.logger.info "Bounce analysis completed: #{result.inspect}"

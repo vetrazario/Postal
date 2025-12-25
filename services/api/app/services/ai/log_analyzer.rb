@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module AI
+module Ai
   class LogAnalyzer
     def initialize
       @client = OpenrouterClient.new

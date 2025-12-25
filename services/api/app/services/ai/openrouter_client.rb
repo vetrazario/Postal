@@ -3,7 +3,7 @@
 require 'http'
 require 'json'
 
-module AI
+module Ai
   class OpenrouterClient
     API_URL = 'https://openrouter.ai/api/v1/chat/completions'
 
