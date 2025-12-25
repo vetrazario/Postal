@@ -22,29 +22,87 @@ Rails.application.routes.draw do
     namespace :v1 do
       # Health check (no auth)
       get 'health', to: 'health#show'
-      
+
       # Email sending
       post 'send', to: 'emails#send_email'
       post 'batch', to: 'batches#create'
-      
+
+      # SMTP Relay endpoint (from Haraka)
+      post 'smtp/receive', to: 'smtp#receive'
+
       # Status
       get 'status/:message_id', to: 'status#show', as: 'status'
-      
+
       # Statistics
       get 'stats', to: 'stats#index'
-      
+
       # Templates
       post 'templates', to: 'templates#create'
-      
+
       # Webhooks (from Postal)
       post 'webhook', to: 'webhooks#postal'
     end
   end
-  
+
   # Dashboard (web interface)
-  get 'dashboard', to: 'dashboard#index', as: 'dashboard_index'
-  get 'dashboard/logs', to: 'dashboard#logs', as: 'dashboard_logs'
-  
+  namespace :dashboard do
+    root to: 'dashboard#index'
+
+    # API Keys
+    resources :api_keys, except: [:show] do
+      member do
+        patch :toggle_active
+      end
+    end
+
+    # SMTP Credentials
+    resources :smtp_credentials, except: [:show] do
+      member do
+        patch :toggle_active
+        post :test_connection
+      end
+    end
+
+    # Webhooks
+    resources :webhooks do
+      member do
+        post :test
+        post :retry_failed
+      end
+      collection do
+        get :logs
+      end
+    end
+
+    # Templates
+    resources :templates
+
+    # Logs
+    resources :logs, only: [:index, :show] do
+      collection do
+        get :export
+      end
+    end
+
+    # Analytics
+    resource :analytics, only: [:show] do
+      get :hourly
+      get :daily
+      get :campaigns
+    end
+
+    # AI Analytics
+    resource :ai_analytics, only: [:show] do
+      post :analyze_bounces
+      post :optimize_timing
+      post :compare_campaigns
+      get :history
+    end
+
+    # Settings
+    resource :settings, only: [:show, :update]
+  end
+
   # Sidekiq Web UI (монтируем только если заданы учетные данные)
   if defined?(Sidekiq::Web) && ENV['SIDEKIQ_WEB_USERNAME'].present? && ENV['SIDEKIQ_WEB_PASSWORD'].present?
     mount Sidekiq::Web => '/sidekiq'
