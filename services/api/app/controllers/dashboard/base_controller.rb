@@ -1,7 +1,13 @@
 # frozen_string_literal: true
 
 module Dashboard
-  class BaseController < ApplicationController
+  class BaseController < ActionController::Base
+    # Skip CSRF for now (dashboard is internal)
+    skip_before_action :verify_authenticity_token
+    
+    # Use modern dashboard layout with full navigation
+    layout 'dashboard'
+    
     before_action :authenticate_dashboard_user!
 
     private
