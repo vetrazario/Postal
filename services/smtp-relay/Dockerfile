@@ -1,7 +1,7 @@
 FROM node:18-alpine
 
-# Install build dependencies
-RUN apk add --no-cache python3 make g++
+# Install build dependencies and netcat for healthcheck
+RUN apk add --no-cache python3 make g++ netcat-openbsd
 
 # Create app directory
 WORKDIR /app
