@@ -88,15 +88,11 @@ gather_info() {
         ORG_NAME="My Organization"
     fi
 
-    # Git репозиторий
-    read -p "Введите URL Git репозитория (или нажмите Enter, чтобы пропустить): " GIT_REPO
-
     # Подтверждение
     echo -e "\n${YELLOW}Проверьте введенные данные:${NC}"
     echo "Домен: $DOMAIN"
     echo "Email: $ADMIN_EMAIL"
     echo "Организация: $ORG_NAME"
-    echo "Git Repo: ${GIT_REPO:-'Текущая директория'}"
     echo ""
     read -p "Всё верно? (y/n): " -n 1 -r
     echo
@@ -180,21 +176,24 @@ setup_firewall() {
 setup_project() {
     print_header "ШАГ 4/10: ПОДГОТОВКА ПРОЕКТА"
 
-    PROJECT_DIR="/opt/email-sender"
+    # Определить текущую директорию скрипта
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-    if [ ! -z "$GIT_REPO" ]; then
-        print_info "Клонирование из Git..."
-        rm -rf $PROJECT_DIR
-        git clone $GIT_REPO $PROJECT_DIR
-        cd $PROJECT_DIR
-        git checkout claude/setup-email-testing-YifKd 2>/dev/null || true
+    # Если мы уже в /opt/email-sender - использовать её
+    if [ "$SCRIPT_DIR" == "/opt/email-sender" ]; then
+        PROJECT_DIR="/opt/email-sender"
+        print_info "Используется текущая директория: $PROJECT_DIR"
     else
-        print_info "Копирование текущей директории..."
+        # Иначе копировать в /opt/email-sender
+        PROJECT_DIR="/opt/email-sender"
+        print_info "Копирование проекта в $PROJECT_DIR..."
         mkdir -p $PROJECT_DIR
-        cp -r . $PROJECT_DIR/
-        cd $PROJECT_DIR
+        cp -r $SCRIPT_DIR/* $PROJECT_DIR/
+        cp -r $SCRIPT_DIR/.env* $PROJECT_DIR/ 2>/dev/null || true
+        cp -r $SCRIPT_DIR/.git* $PROJECT_DIR/ 2>/dev/null || true
     fi
 
+    cd $PROJECT_DIR
     print_success "Проект готов: $PROJECT_DIR"
 }
 
