@@ -2,11 +2,11 @@ class DashboardController < ActionController::Base
   # Skip CSRF for now (dashboard is internal)
   skip_before_action :verify_authenticity_token
   
+  # Explicitly use application layout
+  layout 'application'
+  
   # Basic HTTP authentication
-  http_basic_authenticate_with(
-    name: ENV.fetch("DASHBOARD_USERNAME"),
-    password: ENV.fetch("DASHBOARD_PASSWORD")
-  )
+  before_action :authenticate_dashboard
 
   def index
     @period = params[:period] || 'today'
@@ -52,6 +52,16 @@ class DashboardController < ActionController::Base
   end
 
   private
+
+  def authenticate_dashboard
+    # Skip authentication if credentials not configured
+    return true unless ENV["DASHBOARD_USERNAME"].present? && ENV["DASHBOARD_PASSWORD"].present?
+    
+    authenticate_or_request_with_http_basic("Dashboard") do |username, password|
+      ActiveSupport::SecurityUtils.secure_compare(username, ENV["DASHBOARD_USERNAME"]) &&
+        ActiveSupport::SecurityUtils.secure_compare(password, ENV["DASHBOARD_PASSWORD"])
+    end
+  end
 
   def calculate_period(period)
     case period
@@ -110,8 +120,3 @@ class DashboardController < ActionController::Base
     }
   end
 end
-
-
-
-
-
