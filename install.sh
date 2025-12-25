@@ -107,7 +107,7 @@ update_system() {
     print_header "ШАГ 1/10: ОБНОВЛЕНИЕ СИСТЕМЫ"
     apt update
     apt upgrade -y
-    apt install -y curl git nano htop ufw ca-certificates gnupg lsb-release apache2-utils openssl
+    apt install -y curl git nano htop ufw ca-certificates gnupg lsb-release apache2-utils openssl cron
     print_success "Система обновлена"
 }
 
@@ -453,7 +453,13 @@ setup_ssl() {
             ln -sf /etc/letsencrypt/live/$DOMAIN/privkey.pem /etc/ssl/private/$DOMAIN.key
 
             # Настроить автообновление
-            (crontab -l 2>/dev/null; echo "0 3 1 * * certbot renew --quiet && docker compose -f $PROJECT_DIR/docker-compose.yml restart nginx") | crontab -
+            if command -v crontab &> /dev/null; then
+                (crontab -l 2>/dev/null; echo "0 3 1 * * certbot renew --quiet && docker compose -f $PROJECT_DIR/docker-compose.yml restart nginx") | crontab -
+                print_info "Автообновление SSL настроено (каждое 1-е число месяца в 3:00)"
+            else
+                print_warning "crontab не найден - автообновление SSL не настроено"
+                print_warning "Установите cron и настройте вручную: crontab -e"
+            fi
 
             print_success "SSL сертификат получен и настроен"
             SSL_ENABLED=true
