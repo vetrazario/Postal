@@ -41,7 +41,6 @@ sudo bash install.sh
 Введите ваш домен: linenarrow.com
 Введите email администратора: admin@linenarrow.com
 Введите название организации: LineNarrow Company
-Получить SSL сертификат Let's Encrypt? y
 ```
 
 **⏱️ Ждите 10-15 минут...**
