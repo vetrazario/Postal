@@ -362,7 +362,7 @@ services:
       api:
         condition: service_healthy
     ports:
-      - "587:587"
+      - "2587:587"  # External port 2587 to avoid conflict with Postal's 587
     environment:
       # SMTP Configuration
       SMTP_RELAY_PORT: 587

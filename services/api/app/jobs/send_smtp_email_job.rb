@@ -30,7 +30,10 @@ class SendSmtpEmailJob < ApplicationJob
     }
 
     # Send to Postal
-    postal_client = PostalClient.new
+    postal_client = PostalClient.new(
+      api_url: ENV.fetch('POSTAL_API_URL', 'http://postal:5000'),
+      api_key: ENV.fetch('POSTAL_API_KEY')
+    )
     response = postal_client.send_message(postal_payload)
 
     if response[:success]

@@ -4,13 +4,11 @@ class CreateAiAnalyses < ActiveRecord::Migration[7.1]
   def change
     create_table :ai_analyses do |t|
       t.string :analysis_type, null: false, comment: 'bounce_analysis, time_optimization, campaign_comparison'
-      t.datetime :period_start
-      t.datetime :period_end
-      t.text :prompt
-      t.text :result
-      t.json :metadata
-      t.integer :tokens_used, default: 0
-      t.float :duration_seconds
+      t.string :campaign_id, comment: 'Associated campaign ID if applicable'
+      t.json :analysis_result, comment: 'JSON result from AI analysis'
+      t.integer :prompt_tokens, default: 0, null: false
+      t.integer :completion_tokens, default: 0, null: false
+      t.integer :total_tokens, default: 0, null: false
       t.string :model_used
       t.string :status, default: 'completed', null: false, comment: 'processing, completed, failed'
 

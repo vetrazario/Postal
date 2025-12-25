@@ -12,7 +12,7 @@ exports.register = function() {
   this.loginfo('Email Parser plugin loaded');
 };
 
-exports.hook_data_post = async function(next, connection) {
+exports.hook_data_post = function(next, connection) {
   const plugin = this;
 
   try {
@@ -24,10 +24,11 @@ exports.hook_data_post = async function(next, connection) {
     emailData.on('data', (chunk) => chunks.push(chunk));
 
     emailData.on('end', async () => {
-      const buffer = Buffer.concat(chunks);
+      try {
+        const buffer = Buffer.concat(chunks);
 
-      // Parse email using mailparser
-      const parsed = await simpleParser(buffer);
+        // Parse email using mailparser
+        const parsed = await simpleParser(buffer);
 
       // Store parsed data in connection notes for next plugins
       connection.transaction.notes.parsed_email = {
@@ -78,14 +79,18 @@ exports.hook_data_post = async function(next, connection) {
         };
       }
 
-      // Log successful parsing
-      plugin.loginfo(`Parsed email: ${parsed.subject || '(no subject)'}`);
-      plugin.loginfo(`  From: ${parsed.from?.text || 'unknown'}`);
-      plugin.loginfo(`  To: ${parsed.to?.text || 'unknown'}`);
-      plugin.loginfo(`  Attachments: ${parsed.attachments?.length || 0}`);
-      plugin.loginfo(`  Size: ${formatBytes(buffer.length)}`);
+        // Log successful parsing
+        plugin.loginfo(`Parsed email: ${parsed.subject || '(no subject)'}`);
+        plugin.loginfo(`  From: ${parsed.from?.text || 'unknown'}`);
+        plugin.loginfo(`  To: ${parsed.to?.text || 'unknown'}`);
+        plugin.loginfo(`  Attachments: ${parsed.attachments?.length || 0}`);
+        plugin.loginfo(`  Size: ${formatBytes(buffer.length)}`);
 
-      next(OK);
+        next(OK);
+      } catch (parseError) {
+        plugin.logerror(`Error parsing email: ${parseError.message}`);
+        next(DENYSOFT, 'Error parsing email');
+      }
     });
 
     emailData.on('error', (err) => {

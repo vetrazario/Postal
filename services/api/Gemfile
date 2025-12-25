@@ -26,8 +26,9 @@ gem 'connection_pool', '~> 2.4'
 # Template Engine
 gem 'liquid', '~> 5.4'
 
-# HTTP Client (для Postal API и webhooks)
-gem 'httparty', '~> 0.21'
+# HTTP Clients
+gem 'httparty', '~> 0.21'  # For Postal API
+gem 'http', '~> 5.1'        # For webhooks and OpenRouter API
 
 # JSON
 gem 'oj', '~> 3.16'
