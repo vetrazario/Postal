@@ -11,19 +11,27 @@ class TrackingInjector
       attrs_before = $1 || ""
       original_url = $2
       attrs_after = $3 || ""
-      
+
       # Skip links that already use tracking domain
       next match if original_url.include?(domain)
-      
+
       # Skip mailto: links
       next match if original_url.start_with?("mailto:")
-      
+
       # Skip anchor links
       next match if original_url.start_with?("#")
-      
+
       # Skip unsubscribe links (they should already be from Send Server)
       next match if original_url.include?("unsubscribe")
-      
+
+      # Validate URL format (only http/https)
+      begin
+        uri = URI.parse(original_url)
+        next match unless uri.scheme.to_s.match?(/^https?$/i)
+      rescue URI::InvalidURIError
+        next match
+      end
+
       # Encode original URL
       encoded_url = Base64.urlsafe_encode64(original_url)
       

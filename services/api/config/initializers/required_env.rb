@@ -6,9 +6,8 @@ REQUIRED_ENV = {
   'ENCRYPTION_PRIMARY_KEY' => 'Encryption primary key',
   'ENCRYPTION_DETERMINISTIC_KEY' => 'Encryption deterministic key',
   'ENCRYPTION_KEY_DERIVATION_SALT' => 'Encryption key derivation salt',
-  'DASHBOARD_USERNAME' => 'Dashboard username',
-  'DASHBOARD_PASSWORD' => 'Dashboard password',
   'POSTAL_SIGNING_KEY' => 'Postal signing key'
+  # DASHBOARD_USERNAME and DASHBOARD_PASSWORD are optional - dashboard will work without auth if not set
   # POSTAL_WEBHOOK_PUBLIC_KEY is optional - webhook verification will be skipped if not set
 }.freeze
 

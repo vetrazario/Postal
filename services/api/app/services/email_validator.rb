@@ -23,8 +23,18 @@ class EmailValidator
       return error('From email domain is invalid') if domain.blank?
 
       allowed = allowed_domains
-      return error('From email domain is not authorized') if allowed.empty?
-      return error('From email domain is not authorized') unless allowed.include?(domain)
+
+      # Handle empty ALLOWED_SENDER_DOMAINS
+      if allowed.empty?
+        Rails.logger.warn("⚠️  ALLOWED_SENDER_DOMAINS not set - accepting all domains (INSECURE!)")
+        # In production, require explicit configuration
+        if Rails.env.production?
+          return error('ALLOWED_SENDER_DOMAINS must be configured in production')
+        end
+      elsif !allowed.include?(domain)
+        return error('From email domain is not authorized')
+      end
+
       return error('AMS domain not allowed as sender') if domain.downcase.include?('ams')
 
       success

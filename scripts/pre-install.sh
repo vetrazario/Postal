@@ -50,6 +50,15 @@ if [ ! -f .env ]; then
     POSTAL_KEY=$(openssl rand -hex 32)
     WEBHOOK_SEC=$(openssl rand -hex 32)
 
+    # Generate Dashboard credentials
+    DASHBOARD_PWD=$(openssl rand -base64 16 | tr -d "=+/" | cut -c1-16)
+
+    # Generate encryption keys (for Active Record Encryption)
+    log_info "Generating encryption keys..."
+    ENCRYPTION_PRIMARY=$(openssl rand -base64 32)
+    ENCRYPTION_DETERMINISTIC=$(openssl rand -base64 32)
+    ENCRYPTION_SALT=$(openssl rand -base64 32)
+
     # Replace CHANGE_ME values with generated secrets
     sed -i "s/POSTGRES_PASSWORD=CHANGE_ME_GENERATE_RANDOM/POSTGRES_PASSWORD=$POSTGRES_PWD/" .env
     sed -i "s/MARIADB_PASSWORD=CHANGE_ME_GENERATE_RANDOM/MARIADB_PASSWORD=$MARIADB_PWD/" .env
@@ -58,9 +67,18 @@ if [ ! -f .env ]; then
     sed -i "s/API_KEY=CHANGE_ME_GENERATE_48_HEX/API_KEY=$API_KEY_VAL/" .env
     sed -i "s/POSTAL_SIGNING_KEY=CHANGE_ME_GENERATE_64_HEX/POSTAL_SIGNING_KEY=$POSTAL_KEY/" .env
     sed -i "s/WEBHOOK_SECRET=CHANGE_ME_GENERATE_64_HEX/WEBHOOK_SECRET=$WEBHOOK_SEC/" .env
+    sed -i "s/DASHBOARD_PASSWORD=CHANGE_ME_GENERATE_STRONG_PASSWORD/DASHBOARD_PASSWORD=$DASHBOARD_PWD/" .env
+    sed -i "s|ENCRYPTION_PRIMARY_KEY=CHANGE_ME|ENCRYPTION_PRIMARY_KEY=$ENCRYPTION_PRIMARY|" .env
+    sed -i "s|ENCRYPTION_DETERMINISTIC_KEY=CHANGE_ME|ENCRYPTION_DETERMINISTIC_KEY=$ENCRYPTION_DETERMINISTIC|" .env
+    sed -i "s|ENCRYPTION_KEY_DERIVATION_SALT=CHANGE_ME|ENCRYPTION_KEY_DERIVATION_SALT=$ENCRYPTION_SALT|" .env
 
-    log_success ".env file created with generated secrets"
+    log_success ".env file created with generated secrets (including encryption keys)"
     log_warning "IMPORTANT: Edit .env and set DOMAIN, LETSENCRYPT_EMAIL, and other required values!"
+    echo ""
+    log_info "Dashboard credentials (save these!):"
+    echo "  Username: admin"
+    echo "  Password: $DASHBOARD_PWD"
+    echo ""
 else
     log_success ".env file already exists"
 fi
