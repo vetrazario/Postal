@@ -1,7 +1,7 @@
 # ===========================================
 # POSTAL MAIL SERVER
 # Configuration File (Production)
-# ==========================================
+# ===========================================
 
 general:
   use_ip_pools: false
@@ -14,7 +14,7 @@ main_db:
   host: mariadb
   port: 3306
   username: postal
-  password: ${MARIADB_PASSWORD}
+  password: fc83da74d27a7b12e990eba01b0410a1
   database: postal
   pool_size: 5
 
@@ -22,14 +22,14 @@ message_db:
   host: mariadb
   port: 3306
   username: postal
-  password: ${MARIADB_PASSWORD}
+  password: fc83da74d27a7b12e990eba01b0410a1
   prefix: postal
 
 rabbitmq:
   host: rabbitmq
   port: 5672
   username: postal
-  password: ${RABBITMQ_PASSWORD}
+  password: 81b076b7a0216de1633a5dfbb7c41689
   vhost: postal
 
 smtp_server:
@@ -54,7 +54,7 @@ logging:
   log_level: info
 
 rails:
-  secret_key: ${SECRET_KEY_BASE}
+  secret_key: 45fa5bf127ca8a633b091761a6f7ac5b8a13b783c02deb2b4246a31c3c67989f
   environment: production
 
 smtp_client:
@@ -62,7 +62,6 @@ smtp_client:
   read_timeout: 60
   helo_hostname: linenarrow.com
 
-
-
-
-
+web_server:
+  bind_address: 0.0.0.0
+  port: 5000
