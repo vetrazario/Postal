@@ -2,11 +2,19 @@ class DashboardController < ActionController::Base
   # Skip CSRF for now (dashboard is internal)
   skip_before_action :verify_authenticity_token
   
-  # Basic HTTP authentication
-  http_basic_authenticate_with(
-    name: ENV.fetch("DASHBOARD_USERNAME"),
-    password: ENV.fetch("DASHBOARD_PASSWORD")
-  )
+  # Basic HTTP authentication (optional - if credentials are set)
+  if ENV["DASHBOARD_USERNAME"].present? && ENV["DASHBOARD_PASSWORD"].present?
+    http_basic_authenticate_with(
+      name: ENV.fetch("DASHBOARD_USERNAME"),
+      password: ENV.fetch("DASHBOARD_PASSWORD")
+    )
+  else
+    before_action :warn_no_auth
+
+    def warn_no_auth
+      Rails.logger.warn("⚠️  Dashboard accessed WITHOUT authentication! Set DASHBOARD_USERNAME and DASHBOARD_PASSWORD to enable auth.")
+    end
+  end
 
   def index
     @period = params[:period] || 'today'
