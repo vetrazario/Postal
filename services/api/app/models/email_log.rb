@@ -5,13 +5,13 @@ class EmailLog < ApplicationRecord
   has_many :tracking_events, dependent: :destroy
 
   validates :message_id, presence: true, uniqueness: true
-  validates :external_message_id, presence: true
-  validates :campaign_id, presence: true
   validates :recipient, presence: true
   validates :recipient_masked, presence: true
   validates :sender, presence: true
   validates :subject, presence: true
   validates :status, presence: true, inclusion: { in: STATUSES }
+
+  # external_message_id and campaign_id are optional (not all emails have campaigns)
 
   encrypts :recipient, deterministic: true
 
