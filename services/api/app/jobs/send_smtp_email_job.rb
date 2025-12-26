@@ -10,23 +10,20 @@ class SendSmtpEmailJob < ApplicationJob
     # Update status
     email_log.update!(status: 'processing')
 
-    # Extract data
+    # Extract data (from server.js format)
     envelope = email_data['envelope'].with_indifferent_access
-    headers = email_data['headers'].with_indifferent_access
-    body = email_data['body'].with_indifferent_access
-    attachments = email_data['attachments'] || []
-    tracking = email_data['tracking'].with_indifferent_access
+    message = email_data['message'].with_indifferent_access
+    raw = email_data['raw']
 
     # Build email payload for Postal
     postal_payload = {
       to: Array(envelope[:to]),
-      from: headers[:from],
-      subject: headers[:subject],
-      plain_body: body[:plain],
-      html_body: body[:html],
-      headers: build_custom_headers(headers, tracking),
-      attachments: format_attachments(attachments),
-      tag: tracking[:campaign_id] || 'smtp'
+      from: envelope[:from],
+      subject: message[:subject],
+      plain_body: message[:text],
+      html_body: message[:html],
+      headers: build_custom_headers(message),
+      tag: 'smtp-relay'
     }
 
     # Send to Postal
@@ -78,15 +75,20 @@ class SendSmtpEmailJob < ApplicationJob
 
   private
 
-  def build_custom_headers(headers, tracking)
+  def build_custom_headers(message)
     custom_headers = {}
 
-    # Add Reply-To if present
-    custom_headers['Reply-To'] = headers[:reply_to] if headers[:reply_to].present?
+    # Add Reply-To if present in message headers
+    if message[:headers].is_a?(Hash)
+      reply_to = message[:headers]['reply-to'] || message[:headers]['Reply-To']
+      custom_headers['Reply-To'] = reply_to if reply_to.present?
+    end
 
-    # Add tracking metadata as custom headers
-    custom_headers['X-Campaign-ID'] = tracking[:campaign_id] if tracking[:campaign_id]
-    custom_headers['X-Affiliate-ID'] = tracking[:affiliate_id] if tracking[:affiliate_id]
+    # Extract campaign/affiliate IDs from headers if present
+    if message[:headers].is_a?(Hash)
+      custom_headers['X-Campaign-ID'] = message[:headers]['x-campaign-id'] if message[:headers]['x-campaign-id']
+      custom_headers['X-Affiliate-ID'] = message[:headers]['x-affiliate-id'] if message[:headers]['x-affiliate-id']
+    end
 
     custom_headers
   end
