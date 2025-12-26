@@ -21,7 +21,7 @@ module Dashboard
     def ai_settings_params
       params.require(:ai_setting).permit(
         :openrouter_api_key,
-        :model_name,
+        :ai_model,
         :temperature,
         :max_tokens,
         :enabled

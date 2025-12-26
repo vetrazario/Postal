@@ -13,7 +13,7 @@
         </h3>
         <p class="mt-1 text-sm <%= @ai_settings.enabled? ? 'text-green-700' : 'text-yellow-700' %>">
           <% if @ai_settings.enabled? %>
-            Model: <%= @ai_settings.model_name %> | Total Cost: $<%= @total_cost %>
+            Model: <%= @ai_settings.ai_model %> | Total Cost: $<%= @total_cost %>
           <% else %>
             Configure AI settings to enable analytics features
           <% end %>
