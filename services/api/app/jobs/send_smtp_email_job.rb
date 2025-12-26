@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class SendSmtpEmailJob < ApplicationJob
-  queue_as :mailers
+  queue_as :default
 
   # Process email received from SMTP Relay
   def perform(email_data)
