@@ -5,7 +5,7 @@ class CreateAiSettings < ActiveRecord::Migration[7.1]
     create_table :ai_settings, id: false do |t|
       t.integer :id, primary_key: true, default: 1
       t.string :openrouter_api_key
-      t.string :model_name, default: 'anthropic/claude-3.5-sonnet', null: false
+      t.string :ai_model, default: 'anthropic/claude-3.5-sonnet', null: false
       t.float :temperature, default: 0.7, null: false
       t.integer :max_tokens, default: 4000, null: false
       t.boolean :enabled, default: false, null: false
