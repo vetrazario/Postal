@@ -3,6 +3,9 @@
 module Api
   module V1
     class SmtpController < ApplicationController
+      # Skip API key authentication for internal SMTP relay
+      skip_before_action :authenticate_api_key
+
       # POST /api/v1/smtp/receive
       # Receives parsed email from SMTP Relay
       def receive
