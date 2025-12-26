@@ -26,7 +26,7 @@ module Ai
         'HTTP-Referer' => ENV.fetch('DOMAIN', 'https://linenarrow.com'),
         'X-Title' => 'Email Sender Analytics'
       ).post(API_URL, json: {
-        model: @settings.model_name,
+        model: @settings.ai_model,
         messages: messages,
         max_tokens: max_tokens || @settings.max_tokens,
         temperature: @settings.temperature
@@ -50,7 +50,7 @@ module Ai
         prompt_tokens: result.dig('usage', 'prompt_tokens') || 0,
         completion_tokens: result.dig('usage', 'completion_tokens') || 0,
         total_tokens: result.dig('usage', 'total_tokens') || 0,
-        model: result['model'] || @settings.model_name
+        model: result['model'] || @settings.ai_model
       }
     end
 

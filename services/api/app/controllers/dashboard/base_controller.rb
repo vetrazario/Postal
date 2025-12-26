@@ -2,13 +2,13 @@
 
 module Dashboard
   class BaseController < ActionController::Base
-    # Skip CSRF for now (dashboard is internal)
-    skip_before_action :verify_authenticity_token
-    
-    # Use modern dashboard layout with full navigation
-    layout 'dashboard'
-    
+    # Skip CSRF verification for API endpoints but keep for HTML forms
+    protect_from_forgery with: :exception, unless: -> { request.format.json? }
+
     before_action :authenticate_dashboard_user!
+
+    # Add helper for layouts
+    layout 'dashboard'
 
     private
 

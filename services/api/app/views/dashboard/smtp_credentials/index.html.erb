@@ -79,15 +79,11 @@
                     </td>
                     <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                       <div class="flex items-center justify-end gap-2">
-                        <%= button_to toggle_active_dashboard_smtp_credential_path(credential), method: :patch, class: "text-indigo-600 hover:text-indigo-900" do %>
-                          <%= credential.active? ? 'Deactivate' : 'Activate' %>
-                        <% end %>
+                        <%= button_to credential.active? ? 'Deactivate' : 'Activate', toggle_active_dashboard_smtp_credential_path(credential), method: :patch, class: "text-indigo-600 hover:text-indigo-900" %>
                         <span class="text-gray-300">|</span>
                         <%= link_to 'Edit', edit_dashboard_smtp_credential_path(credential), class: "text-indigo-600 hover:text-indigo-900" %>
                         <span class="text-gray-300">|</span>
-                        <%= button_to 'Delete', dashboard_smtp_credential_path(credential), method: :delete, data: { confirm: 'Are you sure?' }, class: "text-red-600 hover:text-red-900" do %>
-                          Delete
-                        <% end %>
+                        <%= button_to 'Delete', dashboard_smtp_credential_path(credential), method: :delete, data: { confirm: 'Are you sure?' }, class: "text-red-600 hover:text-red-900" %>
                       </div>
                     </td>
                   </tr>

@@ -5,7 +5,7 @@ class AiSetting < ApplicationRecord
   encrypts :openrouter_api_key
 
   # Validations
-  validates :model_name, presence: true
+  validates :ai_model, presence: true
   validates :temperature, numericality: { greater_than_or_equal_to: 0, less_than_or_equal_to: 2 }
   validates :max_tokens, numericality: { greater_than: 0, less_than_or_equal_to: 100000 }
 
@@ -23,7 +23,7 @@ class AiSetting < ApplicationRecord
   # Singleton pattern - only one settings record
   def self.instance
     first_or_create!(id: 1) do |settings|
-      settings.model_name = 'anthropic/claude-3.5-sonnet'
+      settings.ai_model = 'anthropic/claude-3.5-sonnet'
       settings.temperature = 0.7
       settings.max_tokens = 4000
       settings.enabled = false
@@ -49,7 +49,7 @@ class AiSetting < ApplicationRecord
 
   # Cost estimation (approximate)
   def estimated_cost_per_1k_tokens
-    case model_name
+    case ai_model
     when /claude-3.5-sonnet/
       0.003 # $0.003 per 1K tokens
     when /claude-3-opus/
@@ -70,6 +70,6 @@ class AiSetting < ApplicationRecord
 
   # Model display name
   def model_display_name
-    AVAILABLE_MODELS[model_name] || model_name
+    AVAILABLE_MODELS[ai_model] || ai_model
   end
 end
