@@ -10,6 +10,9 @@ module Dashboard
     # Add helper for layouts
     layout 'dashboard'
 
+    # Include view helpers
+    helper :all
+
     private
 
     def authenticate_dashboard_user!
