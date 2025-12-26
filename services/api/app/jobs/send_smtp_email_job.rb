@@ -19,12 +19,18 @@ class SendSmtpEmailJob < ApplicationJob
     raw = email_data[:raw]
 
     # Build email payload for Postal
+    # Use HTML if available, otherwise wrap text in HTML
+    html_content = if message[:html].present? && message[:html] != false
+                     message[:html]
+                   else
+                     "<pre>#{message[:text]}</pre>"
+                   end
+
     postal_payload = {
-      to: Array(envelope[:to]),
+      to: envelope[:to].is_a?(Array) ? envelope[:to].first : envelope[:to],
       from: envelope[:from],
       subject: message[:subject],
-      plain_body: message[:text],
-      html_body: message[:html],
+      html_body: html_content,
       headers: build_custom_headers(message),
       tag: 'smtp-relay'
     }
@@ -34,7 +40,7 @@ class SendSmtpEmailJob < ApplicationJob
       api_url: ENV.fetch('POSTAL_API_URL', 'http://postal:5000'),
       api_key: ENV.fetch('POSTAL_API_KEY')
     )
-    response = postal_client.send_message(postal_payload)
+    response = postal_client.send_message(**postal_payload)
 
     if response[:success]
       # Update email log
