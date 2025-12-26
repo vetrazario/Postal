@@ -6,7 +6,6 @@ class PostalClient
 
   def send_message(to:, from:, subject:, html_body:, headers: {}, tag: nil)
     domain = ENV.fetch('DOMAIN', 'send1.example.com')
-
     message_headers = build_headers(from, to, subject, domain).merge(headers)
 
     response = HTTParty.post(
@@ -46,15 +45,26 @@ class PostalClient
   end
 
   def parse_response(response, to)
+    parsed = response.parsed_response
+
     if response.success?
-      data = response.parsed_response['data']
+      data = parsed.is_a?(Hash) ? parsed['data'] : nil
       {
         success: true,
         message_id: data&.dig('messages', to, 'id')&.to_s,
         token: data&.dig('messages', to, 'token')
       }
     else
-      { success: false, error: response.parsed_response['error'] || 'Unknown error', status: response.code }
+      error_msg =
+        if parsed.is_a?(Hash)
+          parsed['error'] || parsed['message']
+        elsif parsed.present?
+          parsed.to_s
+        else
+          response.body.to_s.presence || 'Unknown error'
+        end
+
+      { success: false, error: error_msg, status: response.code }
     end
   end
 
