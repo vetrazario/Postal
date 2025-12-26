@@ -1,8 +1,14 @@
 # frozen_string_literal: true
 
 module Dashboard
-  class BaseController < ApplicationController
+  class BaseController < ActionController::Base
+    # Skip CSRF verification for API endpoints but keep for HTML forms
+    protect_from_forgery with: :exception, unless: -> { request.format.json? }
+
     before_action :authenticate_dashboard_user!
+
+    # Add helper for layouts
+    layout 'dashboard'
 
     private
 

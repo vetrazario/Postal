@@ -52,6 +52,9 @@ gem 'sentry-rails', '~> 5.15'
 # Encryption
 gem 'bcrypt', '~> 3.1'
 
+# Pagination
+gem 'kaminari', '~> 1.2'
+
 group :development, :test do
   gem 'rspec-rails', '~> 6.1'
   gem 'factory_bot_rails', '~> 6.4'
