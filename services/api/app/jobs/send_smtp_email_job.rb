@@ -5,15 +5,18 @@ class SendSmtpEmailJob < ApplicationJob
 
   # Process email received from SMTP Relay
   def perform(email_data)
-    email_log = EmailLog.find(email_data['email_log_id'])
+    # Ensure hash with indifferent access
+    email_data = email_data.with_indifferent_access if email_data.is_a?(Hash)
+
+    email_log = EmailLog.find(email_data[:email_log_id])
 
     # Update status
     email_log.update!(status: 'processing')
 
     # Extract data (from server.js format)
-    envelope = email_data['envelope'].with_indifferent_access
-    message = email_data['message'].with_indifferent_access
-    raw = email_data['raw']
+    envelope = email_data[:envelope].with_indifferent_access
+    message = email_data[:message].with_indifferent_access
+    raw = email_data[:raw]
 
     # Build email payload for Postal
     postal_payload = {
@@ -63,11 +66,16 @@ class SendSmtpEmailJob < ApplicationJob
     Rails.logger.error e.backtrace.join("\n")
 
     # Update email log with error
-    email_log = EmailLog.find(email_data['email_log_id'])
-    email_log.update!(
-      status: 'failed',
-      status_details: { error: e.message, backtrace: e.backtrace.first(5) }
-    )
+    begin
+      email_data = email_data.with_indifferent_access if email_data.is_a?(Hash)
+      email_log = EmailLog.find(email_data[:email_log_id])
+      email_log.update!(
+        status: 'failed',
+        status_details: { error: e.message, backtrace: e.backtrace.first(5) }
+      )
+    rescue => update_error
+      Rails.logger.error "Failed to update email log: #{update_error.message}"
+    end
 
     # Retry job
     raise e
