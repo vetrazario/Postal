@@ -45,8 +45,6 @@ module Ai
       # Update usage statistics
       if result['usage']
         @settings.increment!(:total_tokens_used, result['usage']['total_tokens'] || 0)
-        @settings.increment!(:total_prompt_tokens, result['usage']['prompt_tokens'] || 0)
-        @settings.increment!(:total_completion_tokens, result['usage']['completion_tokens'] || 0)
       end
 
       {
