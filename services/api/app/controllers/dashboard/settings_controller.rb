@@ -4,6 +4,7 @@ module Dashboard
   class SettingsController < BaseController
     def show
       @ai_settings = AiSetting.instance
+      @total_cost = @ai_settings.total_estimated_cost
     end
 
     def update

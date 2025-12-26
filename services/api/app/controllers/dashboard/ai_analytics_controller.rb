@@ -88,9 +88,11 @@ module Dashboard
     end
 
     def history
+      page = (params[:page] || 1).to_i
+      per_page = 20
       @analyses = AiAnalysis.order(created_at: :desc)
-                            .page(params[:page])
-                            .per(20)
+                            .limit(per_page)
+                            .offset((page - 1) * per_page)
 
       # Filter by analysis type if specified
       if params[:analysis_type].present?

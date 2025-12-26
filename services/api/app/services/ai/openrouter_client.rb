@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'http'
+require 'httparty'
 require 'json'
 
 module Ai
@@ -20,29 +20,31 @@ module Ai
         raise StandardError, 'OpenRouter API key is not configured'
       end
 
-      response = HTTP.headers(
-        'Authorization' => "Bearer #{@settings.openrouter_api_key}",
-        'Content-Type' => 'application/json',
-        'HTTP-Referer' => ENV.fetch('DOMAIN', 'https://linenarrow.com'),
-        'X-Title' => 'Email Sender Analytics'
-      ).post(API_URL, json: {
-        model: @settings.ai_model,
-        messages: messages,
-        max_tokens: max_tokens || @settings.max_tokens,
-        temperature: @settings.temperature
-      })
+      response = HTTParty.post(
+        API_URL,
+        headers: {
+          'Authorization' => "Bearer #{@settings.openrouter_api_key}",
+          'Content-Type' => 'application/json',
+          'HTTP-Referer' => ENV.fetch('DOMAIN', 'https://linenarrow.com'),
+          'X-Title' => 'Email Sender Analytics'
+        },
+        body: {
+          model: @settings.ai_model,
+          messages: messages,
+          max_tokens: max_tokens || @settings.max_tokens,
+          temperature: @settings.temperature
+        }.to_json
+      )
 
-      unless response.status.success?
-        raise StandardError, "OpenRouter API error: #{response.status} - #{response.body}"
+      unless response.success?
+        raise StandardError, "OpenRouter API error: #{response.code} - #{response.body}"
       end
 
-      result = JSON.parse(response.body.to_s)
+      result = response.parsed_response
 
       # Update usage statistics
       if result['usage']
         @settings.increment!(:total_tokens_used, result['usage']['total_tokens'] || 0)
-        @settings.increment!(:total_prompt_tokens, result['usage']['prompt_tokens'] || 0)
-        @settings.increment!(:total_completion_tokens, result['usage']['completion_tokens'] || 0)
       end
 
       {
