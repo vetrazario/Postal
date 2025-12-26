@@ -1,228 +1,114 @@
-# 🚀 БЫСТРЫЙ СТАРТ - Email Sender Infrastructure
+# Quick Start - Email Sender Infrastructure
 
-## Установка в 3 команды
+## 🚀 Быстрый старт (5 минут)
 
-### 1️⃣ Скачайте проект на сервер
+### 1. DNS (ОБЯЗАТЕЛЬНО ПЕРЕД СТАРТОМ!)
+
+Добавьте эти записи в DNS для `linenarrow.com`:
+
+```
+linenarrow.com.           IN MX 10 linenarrow.com.
+linenarrow.com.           IN A  159.255.39.48
+linenarrow.com.           IN TXT "v=spf1 a mx ip4:159.255.39.48 ~all"
+_dmarc.linenarrow.com.    IN TXT "v=DMARC1; p=none"
+rp.linenarrow.com.        IN CNAME linenarrow.com.
+routes.linenarrow.com.    IN CNAME linenarrow.com.
+```
+
+### 2. Инициализация Postal
 
 ```bash
-# Войдите на ваш сервер
-ssh root@159.255.39.48
-
-# Скачайте проект
-git clone <ВАШ_GIT_URL> /opt/email-sender
-# ИЛИ скопируйте файлы через scp/rsync
-
 cd /opt/email-sender
+
+# Инициализация БД
+docker compose exec postal postal initialize
+
+# Создать admin
+docker compose exec postal postal make-user
+# Email: admin@linenarrow.com
+# Password: [придумайте]
 ```
 
-### 2️⃣ Запустите установку
+### 3. Настройка Postal Web UI
+
+Откройте `http://linenarrow.com:5000`
+
+1. **Создать Organization**: `LineNarrow`
+2. **Создать Mail Server**: `Main Server`, mode=`Live`
+3. **DNS Records** → скопировать DKIM запись → добавить в DNS
+4. **Credentials** → Create API → скопировать ключ
+
+### 4. Обновить .env
 
 ```bash
-sudo bash install.sh
+nano /opt/email-sender/.env
+
+# Вставить API ключ:
+POSTAL_API_KEY=XXXX/XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+
+# Ctrl+X, Y, Enter
+
+docker compose restart api sidekiq smtp-relay
 ```
 
-**Скрипт спросит:**
-- ✅ Домен (например: `linenarrow.com`)
-- ✅ Email администратора (например: `admin@linenarrow.com`)
-- ✅ Название организации
-- ✅ Получить SSL сертификат? (y/n)
-
-**Затем автоматически:**
-- ✅ Установит все зависимости (Docker, UFW, и т.д.)
-- ✅ Настроит файрволл
-- ✅ Сгенерирует безопасные пароли
-- ✅ Создаст конфигурационные файлы
-- ✅ Получит SSL сертификат (если выбрано)
-- ✅ Запустит все сервисы
-- ✅ Инициализирует базы данных
-- ✅ Настроит Postal
-
-⏱️ **Время установки: 10-15 минут**
-
-### 3️⃣ Откройте Dashboard
+### 5. Проверка
 
 ```bash
-# После установки откройте в браузере:
-https://linenarrow.com/dashboard
-
-# Логин и пароль будут показаны в конце установки
-```
-
----
-
-## 📋 ЧТО ДЕЛАЕТ СКРИПТ
-
-### ✅ Автоматическая установка:
-1. Проверяет систему (Ubuntu 22.04)
-2. Обновляет пакеты
-3. Устанавливает Docker и Docker Compose
-4. Настраивает файрволл (UFW)
-5. Генерирует безопасные пароли
-6. Создает `.env` с настройками
-7. Настраивает `postal.yml`
-8. Получает SSL сертификат Let's Encrypt
-9. Запускает все Docker контейнеры
-10. Инициализирует базы данных
-11. Настраивает Postal
-12. Настраивает автозапуск при перезагрузке
-
-### 📁 Где что находится:
-
-```
-/opt/email-sender/          - Главная директория проекта
-/root/email-sender-credentials.txt  - Все пароли и ключи
-/etc/letsencrypt/           - SSL сертификаты
-```
-
----
-
-## 🔐 ПОСЛЕ УСТАНОВКИ
-
-### 1. Проверьте систему
-
-```bash
-# Статус контейнеров
+# Все сервисы healthy?
 docker compose ps
 
+# Dashboard работает?
+curl -I -u admin:DBbNm9X11lHVivPI http://linenarrow.com/dashboard
+```
+
+### 6. Создать SMTP Credentials
+
+Dashboard → SMTP Credentials → Generate New
+
+Используйте в AMS:
+- Host: `linenarrow.com`
+- Port: `587`
+- Username: [из Dashboard]
+- Password: [из Dashboard]
+
+## ✅ Готово!
+
+Полное руководство: см. `SETUP_GUIDE.md`
+
+## 🔧 Быстрые команды
+
+```bash
 # Логи
-docker compose logs -f
+docker compose logs -f --tail=50
+
+# Перезапуск
+docker compose restart postal api
+
+# Статус
+docker compose ps
+
+# Миграции
+docker compose exec api rails db:migrate
+
+# Консоль Rails
+docker compose exec api rails console
 ```
 
-Все контейнеры должны быть **Up** и **healthy**.
+## 🆘 Проблемы?
 
-### 2. Откройте Dashboard
-
+**Postal не работает:**
 ```bash
-https://linenarrow.com/dashboard
-
-# Данные для входа в файле:
-cat /root/email-sender-credentials.txt
+docker compose logs postal --tail=100
+docker compose restart postal
 ```
 
-### 3. Создайте SMTP учетные данные
-
-В Dashboard:
-1. Перейдите в **SMTP Credentials**
-2. Нажмите **"Generate New Credential"**
-3. Заполните описание: "Production AMS"
-4. **СКОПИРУЙТЕ пароль сразу!** (показывается только один раз)
-
-Вы получите:
-```
-SMTP Host: linenarrow.com
-SMTP Port: 2587
-Username: smtp_xxxxx
-Password: xxxxxxxx
-```
-
-### 4. Настройте AMS Enterprise
-
-В AMS:
-1. SMTP Host: `linenarrow.com`
-2. SMTP Port: `2587`
-3. Security: `TLS/STARTTLS`
-4. Username: `<из Dashboard>`
-5. Password: `<из Dashboard>`
-
-### 5. Отправьте тестовое письмо
-
-Отправьте письмо из AMS и проверьте в Dashboard → Email Logs
-
----
-
-## 🆘 ЕСЛИ ЧТО-ТО НЕ РАБОТАЕТ
-
-### Проблема: Контейнеры не запускаются
-
+**Dashboard 500:**
 ```bash
-# Смотрите логи
-docker compose logs
-
-# Перезапустите
-docker compose down
-docker compose up -d
+docker compose exec api rails db:migrate
+docker compose restart api
 ```
 
-### Проблема: SSL сертификат не получен
-
-```bash
-# Проверьте DNS
-dig linenarrow.com +short
-# Должен показать IP сервера
-
-# Попробуйте еще раз
-sudo certbot certonly --standalone -d linenarrow.com
-```
-
-### Проблема: Не могу подключиться
-
-```bash
-# Проверьте файрволл
-sudo ufw status
-
-# Проверьте что порты открыты
-sudo netstat -tlnp | grep -E '(80|443|2587)'
-```
-
-### Получить помощь
-
-```bash
-# Все логи в одном месте
-docker compose logs --tail=100
-
-# Конкретный сервис
-docker compose logs api
-docker compose logs postal
-docker compose logs smtp-relay
-```
-
----
-
-## 📞 ВАЖНЫЕ ФАЙЛЫ
-
-```bash
-# Все пароли и ключи
-/root/email-sender-credentials.txt
-
-# Конфигурация
-/opt/email-sender/.env
-/opt/email-sender/config/postal.yml
-
-# Логи Docker
-docker compose logs
-
-# Перезапуск системы
-docker compose restart
-
-# Остановка системы
-docker compose down
-
-# Полная переустановка
-docker compose down -v
-sudo bash install.sh
-```
-
----
-
-## ✨ ГОТОВО!
-
-После установки у вас будет:
-
-✅ Работающая Email инфраструктура
-✅ Dashboard для управления
-✅ SMTP Relay для AMS
-✅ Postal для отправки писем
-✅ AI Analytics (опционально)
-✅ Автоматическое обновление SSL
-✅ Автозапуск при перезагрузке
-
-**Следующий шаг:** Отправьте тестовое письмо из AMS! 🎉
-
----
-
-## 📚 Дополнительная документация
-
-- **FINAL_REPORT.md** - Полный отчет о проекте
-- **CURRENT_STATUS.md** - Текущий статус
-- **TESTING_GUIDE.md** - Руководство по тестированию
-- **IMPLEMENTATION_PLAN.md** - План реализации
+**SMTP не работает:**
+- Проверьте DNS: `dig MX linenarrow.com`
+- Проверьте DKIM: `dig TXT postal._domainkey.linenarrow.com`
+- Проверьте credentials: Dashboard → SMTP Credentials
