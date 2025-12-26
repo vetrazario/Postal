@@ -21,25 +21,26 @@ module Api
         end
 
         # Extract data from payload (format from server.js)
-        envelope = params[:envelope]
-        message = params[:message]
+        # Convert ActionController::Parameters to Hash
+        envelope = params[:envelope].to_unsafe_h
+        message = params[:message].to_unsafe_h
         raw = params[:raw]
 
         # Generate internal message ID
         message_id = generate_message_id
 
         # Get recipient (first to address)
-        recipient = envelope[:to].is_a?(Array) ? envelope[:to].first : envelope[:to]
+        recipient = envelope['to'].is_a?(Array) ? envelope['to'].first : envelope['to']
 
         # Create EmailLog record
         email_log = EmailLog.create!(
           message_id: message_id,
-          external_message_id: message[:headers]&.dig('message-id'),
+          external_message_id: message['headers']&.dig('message-id'),
           campaign_id: nil, # Can be extracted from headers if needed
           recipient: encrypt_email(recipient),
           recipient_masked: mask_email(recipient),
-          sender: envelope[:from],
-          subject: message[:subject],
+          sender: envelope['from'],
+          subject: message['subject'],
           status: 'queued',
           sent_at: nil,
           delivered_at: nil
@@ -49,17 +50,17 @@ module Api
         email_data = {
           email_log_id: email_log.id,
           envelope: {
-            from: envelope[:from],
-            to: envelope[:to]
+            from: envelope['from'],
+            to: envelope['to']
           },
           message: {
-            from: message[:from],
-            to: message[:to],
-            cc: message[:cc],
-            subject: message[:subject],
-            text: message[:text],
-            html: message[:html],
-            headers: message[:headers]
+            from: message['from'],
+            to: message['to'],
+            cc: message['cc'],
+            subject: message['subject'],
+            text: message['text'],
+            html: message['html'],
+            headers: message['headers']
           },
           raw: raw
         }
