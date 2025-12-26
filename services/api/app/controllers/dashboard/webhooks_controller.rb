@@ -9,10 +9,12 @@ module Dashboard
     end
 
     def logs
+      page = (params[:page] || 1).to_i
+      per_page = 50
       @logs = WebhookLog.includes(:webhook_endpoint)
                         .order(created_at: :desc)
-                        .page(params[:page])
-                        .per(50)
+                        .limit(per_page)
+                        .offset((page - 1) * per_page)
 
       # Filter by webhook endpoint if specified
       if params[:webhook_id].present?

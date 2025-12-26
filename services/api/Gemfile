@@ -27,8 +27,7 @@ gem 'connection_pool', '~> 2.4'
 gem 'liquid', '~> 5.4'
 
 # HTTP Clients
-gem 'httparty', '~> 0.21'  # For Postal API
-gem 'http', '~> 5.1'        # For webhooks and OpenRouter API
+gem 'httparty', '~> 0.21'  # For Postal API and OpenRouter API
 
 # JSON
 gem 'oj', '~> 3.16'
@@ -51,9 +50,6 @@ gem 'sentry-rails', '~> 5.15'
 
 # Encryption
 gem 'bcrypt', '~> 3.1'
-
-# Pagination
-gem 'kaminari', '~> 1.2'
 
 group :development, :test do
   gem 'rspec-rails', '~> 6.1'

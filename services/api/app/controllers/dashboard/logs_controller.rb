@@ -32,7 +32,9 @@ module Dashboard
       end
 
       # Pagination
-      @logs = @logs.page(params[:page]).per(50)
+      page = (params[:page] || 1).to_i
+      per_page = 50
+      @logs = @logs.limit(per_page).offset((page - 1) * per_page)
 
       # Stats for current filters
       @stats = calculate_filter_stats(@logs)
