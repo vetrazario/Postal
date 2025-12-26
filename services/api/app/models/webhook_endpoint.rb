@@ -11,7 +11,7 @@ class WebhookEndpoint < ApplicationRecord
 
   # Scopes
   scope :active, -> { where(active: true) }
-  scope :for_event, ->(event_type) { where("events @> ?", [event_type].to_json) }
+  scope :for_event, ->(event_type) { where("events::jsonb @> ?", [event_type].to_json) }
 
   # Default events
   DEFAULT_EVENTS = %w[delivered opened clicked bounced failed complained].freeze
