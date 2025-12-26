@@ -3,37 +3,44 @@
 module Api
   module V1
     class SmtpController < ApplicationController
+      # Skip API key authentication for internal SMTP relay
+      skip_before_action :authenticate_api_key
+
       # POST /api/v1/smtp/receive
-      # Receives parsed email from Haraka SMTP Relay
+      # Receives parsed email from SMTP Relay
       def receive
+        # Log incoming payload for debugging
+        Rails.logger.info "SMTP receive payload: #{params.to_unsafe_h.inspect}"
+
         # Validate required fields
         unless valid_smtp_payload?
           return render json: {
             error: 'Invalid payload',
-            message: 'Missing required fields: envelope, headers, or body'
+            message: 'Missing required fields: envelope and message'
           }, status: :bad_request
         end
 
-        # Extract data from payload
-        envelope = params[:envelope]
-        headers = params[:headers]
-        body = params[:body]
-        attachments = params[:attachments] || []
-        tracking = params[:tracking] || {}
-        metadata = params[:metadata] || {}
+        # Extract data from payload (format from server.js)
+        # Convert ActionController::Parameters to Hash
+        envelope = params[:envelope].to_unsafe_h
+        message = params[:message].to_unsafe_h
+        raw = params[:raw]
 
-        # Generate internal message ID if not provided
-        message_id = tracking[:message_id] || generate_message_id
+        # Generate internal message ID
+        message_id = generate_message_id
+
+        # Get recipient (first to address)
+        recipient = envelope['to'].is_a?(Array) ? envelope['to'].first : envelope['to']
 
         # Create EmailLog record
         email_log = EmailLog.create!(
           message_id: message_id,
-          external_message_id: tracking[:original_message_id],
-          campaign_id: tracking[:campaign_id],
-          recipient: encrypt_email(envelope[:to].first),
-          recipient_masked: mask_email(envelope[:to].first),
-          sender: headers[:from],
-          subject: headers[:subject],
+          external_message_id: message['headers']&.dig('message-id'),
+          campaign_id: nil, # Can be extracted from headers if needed
+          recipient: encrypt_email(recipient),
+          recipient_masked: mask_email(recipient),
+          sender: envelope['from'],
+          subject: message['subject'],
           status: 'queued',
           sent_at: nil,
           delivered_at: nil
@@ -42,15 +49,23 @@ module Api
         # Store email data for background processing
         email_data = {
           email_log_id: email_log.id,
-          envelope: envelope,
-          headers: headers,
-          body: body,
-          attachments: attachments,
-          tracking: tracking,
-          metadata: metadata
+          envelope: {
+            from: envelope['from'],
+            to: envelope['to']
+          },
+          message: {
+            from: message['from'],
+            to: message['to'],
+            cc: message['cc'],
+            subject: message['subject'],
+            text: message['text'],
+            html: message['html'],
+            headers: message['headers']
+          },
+          raw: raw
         }
 
-        # Queue background job to send email
+        # Queue background job to send email via Postal
         SendSmtpEmailJob.perform_later(email_data)
 
         # Return success response
@@ -74,9 +89,7 @@ module Api
       private
 
       def valid_smtp_payload?
-        params[:envelope].present? &&
-          params[:headers].present? &&
-          params[:body].present?
+        params[:envelope].present? && params[:message].present?
       end
 
       def generate_message_id

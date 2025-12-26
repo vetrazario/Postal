@@ -14,7 +14,7 @@ main_db:
   host: mariadb
   port: 3306
   username: postal
-  password: fc83da74d27a7b12e990eba01b0410a1
+  password: 3d13ad32d93c33da6e3c9cc09e3525bca7f51c1a3a5fc908b6bcad451cf4567c
   database: postal
   pool_size: 5
 
@@ -22,7 +22,7 @@ message_db:
   host: mariadb
   port: 3306
   username: postal
-  password: fc83da74d27a7b12e990eba01b0410a1
+  password: 3d13ad32d93c33da6e3c9cc09e3525bca7f51c1a3a5fc908b6bcad451cf4567c
   prefix: postal
 
 rabbitmq:

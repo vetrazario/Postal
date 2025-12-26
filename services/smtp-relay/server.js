@@ -120,7 +120,7 @@ async function forwardToAPI(session, parsed, raw) {
       raw: raw.toString('base64')
     };
 
-    const response = await axios.post(`${API_URL}/api/v1/emails/receive`, payload, {
+    const response = await axios.post(`${API_URL}/api/v1/smtp/receive`, payload, {
       headers: {
         'Content-Type': 'application/json'
       },
