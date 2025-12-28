@@ -20,11 +20,12 @@ class SystemConfig < ApplicationRecord
               message: 'must be a valid domain (example.com)'
             }
 
-  validates :ams_callback_url, presence: true,
+  validates :ams_callback_url,
             format: {
               with: URI::DEFAULT_PARSER.make_regexp(%w[http https]),
               message: 'must be a valid URL'
-            }
+            },
+            allow_blank: true
 
   validates :daily_limit, numericality: {
     greater_than_or_equal_to: 0,
