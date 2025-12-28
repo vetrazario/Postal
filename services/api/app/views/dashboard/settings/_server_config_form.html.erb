@@ -1,0 +1,63 @@
+<div class="mx-auto max-w-2xl">
+  <%= form_with model: @system_config,
+                url: update_system_config_dashboard_settings_path,
+                method: :patch,
+                class: "space-y-6" do |form| %>
+
+    <div class="rounded-md bg-white shadow-sm ring-1 ring-gray-900/5">
+      <div class="px-4 py-6 sm:p-8">
+        <div class="grid max-w-2xl grid-cols-1 gap-x-6 gap-y-8">
+
+          <!-- Domain -->
+          <div>
+            <%= form.label :domain, "Domain", class: "block text-sm font-medium text-gray-900" %>
+            <div class="mt-2">
+              <%= form.text_field :domain,
+                  placeholder: "example.com",
+                  required: true,
+                  class: "block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm" %>
+            </div>
+            <p class="mt-2 text-sm text-gray-500">
+              Main server domain (without https://)
+            </p>
+            <div class="mt-2 text-xs bg-blue-50 text-blue-800 p-2 rounded">
+              <strong>Affects:</strong> API, Sidekiq, Postal, SMTP
+            </div>
+          </div>
+
+          <!-- Allowed Sender Domains -->
+          <div>
+            <%= form.label :allowed_sender_domains, "Allowed Sender Domains", class: "block text-sm font-medium text-gray-900" %>
+            <div class="mt-2">
+              <%= form.text_field :allowed_sender_domains,
+                  placeholder: "example.com,mail.example.com",
+                  class: "block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm" %>
+            </div>
+            <p class="mt-2 text-sm text-gray-500">
+              Allowed sender domains (comma-separated)
+            </p>
+          </div>
+
+          <!-- CORS Origins -->
+          <div>
+            <%= form.label :cors_origins, "CORS Origins", class: "block text-sm font-medium text-gray-900" %>
+            <div class="mt-2">
+              <%= form.text_field :cors_origins,
+                  placeholder: "https://ams.example.com",
+                  class: "block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm" %>
+            </div>
+            <p class="mt-2 text-sm text-gray-500">
+              Allowed CORS origins (comma-separated)
+            </p>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="flex items-center justify-end gap-x-6">
+      <%= form.submit "Save Configuration", class: "rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600" %>
+    </div>
+  <% end %>
+</div>
