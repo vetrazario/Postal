@@ -10,7 +10,11 @@ class PostalClient
 
     response = HTTParty.post(
       "#{@api_url}/api/v1/send/message",
-      headers: { 'X-Server-API-Key' => @api_key, 'Content-Type' => 'application/json' },
+      headers: {
+        'Host' => domain,
+        'X-Server-API-Key' => @api_key,
+        'Content-Type' => 'application/json'
+      },
       body: {
         to: [to],
         from: from,
