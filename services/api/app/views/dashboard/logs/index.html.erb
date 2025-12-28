@@ -1,7 +1,17 @@
-<div class="space-y-6">
-  <div>
-    <h1 class="text-3xl font-bold text-gray-900">Email Logs</h1>
-    <p class="mt-2 text-sm text-gray-700">View and search all email logs</p>
+<div class="space-y-6" id="logs-container">
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-3xl font-bold text-gray-900">Email Logs</h1>
+      <p class="mt-2 text-sm text-gray-700">View and search all email logs</p>
+    </div>
+    <button type="button" 
+            id="refresh-logs-btn"
+            class="inline-flex items-center gap-x-2 rounded-md bg-indigo-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">
+      <svg id="refresh-icon" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+      </svg>
+      <span id="refresh-text">Refresh</span>
+    </button>
   </div>
 
   <!-- Filters -->
@@ -77,7 +87,29 @@
 
   <!-- Pagination would go here -->
   <div class="flex justify-between items-center">
-    <div class="text-sm text-gray-700">Showing <%= @logs.size %> results</div>
+    <div class="text-sm text-gray-700">
+      Showing <%= @logs.size %> results
+      <span id="last-updated" class="ml-2 text-gray-400"></span>
+    </div>
     <%= link_to "Export to CSV", export_dashboard_logs_path(request.query_parameters), class: "rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50" %>
   </div>
 </div>
+
+<script>
+  document.getElementById('refresh-logs-btn').addEventListener('click', function() {
+    const btn = this;
+    const icon = document.getElementById('refresh-icon');
+    const text = document.getElementById('refresh-text');
+    
+    // Add spinning animation
+    icon.classList.add('animate-spin');
+    text.textContent = 'Loading...';
+    btn.disabled = true;
+    
+    // Reload with current query params
+    window.location.reload();
+  });
+  
+  // Show last updated time
+  document.getElementById('last-updated').textContent = '(Updated: ' + new Date().toLocaleTimeString() + ')';
+</script>

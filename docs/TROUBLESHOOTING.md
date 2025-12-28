@@ -449,6 +449,90 @@ groups:
 
 ---
 
+### 11. Миграции не применяются (bin/rails отсутствует)
+
+**Симптомы:**
+- Новые страницы Dashboard выдают 500 ошибку
+- При запуске контейнера вместо миграций выводится справка `rails new`
+- Таблицы не создаются в БД
+
+**Диагностика:**
+
+```bash
+# Проверить наличие bin/rails в контейнере
+docker compose exec api ls -la /app/bin
+
+# Проверить таблицы в БД
+docker compose exec postgres psql -U email_sender -d email_sender -c "\dt"
+
+# Попробовать запустить миграции
+docker compose exec api bundle exec rails db:migrate:status
+```
+
+Если вместо результата выводится справка по `rails new` — файл `bin/rails` отсутствует.
+
+**Причина:**
+Файлы `bin/rails`, `bin/rake`, `bin/bundle` отсутствуют в репозитории или не скопировались в контейнер.
+
+**Решение:**
+
+1. **Создать недостающие файлы:**
+
+`services/api/bin/rails`:
+```ruby
+#!/usr/bin/env ruby
+APP_PATH = File.expand_path("../config/application", __dir__)
+require_relative "../config/boot"
+require "rails/commands"
+```
+
+`services/api/bin/rake`:
+```ruby
+#!/usr/bin/env ruby
+require_relative "../config/boot"
+require "rake"
+Rake.application.run
+```
+
+`services/api/bin/bundle`:
+```ruby
+#!/usr/bin/env ruby
+ENV["BUNDLE_GEMFILE"] ||= File.expand_path("../Gemfile", __dir__)
+require "bundler/setup"
+load Gem.bin_path("bundler", "bundle")
+```
+
+2. **Закоммитить и запушить:**
+```bash
+git add services/api/bin/
+git commit -m "Add bin/rails, bin/rake, bin/bundle"
+git push origin <branch>
+```
+
+3. **На сервере пересобрать контейнеры:**
+```bash
+cd /opt/email-sender
+git pull origin <branch>
+docker compose build --no-cache api sidekiq
+docker compose up -d api sidekiq
+```
+
+**Временное решение (создать таблицы вручную):**
+
+```bash
+# Создать таблицы через SQL напрямую
+docker compose exec postgres psql -U email_sender -d email_sender -c "
+CREATE TABLE IF NOT EXISTS <table_name> (
+  ...
+);
+"
+
+# Перезапустить сервисы
+docker compose restart api sidekiq
+```
+
+---
+
 ## Контакты для эскалации
 
 При неразрешимых проблемах:

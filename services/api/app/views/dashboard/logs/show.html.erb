@@ -1,12 +1,22 @@
 <div class="space-y-6">
-  <div>
-    <h1 class="text-3xl font-bold text-gray-900">Email Log Details</h1>
-    <p class="mt-2 text-sm text-gray-700">Message ID: <%= @log.message_id %></p>
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-3xl font-bold text-gray-900">Email Log Details</h1>
+      <p class="mt-2 text-sm text-gray-700">Message ID: <%= @log.message_id %></p>
+    </div>
+    <button type="button" 
+            onclick="window.location.reload()" 
+            class="inline-flex items-center gap-x-2 rounded-md bg-indigo-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">
+      <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+      </svg>
+      Refresh
+    </button>
   </div>
 
   <div class="overflow-hidden bg-white shadow sm:rounded-lg">
     <div class="px-4 py-6 sm:px-6">
-      <h3 class="text-base font-semibold text-gray-900">Email Information</h3>
+      <h3 class="text-base font-semibold text-gray-900">📧 Email Information</h3>
     </div>
     <div class="border-t border-gray-100">
       <dl class="divide-y divide-gray-100">
@@ -24,12 +34,27 @@
         </div>
         <div class="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
           <dt class="text-sm font-medium text-gray-900">Campaign ID</dt>
-          <dd class="mt-1 text-sm text-gray-700 sm:col-span-2 sm:mt-0"><%= @log.campaign_id %></dd>
+          <dd class="mt-1 text-sm text-gray-700 sm:col-span-2 sm:mt-0"><%= @log.campaign_id || '-' %></dd>
         </div>
+        <% if @log.postal_message_id.present? %>
+          <div class="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+            <dt class="text-sm font-medium text-gray-900">Postal Message ID</dt>
+            <dd class="mt-1 text-sm text-gray-700 sm:col-span-2 sm:mt-0 font-mono text-xs"><%= @log.postal_message_id %></dd>
+          </div>
+        <% end %>
         <div class="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
           <dt class="text-sm font-medium text-gray-900">Status</dt>
-          <dd class="mt-1 text-sm text-gray-700 sm:col-span-2 sm:mt-0">
-            <span class="inline-flex rounded-full px-2 text-xs font-semibold <%= @log.status == 'delivered' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800' %>">
+          <dd class="mt-1 text-sm sm:col-span-2 sm:mt-0">
+            <%
+              status_class = case @log.status
+                             when 'delivered' then 'bg-green-100 text-green-800'
+                             when 'sent' then 'bg-blue-100 text-blue-800'
+                             when 'bounced', 'failed' then 'bg-red-100 text-red-800'
+                             when 'processing' then 'bg-yellow-100 text-yellow-800'
+                             else 'bg-gray-100 text-gray-800'
+                             end
+            %>
+            <span class="inline-flex rounded-full px-2 text-xs font-semibold <%= status_class %>">
               <%= @log.status.capitalize %>
             </span>
           </dd>
@@ -54,11 +79,151 @@
     </div>
   </div>
 
+  <!-- Bounce/Error Classification -->
+  <% if @log.bounce_category.present? || @log.smtp_code.present? %>
+    <div class="overflow-hidden bg-white shadow sm:rounded-lg">
+      <div class="px-4 py-6 sm:px-6 bg-red-50">
+        <h3 class="text-base font-semibold text-red-900">⚠️ Delivery Error Classification</h3>
+        <p class="mt-1 text-sm text-red-700">Error details from mail server</p>
+      </div>
+      <div class="border-t border-gray-100">
+        <dl class="divide-y divide-gray-100">
+          <% if @log.bounce_category.present? %>
+            <div class="px-4 py-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+              <dt class="text-sm font-medium text-gray-900">Error Category</dt>
+              <dd class="mt-1 sm:col-span-2 sm:mt-0">
+                <%
+                  cat_class = case @log.bounce_category
+                              when 'rate_limit' then 'bg-red-100 text-red-800'
+                              when 'spam_block' then 'bg-orange-100 text-orange-800'
+                              when 'user_not_found' then 'bg-yellow-100 text-yellow-800'
+                              when 'mailbox_full' then 'bg-amber-100 text-amber-800'
+                              when 'temporary' then 'bg-blue-100 text-blue-800'
+                              when 'authentication' then 'bg-purple-100 text-purple-800'
+                              when 'connection' then 'bg-gray-100 text-gray-800'
+                              else 'bg-gray-100 text-gray-800'
+                              end
+                %>
+                <span class="inline-flex rounded-full px-3 py-1 text-sm font-semibold <%= cat_class %>">
+                  <%= @log.bounce_category.humanize %>
+                </span>
+              </dd>
+            </div>
+          <% end %>
+          <% if @log.smtp_code.present? %>
+            <div class="px-4 py-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+              <dt class="text-sm font-medium text-gray-900">SMTP Code</dt>
+              <dd class="mt-1 text-sm sm:col-span-2 sm:mt-0">
+                <code class="bg-gray-100 px-2 py-1 rounded font-mono text-red-600"><%= @log.smtp_code %></code>
+              </dd>
+            </div>
+          <% end %>
+          <% if @log.smtp_message.present? %>
+            <div class="px-4 py-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+              <dt class="text-sm font-medium text-gray-900">SMTP Message</dt>
+              <dd class="mt-1 text-sm text-gray-700 sm:col-span-2 sm:mt-0">
+                <code class="bg-gray-50 px-2 py-1 rounded block whitespace-pre-wrap text-xs"><%= @log.smtp_message %></code>
+              </dd>
+            </div>
+          <% end %>
+        </dl>
+      </div>
+    </div>
+  <% end %>
+
+  <!-- Mail Server Response (status_details) -->
+  <% if @log.status_details.present? %>
+    <div class="overflow-hidden bg-white shadow sm:rounded-lg">
+      <div class="px-4 py-6 sm:px-6">
+        <h3 class="text-base font-semibold text-gray-900">📬 Mail Server Response</h3>
+        <p class="mt-1 text-sm text-gray-500">Full response from recipient's mail server (Postal webhook data)</p>
+      </div>
+      <div class="border-t border-gray-100">
+        <dl class="divide-y divide-gray-100">
+          <% 
+            details = @log.status_details.is_a?(Hash) ? @log.status_details.with_indifferent_access : {}
+          %>
+          
+          <% if details['status'].present? %>
+            <div class="px-4 py-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+              <dt class="text-sm font-medium text-gray-900">Delivery Status</dt>
+              <dd class="mt-1 text-sm sm:col-span-2 sm:mt-0">
+                <%
+                  del_status = details['status']
+                  del_class = case del_status
+                              when 'Sent' then 'bg-green-100 text-green-800'
+                              when 'HardFail' then 'bg-red-100 text-red-800'
+                              when 'SoftFail' then 'bg-yellow-100 text-yellow-800'
+                              else 'bg-gray-100 text-gray-800'
+                              end
+                %>
+                <span class="inline-flex rounded-full px-2 py-1 text-xs font-semibold <%= del_class %>">
+                  <%= del_status %>
+                </span>
+              </dd>
+            </div>
+          <% end %>
+          
+          <% if details['output'].present? %>
+            <div class="px-4 py-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+              <dt class="text-sm font-medium text-gray-900">SMTP Response</dt>
+              <dd class="mt-1 text-sm sm:col-span-2 sm:mt-0">
+                <code class="bg-red-50 text-red-700 px-3 py-2 rounded block whitespace-pre-wrap text-xs font-mono"><%= details['output'] %></code>
+              </dd>
+            </div>
+          <% end %>
+          
+          <% if details['details'].present? %>
+            <div class="px-4 py-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+              <dt class="text-sm font-medium text-gray-900">Server Details</dt>
+              <dd class="mt-1 text-sm text-gray-700 sm:col-span-2 sm:mt-0">
+                <code class="bg-gray-50 px-3 py-2 rounded block whitespace-pre-wrap text-xs"><%= details['details'] %></code>
+              </dd>
+            </div>
+          <% end %>
+          
+          <% if details['error'].present? %>
+            <div class="px-4 py-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6 bg-red-50">
+              <dt class="text-sm font-medium text-red-900">Error</dt>
+              <dd class="mt-1 text-sm text-red-700 sm:col-span-2 sm:mt-0">
+                <code class="block whitespace-pre-wrap"><%= details['error'] %></code>
+              </dd>
+            </div>
+          <% end %>
+          
+          <% if details['message'].present? && details['message'].is_a?(Hash) %>
+            <div class="px-4 py-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+              <dt class="text-sm font-medium text-gray-900">Message Info</dt>
+              <dd class="mt-1 text-sm text-gray-700 sm:col-span-2 sm:mt-0">
+                <% msg = details['message'] %>
+                <ul class="text-xs space-y-1">
+                  <% if msg['id'] %><li><strong>ID:</strong> <%= msg['id'] %></li><% end %>
+                  <% if msg['token'] %><li><strong>Token:</strong> <%= msg['token'] %></li><% end %>
+                </ul>
+              </dd>
+            </div>
+          <% end %>
+          
+          <!-- Raw JSON -->
+          <div class="px-4 py-4 sm:px-6">
+            <dt class="text-sm font-medium text-gray-900 mb-2">Raw Response Data</dt>
+            <dd class="mt-1">
+              <details class="cursor-pointer">
+                <summary class="text-sm text-indigo-600 hover:text-indigo-500">Show raw JSON</summary>
+                <pre class="mt-2 text-xs bg-gray-900 text-green-400 p-4 rounded overflow-auto max-h-64"><%= JSON.pretty_generate(@log.status_details) rescue @log.status_details.to_s %></pre>
+              </details>
+            </dd>
+          </div>
+        </dl>
+      </div>
+    </div>
+  <% end %>
+
   <!-- Tracking Events -->
   <% if @tracking_events.any? %>
     <div class="overflow-hidden bg-white shadow sm:rounded-lg">
       <div class="px-4 py-6 sm:px-6">
-        <h3 class="text-base font-semibold text-gray-900">Tracking Events</h3>
+        <h3 class="text-base font-semibold text-gray-900">📊 Tracking Events</h3>
       </div>
       <table class="min-w-full divide-y divide-gray-300">
         <thead class="bg-gray-50">
@@ -71,9 +236,27 @@
         <tbody class="divide-y divide-gray-200">
           <% @tracking_events.each do |event| %>
             <tr>
-              <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900"><%= event.event_type.capitalize %></td>
+              <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900">
+                <%
+                  event_class = case event.event_type
+                                when 'delivered' then 'bg-green-100 text-green-800'
+                                when 'bounce' then 'bg-red-100 text-red-800'
+                                when 'open' then 'bg-blue-100 text-blue-800'
+                                when 'click' then 'bg-indigo-100 text-indigo-800'
+                                else 'bg-gray-100 text-gray-800'
+                                end
+                %>
+                <span class="inline-flex rounded-full px-2 text-xs font-semibold <%= event_class %>">
+                  <%= event.event_type.capitalize %>
+                </span>
+              </td>
               <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500"><%= event.created_at.strftime('%Y-%m-%d %H:%M:%S') %></td>
-              <td class="px-3 py-4 text-sm text-gray-500"><%= event.event_data.to_json %></td>
+              <td class="px-3 py-4 text-sm text-gray-500">
+                <details class="cursor-pointer">
+                  <summary class="text-xs text-indigo-600">Show data</summary>
+                  <pre class="mt-1 text-xs bg-gray-50 p-2 rounded overflow-auto max-h-32"><%= JSON.pretty_generate(event.event_data) rescue event.event_data.to_s %></pre>
+                </details>
+              </td>
             </tr>
           <% end %>
         </tbody>

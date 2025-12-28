@@ -65,42 +65,44 @@ class ErrorClassifier
     ]
   }.freeze
 
-  def self.classify(payload)
-    output = extract_text(payload, :output) || ''
-    details = extract_text(payload, :details) || ''
-    status = extract_text(payload, :status) || ''
-    
-    full_text = "#{status} #{output} #{details}".downcase
-    
-    category = find_category(full_text)
-    smtp_code = extract_smtp_code(output)
-    
-    {
-      category: category,
-      smtp_code: smtp_code,
-      message: output.presence || details.presence || status
-    }
-  end
-
-  private
-
-  def self.extract_text(payload, key)
-    payload.dig(key) || payload.dig(key.to_s) || payload[key] || payload[key.to_s]
-  end
-
-  def self.find_category(text)
-    ERROR_PATTERNS.each do |category, patterns|
-      return category if patterns.any? { |pattern| text.include?(pattern.downcase) }
+  class << self
+    def classify(payload)
+      output = extract_text(payload, :output) || ''
+      details = extract_text(payload, :details) || ''
+      status = extract_text(payload, :status) || ''
+      
+      full_text = "#{status} #{output} #{details}".downcase
+      
+      category = find_category(full_text)
+      smtp_code = extract_smtp_code(output)
+      
+      {
+        category: category,
+        smtp_code: smtp_code,
+        message: output.presence || details.presence || status
+      }
     end
-    :unknown
-  end
 
-  def self.extract_smtp_code(text)
-    return nil if text.blank?
-    
-    # Ищем SMTP код в формате "550 5.1.1" или просто "550"
-    match = text.match(/(\d{3})(?:\s+[\d.]+)?/)
-    match ? match[1] : nil
+    private
+
+    def extract_text(payload, key)
+      payload.dig(key) || payload.dig(key.to_s) || payload[key] || payload[key.to_s]
+    end
+
+    def find_category(text)
+      ERROR_PATTERNS.each do |category, patterns|
+        return category if patterns.any? { |pattern| text.include?(pattern.downcase) }
+      end
+      :unknown
+    end
+
+    def extract_smtp_code(text)
+      return nil if text.blank?
+      
+      # Ищем SMTP код в формате "550 5.1.1" или просто "550"
+      match = text.match(/(\d{3})(?:\s+[\d.]+)?/)
+      match ? match[1] : nil
+    end
   end
 end
 
