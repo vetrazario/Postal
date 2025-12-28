@@ -101,6 +101,18 @@ Rails.application.routes.draw do
 
     # Settings
     resource :settings, only: [:show, :update]
+
+    # Mailing Rules
+    resource :mailing_rules, only: [:show, :update] do
+      post :test_ams_connection
+    end
+
+    # Error Monitor
+    resources :error_monitor, only: [:index] do
+      collection do
+        get :stats
+      end
+    end
   end
 
   # Sidekiq Web UI (монтируем только если заданы учетные данные)

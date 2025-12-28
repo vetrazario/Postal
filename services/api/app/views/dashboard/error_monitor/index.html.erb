@@ -1,0 +1,156 @@
+<div class="space-y-10">
+  <div>
+    <h1 class="text-3xl font-bold text-gray-900">Error Monitor</h1>
+    <p class="mt-2 text-sm text-gray-700">Monitor delivery errors and bounce classifications</p>
+  </div>
+
+  <!-- Filters -->
+  <div class="rounded-md bg-white shadow-sm ring-1 ring-gray-900/5 p-6">
+    <%= form_with url: dashboard_error_monitor_index_path, method: :get, local: true, class: "grid grid-cols-1 gap-4 sm:grid-cols-4", data: { turbo: false } do |form| %>
+      <div>
+        <%= form.label :campaign_id, "Campaign", class: "block text-sm font-medium text-gray-700" %>
+        <%= form.select :campaign_id,
+            options_for_select([['All Campaigns', '']] + @campaigns.map { |c| [c, c] }, @campaign_id),
+            {},
+            class: "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" %>
+      </div>
+      
+      <div>
+        <%= form.label :category, "Category", class: "block text-sm font-medium text-gray-700" %>
+        <%= form.select :category,
+            options_for_select([['All Categories', '']] + DeliveryError::CATEGORIES.map { |c| [c.humanize, c] }, @category),
+            {},
+            class: "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" %>
+      </div>
+      
+      <div>
+        <%= form.label :hours, "Period (hours)", class: "block text-sm font-medium text-gray-700" %>
+        <%= form.select :hours,
+            options_for_select([['1 hour', 1], ['6 hours', 6], ['24 hours', 24], ['48 hours', 48], ['7 days', 168]], @hours),
+            {},
+            class: "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" %>
+      </div>
+      
+      <div class="flex items-end">
+        <%= form.submit "Filter", class: "w-full rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500" %>
+      </div>
+    <% end %>
+  </div>
+
+  <!-- Statistics by Category -->
+  <div class="rounded-md bg-white shadow-sm ring-1 ring-gray-900/5">
+    <div class="px-4 py-6 sm:p-8">
+      <h2 class="text-lg font-semibold text-gray-900 mb-4">Error Statistics</h2>
+      <div class="space-y-4">
+        <% total_errors = @stats.values.sum %>
+        <% DeliveryError::CATEGORIES.each do |category| %>
+          <% count = @stats[category] || 0 %>
+          <% percentage = total_errors > 0 ? (count.to_f / total_errors * 100) : 0 %>
+          <% next if count == 0 && total_errors > 0 %>
+          
+          <%
+            bar_color = case category
+                        when 'rate_limit' then 'bg-red-600'
+                        when 'spam_block' then 'bg-orange-600'
+                        when 'user_not_found' then 'bg-yellow-600'
+                        when 'mailbox_full' then 'bg-amber-600'
+                        when 'temporary' then 'bg-blue-600'
+                        when 'authentication' then 'bg-purple-600'
+                        when 'connection' then 'bg-gray-600'
+                        else 'bg-indigo-600'
+                        end
+          %>
+          
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-sm font-medium text-gray-700">
+                <%= category.humanize %>
+              </span>
+              <span class="text-sm text-gray-500">
+                <%= count %> (<%= percentage.round(1) %>%)
+              </span>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-2">
+              <div class="<%= bar_color %> h-2 rounded-full" 
+                   style="width: <%= percentage %>%"></div>
+            </div>
+          </div>
+        <% end %>
+        
+        <% if total_errors == 0 %>
+          <p class="text-sm text-gray-500">No errors found in the selected period</p>
+        <% end %>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent Errors Table -->
+  <div class="rounded-md bg-white shadow-sm ring-1 ring-gray-900/5">
+    <div class="px-4 py-6 sm:p-8">
+      <h2 class="text-lg font-semibold text-gray-900 mb-4">Recent Errors</h2>
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-300">
+          <thead>
+            <tr>
+              <th class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-0">Time</th>
+              <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Campaign</th>
+              <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Recipient</th>
+              <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Category</th>
+              <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">SMTP Code</th>
+              <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Message</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-200">
+            <% if @errors.any? %>
+              <% @errors.each do |error| %>
+                <tr>
+                  <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm text-gray-500 sm:pl-0">
+                    <%= error.created_at.strftime('%Y-%m-%d %H:%M:%S') %>
+                  </td>
+                  <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-900">
+                    <%= error.campaign_id %>
+                  </td>
+                  <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                    <%= error.email_log&.recipient_masked || 'N/A' %>
+                  </td>
+                  <td class="whitespace-nowrap px-3 py-4 text-sm">
+                    <%
+                      badge_class = case error.category
+                                    when 'rate_limit' then 'bg-red-100 text-red-800'
+                                    when 'spam_block' then 'bg-orange-100 text-orange-800'
+                                    when 'user_not_found' then 'bg-yellow-100 text-yellow-800'
+                                    when 'mailbox_full' then 'bg-amber-100 text-amber-800'
+                                    when 'temporary' then 'bg-blue-100 text-blue-800'
+                                    when 'authentication' then 'bg-purple-100 text-purple-800'
+                                    when 'connection' then 'bg-gray-100 text-gray-800'
+                                    else 'bg-gray-100 text-gray-800'
+                                    end
+                    %>
+                    <span class="inline-flex rounded-full px-2 text-xs font-semibold leading-5 <%= badge_class %>">
+                      <%= error.category.humanize %>
+                    </span>
+                  </td>
+                  <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                    <%= error.smtp_code || '-' %>
+                  </td>
+                  <td class="px-3 py-4 text-sm text-gray-500">
+                    <code class="text-xs bg-gray-50 px-2 py-1 rounded">
+                      <%= truncate(error.smtp_message || '-', length: 80) %>
+                    </code>
+                  </td>
+                </tr>
+              <% end %>
+            <% else %>
+              <tr>
+                <td colspan="6" class="px-3 py-4 text-sm text-gray-500 text-center">
+                  No errors found
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+

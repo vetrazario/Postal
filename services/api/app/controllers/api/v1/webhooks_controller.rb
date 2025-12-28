@@ -5,7 +5,7 @@ class Api::V1::WebhooksController < Api::V1::ApplicationController
   def postal
     event = params[:event]
     payload = params[:payload] || {}
-    message_id = payload.dig(:message, :id)&.to_s
+    message_id = payload.dig(:message, :id)&.to_s || payload.dig('message', 'id')&.to_s || payload.dig(:message, 'id')&.to_s || payload.dig('message', :id)&.to_s
 
     email_log = EmailLog.find_by(postal_message_id: message_id)
     
@@ -30,8 +30,35 @@ class Api::V1::WebhooksController < Api::V1::ApplicationController
       TrackingEvent.create_event(email_log: email_log, event_type: 'delivered', event_data: payload)
       ReportToAmsJob.perform_later(email_log.external_message_id, 'delivered')
 
-    when 'MessageBounced'
-      email_log.update_status('bounced', details: payload)
+    when 'MessageBounced', 'MessageDeliveryFailed'
+      # Классифицировать ошибку
+      error_info = ErrorClassifier.classify(payload)
+      
+      # Обновить email_log с классификацией
+      # MessageDeliveryFailed должен быть 'failed', а не 'bounced'
+      status = event == 'MessageDeliveryFailed' ? 'failed' : 'bounced'
+      email_log.update_status(status, details: payload)
+      email_log.update(
+        bounce_category: error_info[:category].to_s,
+        smtp_code: error_info[:smtp_code],
+        smtp_message: error_info[:message]
+      )
+      
+      # Создать запись DeliveryError
+      if email_log.campaign_id.present?
+        DeliveryError.create!(
+          email_log: email_log,
+          campaign_id: email_log.campaign_id,
+          category: error_info[:category].to_s,
+          smtp_code: error_info[:smtp_code],
+          smtp_message: error_info[:message],
+          recipient_domain: email_log.recipient&.split('@')&.last
+        )
+        
+        # Проверить пороги асинхронно
+        CheckMailingThresholdsJob.perform_later(email_log.campaign_id)
+      end
+      
       TrackingEvent.create_event(email_log: email_log, event_type: 'bounce', event_data: payload)
       ReportToAmsJob.perform_later(email_log.external_message_id, 'bounced')
 
