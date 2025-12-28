@@ -94,12 +94,13 @@ class Api::V1::WebhooksController < Api::V1::ApplicationController
   end
 
   def load_public_key
-    pem = ENV.fetch('POSTAL_WEBHOOK_PUBLIC_KEY', '')
-    return nil if pem.blank?
+    file_path = ENV.fetch('POSTAL_WEBHOOK_PUBLIC_KEY_FILE', nil)
+    return nil if file_path.blank? || !File.exist?(file_path)
 
+    pem = File.read(file_path)
     OpenSSL::PKey.read(pem)
-  rescue OpenSSL::PKey::PKeyError => e
-    Rails.logger.error "Invalid POSTAL_WEBHOOK_PUBLIC_KEY: #{e.message}"
+  rescue OpenSSL::PKey::PKeyError, Errno::ENOENT => e
+    Rails.logger.error "Invalid POSTAL_WEBHOOK_PUBLIC_KEY_FILE: #{e.message}"
     nil
   end
 end
