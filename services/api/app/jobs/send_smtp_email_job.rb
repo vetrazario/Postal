@@ -98,11 +98,8 @@ class SendSmtpEmailJob < ApplicationJob
       custom_headers['Reply-To'] = reply_to if reply_to.present?
     end
 
-    # Extract campaign/affiliate IDs from headers if present
-    if message[:headers].is_a?(Hash)
-      custom_headers['X-Campaign-ID'] = message[:headers]['x-campaign-id'] if message[:headers]['x-campaign-id']
-      custom_headers['X-Affiliate-ID'] = message[:headers]['x-affiliate-id'] if message[:headers]['x-affiliate-id']
-    end
+    # NOTE: Do NOT pass X-Campaign-ID, X-Mailing-ID, X-Affiliate-ID or any AMS headers
+    # to Postal - they are for internal tracking only and must not reach the recipient
 
     custom_headers
   end

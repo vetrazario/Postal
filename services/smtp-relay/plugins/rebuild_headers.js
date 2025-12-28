@@ -53,10 +53,15 @@ exports.hook_data_post = function(next, connection) {
     // Remove AMS-specific headers
     const removedHeaders = [];
 
-    // List of headers to remove (AMS traces)
+    // List of headers to remove (AMS traces and internal tracking headers)
     const headersToRemove = [
       /^received$/i,           // All Received headers
       /^x-ams-/i,             // X-AMS-* headers
+      /^x-campaign-id$/i,     // Campaign tracking (internal only)
+      /^x-campaign$/i,        // Campaign tracking (internal only)
+      /^x-mailing-id$/i,      // Mailing tracking (internal only)
+      /^x-affiliate-id$/i,    // Affiliate tracking (internal only)
+      /^x-recipient-id$/i,    // Recipient tracking (internal only)
       /^x-original-/i,        // X-Original-* headers
       /^return-path$/i,       // Will be set by Postal
       /^authentication-results$/i,
