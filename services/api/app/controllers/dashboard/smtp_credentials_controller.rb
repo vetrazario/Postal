@@ -89,7 +89,7 @@ module Dashboard
 
     def connection_info(credential, password)
       {
-        smtp_host: ENV['DOMAIN'] || 'linenarrow.com',
+        smtp_host: SystemConfig.get(:domain) || 'linenarrow.com',
         smtp_port: 587,
         smtp_security: 'TLS/STARTTLS',
         smtp_username: credential.username,

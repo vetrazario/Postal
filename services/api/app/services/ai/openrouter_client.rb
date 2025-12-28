@@ -25,7 +25,7 @@ module Ai
         headers: {
           'Authorization' => "Bearer #{@settings.openrouter_api_key}",
           'Content-Type' => 'application/json',
-          'HTTP-Referer' => ENV.fetch('DOMAIN', 'https://linenarrow.com'),
+          'HTTP-Referer' => "https://#{SystemConfig.get(:domain) || 'linenarrow.com'}",
           'X-Title' => 'Email Sender Analytics'
         },
         body: {
