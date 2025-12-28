@@ -217,6 +217,7 @@ services:
       DATABASE_URL: postgres://email_sender:${POSTGRES_PASSWORD}@postgres:5432/email_sender
       REDIS_URL: redis://redis:6379/0
       SECRET_KEY_BASE: ${SECRET_KEY_BASE}
+      DOMAIN: ${DOMAIN}
       POSTAL_API_URL: ${POSTAL_API_URL:-http://postal:5000}
       POSTAL_API_KEY: ${POSTAL_API_KEY}
       POSTAL_SIGNING_KEY: ${POSTAL_SIGNING_KEY}
