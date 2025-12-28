@@ -145,8 +145,6 @@ services:
       context: ./services/api
       dockerfile: Dockerfile
     container_name: email_api
-    extra_hosts:
-      - "linenarrow.com:172.19.0.10"
     restart: unless-stopped
     depends_on:
       postgres:
@@ -204,8 +202,6 @@ services:
       context: ./services/api
       dockerfile: Dockerfile
     container_name: email_sidekiq
-    extra_hosts:
-      - "linenarrow.com:172.19.0.10"
     restart: unless-stopped
     command: bundle exec sidekiq -C config/sidekiq.yml
     depends_on:
@@ -241,6 +237,7 @@ services:
         reservations:
           memory: 150M
     networks:
+      - frontend
       - backend
 
   tracking:
