@@ -100,7 +100,12 @@ Rails.application.routes.draw do
     end
 
     # Settings
-    resource :settings, only: [:show, :update]
+    resource :settings, only: [:show, :update] do
+      patch :update_system_config, on: :collection
+      post :test_ams_connection, on: :collection
+      post :test_postal_connection, on: :collection
+      post :apply_changes, on: :collection
+    end
 
     # Mailing Rules
     resource :mailing_rules, only: [:show, :update] do

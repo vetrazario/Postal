@@ -4,16 +4,90 @@ module Dashboard
   class SettingsController < BaseController
     def show
       @ai_settings = AiSetting.instance
+      @system_config = SystemConfig.instance
       @total_cost = @ai_settings.total_estimated_cost
     end
 
+    # AI Settings (existing)
     def update
       @ai_settings = AiSetting.instance
 
       if @ai_settings.update(ai_settings_params)
-        redirect_to dashboard_settings_path, notice: 'Settings updated successfully'
+        redirect_to dashboard_settings_path, notice: 'AI settings updated successfully'
       else
+        @system_config = SystemConfig.instance
         render :show
+      end
+    end
+
+    # System Configuration (new)
+    def update_system_config
+      @system_config = SystemConfig.instance
+
+      if @system_config.update(system_config_params)
+        # Sync to .env file
+        @system_config.sync_to_env_file
+
+        if @system_config.restart_required?
+          flash[:warning] = "Configuration updated. Services need restart: #{@system_config.restart_services.join(', ')}"
+          flash[:restart_services] = @system_config.restart_services
+        else
+          flash[:notice] = 'Configuration updated successfully'
+        end
+
+        redirect_to dashboard_settings_path
+      else
+        @ai_settings = AiSetting.instance
+        flash.now[:error] = @system_config.errors.full_messages.join(', ')
+        render :show
+      end
+    end
+
+    # Test AMS connection
+    def test_ams_connection
+      config = SystemConfig.instance
+      result = config.test_ams_connection
+
+      render json: result
+    end
+
+    # Test Postal connection
+    def test_postal_connection
+      config = SystemConfig.instance
+      result = config.test_postal_connection
+
+      render json: result
+    end
+
+    # Apply changes (restart services)
+    def apply_changes
+      config = SystemConfig.instance
+      services = params[:services] || config.restart_services
+
+      results = {}
+      success = true
+
+      services.each do |service|
+        result = restart_service(service)
+        results[service] = result
+        success = false unless result[:success]
+      end
+
+      if success
+        # Reset restart flag
+        config.update_columns(restart_required: false, restart_services: [], changed_fields: {})
+
+        render json: {
+          success: true,
+          message: "Services restarted: #{services.join(', ')}",
+          results: results
+        }
+      else
+        render json: {
+          success: false,
+          message: 'Some services failed to restart',
+          results: results
+        }, status: :unprocessable_entity
       end
     end
 
@@ -27,6 +101,61 @@ module Dashboard
         :max_tokens,
         :enabled
       )
+    end
+
+    def system_config_params
+      params.require(:system_config).permit(
+        # Server
+        :domain,
+        :allowed_sender_domains,
+        :cors_origins,
+
+        # AMS
+        :ams_callback_url,
+        :ams_api_key,
+        :ams_api_url,
+
+        # Postal
+        :postal_api_url,
+        :postal_api_key,
+        :postal_signing_key,
+
+        # Limits
+        :daily_limit,
+        :sidekiq_concurrency,
+        :webhook_secret
+      )
+    end
+
+    def restart_service(service)
+      case service
+      when 'api'
+        restart_docker_service('api')
+      when 'sidekiq'
+        restart_docker_service('sidekiq')
+      when 'postal'
+        restart_docker_service('postal')
+      else
+        { success: false, error: "Unknown service: #{service}" }
+      end
+    end
+
+    def restart_docker_service(service)
+      command = "docker compose restart #{service}"
+      output = `#{command} 2>&1`
+      success = $?.success?
+
+      {
+        service: service,
+        success: success,
+        message: success ? 'Restarted successfully' : output
+      }
+    rescue => e
+      {
+        service: service,
+        success: false,
+        error: e.message
+      }
     end
   end
 end
