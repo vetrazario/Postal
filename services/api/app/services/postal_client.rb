@@ -8,6 +8,9 @@ class PostalClient
     domain = ENV.fetch('DOMAIN', 'send1.example.com')
     message_headers = build_headers(from, to, subject, domain).merge(headers)
 
+    # Log the request details for debugging
+    Rails.logger.info "PostalClient: Sending to #{@api_url}/api/v1/send/message with Host: #{domain}"
+
     response = HTTParty.post(
       "#{@api_url}/api/v1/send/message",
       headers: {
@@ -15,6 +18,7 @@ class PostalClient
         'X-Server-API-Key' => @api_key,
         'Content-Type' => 'application/json'
       },
+      debug_output: Rails.logger,
       body: {
         to: [to],
         from: from,
