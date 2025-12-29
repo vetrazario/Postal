@@ -141,13 +141,23 @@ module Dashboard
     end
 
     def restart_docker_service(service)
-      # Try to find docker command
+      # Docker CLI path
       docker_cmd = `which docker 2>/dev/null`.strip
       docker_cmd = '/usr/bin/docker' if docker_cmd.empty?
 
-      # Change to project root (2 levels up from /app)
-      project_root = Rails.root.join('..', '..').to_s
-      command = "cd #{project_root} && #{docker_cmd} compose restart #{service}"
+      # Use mounted docker-compose.yml file
+      compose_file = '/project/docker-compose.yml'
+
+      unless File.exist?(compose_file)
+        return {
+          service: service,
+          success: false,
+          error: "docker-compose.yml not found at #{compose_file}"
+        }
+      end
+
+      # Execute docker compose restart with explicit file path
+      command = "#{docker_cmd} compose -f #{compose_file} restart #{service}"
 
       Rails.logger.info "Executing: #{command}"
       output = `#{command} 2>&1`
@@ -161,11 +171,11 @@ module Dashboard
         message: success ? 'Restarted successfully' : output
       }
     rescue => e
-      Rails.logger.error "Restart error: #{e.message}"
+      Rails.logger.error "Restart error: #{e.class}: #{e.message}"
       {
         service: service,
         success: false,
-        error: e.message
+        error: "#{e.class}: #{e.message}"
       }
     end
   end

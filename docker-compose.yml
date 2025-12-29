@@ -183,6 +183,7 @@ services:
       - api_logs:/app/log
       - ./postal_public.key:/config/postal_public.key:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./docker-compose.yml:/project/docker-compose.yml:ro
     deploy:
       resources:
         limits:
