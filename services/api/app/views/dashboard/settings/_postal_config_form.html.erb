@@ -1,4 +1,28 @@
-<div class="mx-auto max-w-2xl" x-data="{ testing: false, testResult: null }">
+<div class="mx-auto max-w-2xl" x-data="{
+  testing: false,
+  testResult: null,
+  testPostalConnection() {
+    this.testing = true;
+    this.testResult = null;
+
+    fetch('/dashboard/settings/test_postal_connection', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': document.querySelector('[name=\"csrf-token\"]').content
+      }
+    })
+    .then(r => r.json())
+    .then(data => {
+      this.testResult = data;
+      this.testing = false;
+    })
+    .catch(err => {
+      this.testResult = { success: false, error: err.message };
+      this.testing = false;
+    });
+  }
+}">
   <%= form_with model: @system_config,
                 url: update_system_config_dashboard_settings_path,
                 method: :patch,
@@ -105,27 +129,3 @@
     </div>
   <% end %>
 </div>
-
-<script>
-function testPostalConnection() {
-  this.testing = true;
-  this.testResult = null;
-
-  fetch('/dashboard/settings/test_postal_connection', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-CSRF-Token': document.querySelector('[name="csrf-token"]').content
-    }
-  })
-  .then(r => r.json())
-  .then(data => {
-    this.testResult = data;
-    this.testing = false;
-  })
-  .catch(err => {
-    this.testResult = { success: false, error: err.message };
-    this.testing = false;
-  });
-}
-</script>
