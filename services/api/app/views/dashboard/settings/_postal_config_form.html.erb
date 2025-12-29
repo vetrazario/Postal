@@ -9,7 +9,7 @@
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-CSRF-Token': document.querySelector('[name=\"csrf-token\"]').content
+        'X-CSRF-Token': document.querySelector('[name=csrf-token]').content
       }
     })
     .then(r => r.json())
