@@ -105,22 +105,32 @@ class SystemConfig < ApplicationRecord
     return { success: false, error: 'Postal API Key not configured' } if postal_api_key.blank?
 
     begin
-      # Try to get server info
-      response = HTTParty.get(
+      # Try to send an empty POST request - Postal will reject it but that proves connectivity
+      response = HTTParty.post(
         "#{postal_api_url}/api/v1/send/message",
         timeout: 5,
         headers: {
           'X-Server-API-Key' => postal_api_key,
           'Content-Type' => 'application/json'
-        }
+        },
+        body: {}.to_json
       )
 
-      # Postal will return 400 if no data, but that means connection is OK
-      {
-        success: [200, 400, 401, 403].include?(response.code),
-        message: "HTTP #{response.code}",
-        code: response.code
-      }
+      # 200 = OK (unlikely), 400 = bad request (expected), 401 = bad key, 403 = forbidden
+      # All except 401/403 mean server is reachable
+      if [200, 400].include?(response.code)
+        { success: true, message: "Connected (HTTP #{response.code})", code: response.code }
+      elsif [401, 403].include?(response.code)
+        { success: false, error: "Authentication failed (HTTP #{response.code}) - check API key", code: response.code }
+      else
+        { success: false, error: "HTTP #{response.code}", code: response.code }
+      end
+    rescue Net::OpenTimeout, Net::ReadTimeout => e
+      { success: false, error: "Timeout: #{e.message}" }
+    rescue SocketError => e
+      { success: false, error: "DNS error: #{e.message}" }
+    rescue Errno::ECONNREFUSED => e
+      { success: false, error: "Connection refused - is Postal running?" }
     rescue StandardError => e
       { success: false, error: e.message }
     end

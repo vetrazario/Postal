@@ -141,9 +141,19 @@ module Dashboard
     end
 
     def restart_docker_service(service)
-      command = "docker compose restart #{service}"
+      # Try to find docker command
+      docker_cmd = `which docker 2>/dev/null`.strip
+      docker_cmd = '/usr/bin/docker' if docker_cmd.empty?
+
+      # Change to project root (2 levels up from /app)
+      project_root = Rails.root.join('..', '..').to_s
+      command = "cd #{project_root} && #{docker_cmd} compose restart #{service}"
+
+      Rails.logger.info "Executing: #{command}"
       output = `#{command} 2>&1`
       success = $?.success?
+
+      Rails.logger.info "Result: success=#{success}, output=#{output}"
 
       {
         service: service,
@@ -151,6 +161,7 @@ module Dashboard
         message: success ? 'Restarted successfully' : output
       }
     rescue => e
+      Rails.logger.error "Restart error: #{e.message}"
       {
         service: service,
         success: false,
