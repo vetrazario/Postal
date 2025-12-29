@@ -102,9 +102,17 @@ class SystemConfig < ApplicationRecord
   # Test Postal connection
   def test_postal_connection
     return { success: false, error: 'Postal API URL not configured' } if postal_api_url.blank?
-    return { success: false, error: 'Postal API Key not configured' } if postal_api_key.blank?
+
+    # Check if API key looks like a placeholder
+    if postal_api_key.blank?
+      return { success: false, error: 'Postal API Key not configured' }
+    elsif postal_api_key.include?('your_') || postal_api_key.include?('CHANGE_ME')
+      return { success: false, error: 'Postal API Key is a placeholder - set real key from Postal admin' }
+    end
 
     begin
+      Rails.logger.info "Testing Postal connection: #{postal_api_url}"
+
       # Try to send an empty POST request - Postal will reject it but that proves connectivity
       response = HTTParty.post(
         "#{postal_api_url}/api/v1/send/message",
@@ -116,23 +124,29 @@ class SystemConfig < ApplicationRecord
         body: {}.to_json
       )
 
+      Rails.logger.info "Postal response: code=#{response.code}, body=#{response.body[0..200]}"
+
       # 200 = OK (unlikely), 400 = bad request (expected), 401 = bad key, 403 = forbidden
       # All except 401/403 mean server is reachable
       if [200, 400].include?(response.code)
-        { success: true, message: "Connected (HTTP #{response.code})", code: response.code }
+        { success: true, message: "Connected successfully (HTTP #{response.code})", code: response.code }
       elsif [401, 403].include?(response.code)
         { success: false, error: "Authentication failed (HTTP #{response.code}) - check API key", code: response.code }
       else
-        { success: false, error: "HTTP #{response.code}", code: response.code }
+        { success: false, error: "Unexpected response: HTTP #{response.code}", code: response.code, body: response.body[0..200] }
       end
     rescue Net::OpenTimeout, Net::ReadTimeout => e
+      Rails.logger.error "Postal timeout: #{e.message}"
       { success: false, error: "Timeout: #{e.message}" }
     rescue SocketError => e
+      Rails.logger.error "Postal DNS error: #{e.message}"
       { success: false, error: "DNS error: #{e.message}" }
     rescue Errno::ECONNREFUSED => e
+      Rails.logger.error "Postal connection refused: #{e.message}"
       { success: false, error: "Connection refused - is Postal running?" }
     rescue StandardError => e
-      { success: false, error: e.message }
+      Rails.logger.error "Postal test error: #{e.class} - #{e.message}\n#{e.backtrace.first(3).join("\n")}"
+      { success: false, error: "#{e.class}: #{e.message}" }
     end
   end
 
