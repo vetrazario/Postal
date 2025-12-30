@@ -12,12 +12,35 @@ const { SMTPServer } = require('smtp-server');
 const { simpleParser } = require('mailparser');
 const axios = require('axios');
 const path = require('path');
+const fs = require('fs');
 
 // Load environment variables
 require('dotenv').config({ path: path.join(__dirname, '../../.env') });
 
 const PORT = process.env.SMTP_RELAY_PORT || 587;
 const API_URL = process.env.API_URL || 'http://api:3000';
+const DOMAIN = process.env.DOMAIN || 'localhost';
+
+// TLS certificate paths
+const TLS_CERT = process.env.TLS_CERT_PATH || `/etc/letsencrypt/live/${DOMAIN}/fullchain.pem`;
+const TLS_KEY = process.env.TLS_KEY_PATH || `/etc/letsencrypt/live/${DOMAIN}/privkey.pem`;
+
+// Check if TLS certificates exist
+let tlsEnabled = false;
+let tlsOptions = {};
+
+if (fs.existsSync(TLS_CERT) && fs.existsSync(TLS_KEY)) {
+  tlsOptions = {
+    key: fs.readFileSync(TLS_KEY),
+    cert: fs.readFileSync(TLS_CERT)
+  };
+  tlsEnabled = true;
+  console.log('✓ TLS certificates found and loaded');
+} else {
+  console.log('⚠ TLS certificates not found - STARTTLS disabled');
+  console.log('  Expected cert:', TLS_CERT);
+  console.log('  Expected key:', TLS_KEY);
+}
 
 // Log startup
 console.log('='.repeat(60));
@@ -25,17 +48,29 @@ console.log('Starting SMTP Relay Server');
 console.log('='.repeat(60));
 console.log('Port:', PORT);
 console.log('API URL:', API_URL);
+console.log('Domain:', DOMAIN);
+console.log('TLS:', tlsEnabled ? 'ENABLED' : 'DISABLED');
 console.log('='.repeat(60));
 
-// Create SMTP server
-const server = new SMTPServer({
+// Create SMTP server options
+const serverOptions = {
   // Server options
   banner: 'Email Sender SMTP Relay',
   size: 14680064, // 14MB max message size
 
+  // TLS Configuration - enable STARTTLS if certificates available
+  ...(tlsEnabled ? {
+    secure: false, // Use STARTTLS (not implicit TLS)
+    ...tlsOptions,
+    // Allow STARTTLS
+    // disabledCommands is not set, so STARTTLS is available
+  } : {
+    // No TLS certificates - disable STARTTLS
+    disabledCommands: ['STARTTLS']
+  }),
+
   // Disable authentication for now (can be added later)
   authOptional: true,
-  disabledCommands: ['STARTTLS'], // We'll add TLS later
 
   // Handle incoming connections
   onConnect(session, callback) {
@@ -98,7 +133,10 @@ const server = new SMTPServer({
       }
     });
   }
-});
+};
+
+// Create SMTP server with configured options
+const server = new SMTPServer(serverOptions);
 
 // Forward email to Rails API
 async function forwardToAPI(session, parsed, raw) {
