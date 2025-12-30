@@ -330,7 +330,7 @@ services:
       POSTAL_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
       POSTAL_RABBITMQ_VHOST: postal
       # Web
-      POSTAL_WEB_HOST: ${DOMAIN}
+      POSTAL_WEB_HOST: postal.${DOMAIN}
       POSTAL_WEB_PROTOCOL: https
       # DNS
       POSTAL_DNS_MX_RECORDS: ${DOMAIN}
