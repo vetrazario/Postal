@@ -113,6 +113,9 @@ class SystemConfig < ApplicationRecord
     begin
       Rails.logger.info "Testing Postal connection: #{postal_api_url}"
 
+      # Get first allowed domain or use domain field
+      test_domain = allowed_sender_domains.to_s.split(',').first&.strip || domain || 'example.com'
+
       # Send minimal valid test message to verify connectivity
       response = HTTParty.post(
         "#{postal_api_url}/api/v1/send/message",
@@ -122,8 +125,8 @@ class SystemConfig < ApplicationRecord
           'Content-Type' => 'application/json'
         },
         body: {
-          to: ['test@example.com'],
-          from: 'test@test.local',
+          to: ["test@#{test_domain}"],
+          from: "noreply@#{test_domain}",
           subject: 'Connection test',
           plain_body: 'Test connection'
         }.to_json
