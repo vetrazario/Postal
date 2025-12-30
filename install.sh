@@ -443,28 +443,19 @@ setup_ssl() {
 
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         print_info "Установка certbot..."
-        apt install -y certbot python3-certbot-nginx
+        apt install -y certbot
 
         # Остановить контейнеры если запущены
         cd $PROJECT_DIR
         docker compose down 2>/dev/null || true
 
         print_info "Получение сертификата для $DOMAIN..."
-        certbot certonly --standalone --non-interactive --agree-tos --email $ADMIN_EMAIL -d $DOMAIN -d www.$DOMAIN
+        certbot certonly --standalone --non-interactive --agree-tos --email $ADMIN_EMAIL -d $DOMAIN
 
         if [ $? -eq 0 ]; then
-            # Создать ссылки
-            ln -sf /etc/letsencrypt/live/$DOMAIN/fullchain.pem /etc/ssl/certs/$DOMAIN.crt
-            ln -sf /etc/letsencrypt/live/$DOMAIN/privkey.pem /etc/ssl/private/$DOMAIN.key
-
-            # Настроить автообновление
-            if command -v crontab &> /dev/null; then
-                (crontab -l 2>/dev/null; echo "0 3 1 * * certbot renew --quiet && docker compose -f $PROJECT_DIR/docker-compose.yml restart nginx") | crontab -
-                print_info "Автообновление SSL настроено (каждое 1-е число месяца в 3:00)"
-            else
-                print_warning "crontab не найден - автообновление SSL не настроено"
-                print_warning "Установите cron и настройте вручную: crontab -e"
-            fi
+            # Установить права доступа для Docker контейнеров
+            chmod -R 755 /etc/letsencrypt/live
+            chmod -R 755 /etc/letsencrypt/archive
 
             print_success "SSL сертификат получен и настроен"
             SSL_ENABLED=true
@@ -483,18 +474,19 @@ setup_ssl() {
 update_nginx_config() {
     print_header "ШАГ 7/10: НАСТРОЙКА NGINX"
 
+    cd $PROJECT_DIR
+
+    # Заменить DOMAIN placeholder в nginx.conf
+    if grep -q "DOMAIN" config/nginx.conf; then
+        print_info "Обновление nginx.conf с доменом $DOMAIN..."
+        sed -i "s|/etc/letsencrypt/live/DOMAIN/|/etc/letsencrypt/live/$DOMAIN/|g" config/nginx.conf
+        print_success "nginx.conf обновлён"
+    fi
+
     if [ "$SSL_ENABLED" = true ]; then
-        print_info "Настройка HTTPS в nginx..."
-
-        # Обновить docker-compose.yml для добавления SSL volumes
-        if ! grep -q "/etc/letsencrypt" docker-compose.yml; then
-            print_info "Добавление SSL сертификатов в docker-compose.yml..."
-            # Это будет сделано в следующем шаге
-        fi
-
         print_success "Nginx настроен для HTTPS"
     else
-        print_warning "Nginx работает в HTTP режиме"
+        print_warning "Nginx работает в HTTP режиме (SSL сертификаты не получены)"
     fi
 }
 
