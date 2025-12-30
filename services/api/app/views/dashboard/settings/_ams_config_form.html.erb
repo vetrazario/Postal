@@ -61,9 +61,9 @@
 
             <!-- Test Result -->
             <div x-show="testResult" x-cloak class="mt-2">
-              <div :class="testResult.success ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'"
+              <div :class="testResult && testResult.success ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'"
                    class="rounded-md p-3 text-sm">
-                <span x-text="testResult.success ? '✅ Connection successful: ' + testResult.message : '❌ Connection failed: ' + testResult.error"></span>
+                <span x-text="testResult && testResult.success ? '✅ Connection successful: ' + testResult.message : '❌ Connection failed: ' + testResult.error"></span>
               </div>
             </div>
 
