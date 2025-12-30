@@ -145,6 +145,7 @@ services:
       context: ./services/api
       dockerfile: Dockerfile
     container_name: email_api
+    hostname: linenarrow.com
     restart: unless-stopped
     depends_on:
       postgres:
@@ -205,6 +206,7 @@ services:
       context: ./services/api
       dockerfile: Dockerfile
     container_name: email_sidekiq
+    hostname: linenarrow.com
     restart: unless-stopped
     command: bundle exec sidekiq -C config/sidekiq.yml
     depends_on:
