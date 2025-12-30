@@ -308,7 +308,7 @@ services:
       - "587:587"
       - "5000:5000"
     environment:
-      RAILS_DEVELOPMENT_HOSTS: postal
+      RAILS_DEVELOPMENT_HOSTS: postal,linenarrow.com,postal.linenarrow.com
       POSTAL_SIGNING_KEY: ${POSTAL_SIGNING_KEY}
       # Main DB
       POSTAL_MAIN_DB_HOST: mariadb
