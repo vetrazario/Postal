@@ -5,7 +5,7 @@ class PostalClient
   end
 
   def send_message(to:, from:, subject:, html_body:, headers: {}, tag: nil)
-    domain = SystemConfig.get(:domain) || 'send1.example.com'
+    domain = SystemConfig.get(:domain) || 'localhost'
     message_headers = build_headers(from, to, subject, domain).merge(headers)
 
     # Log the request details for debugging

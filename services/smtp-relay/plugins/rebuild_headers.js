@@ -112,7 +112,7 @@ exports.hook_data_post = function(next, connection) {
  */
 function generateMessageId() {
   const randomHex = crypto.randomBytes(12).toString('hex'); // 24 hex chars
-  const domain = process.env.DOMAIN || 'linenarrow.com';
+  const domain = process.env.DOMAIN || 'localhost';
   return `<local_${randomHex}@${domain}>`;
 }
 
