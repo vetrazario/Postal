@@ -113,7 +113,7 @@ class SystemConfig < ApplicationRecord
     begin
       Rails.logger.info "Testing Postal connection: #{postal_api_url}"
 
-      # Try to send an empty POST request - Postal will reject it but that proves connectivity
+      # Send minimal valid test message to verify connectivity
       response = HTTParty.post(
         "#{postal_api_url}/api/v1/send/message",
         timeout: 5,
@@ -121,14 +121,18 @@ class SystemConfig < ApplicationRecord
           'X-Server-API-Key' => postal_api_key,
           'Content-Type' => 'application/json'
         },
-        body: {}.to_json
+        body: {
+          to: ['test@example.com'],
+          from: 'test@test.local',
+          subject: 'Connection test',
+          plain_body: 'Test connection'
+        }.to_json
       )
 
       Rails.logger.info "Postal response: code=#{response.code}, body=#{response.body[0..200]}"
 
-      # 200 = OK (unlikely), 400 = bad request (expected), 401 = bad key, 403 = forbidden
-      # All except 401/403 mean server is reachable
-      if [200, 400].include?(response.code)
+      # 200 = message sent/queued OK, 401/403 = auth failed
+      if [200, 201].include?(response.code)
         { success: true, message: "Connected successfully (HTTP #{response.code})", code: response.code }
       elsif [401, 403].include?(response.code)
         { success: false, error: "Authentication failed (HTTP #{response.code}) - check API key", code: response.code }
