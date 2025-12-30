@@ -286,6 +286,7 @@ services:
   postal:
     image: ghcr.io/postalserver/postal:latest
     container_name: email_postal
+    hostname: linenarrow.com
     restart: unless-stopped
     command: >
       sh -c "
