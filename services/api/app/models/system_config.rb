@@ -121,6 +121,7 @@ class SystemConfig < ApplicationRecord
         "#{postal_api_url}/api/v1/send/message",
         timeout: 5,
         headers: {
+          'Host' => test_domain,
           'X-Server-API-Key' => postal_api_key,
           'Content-Type' => 'application/json'
         },
