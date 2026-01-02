@@ -6,12 +6,16 @@ class SystemConfig < ApplicationRecord
   encrypts :postal_api_key_encrypted, deterministic: false
   encrypts :postal_signing_key_encrypted, deterministic: false
   encrypts :webhook_secret_encrypted, deterministic: false
+  encrypts :smtp_relay_password_encrypted, deterministic: false
+  encrypts :smtp_relay_secret_encrypted, deterministic: false
 
   # Virtual attributes for convenience (without _encrypted suffix)
   alias_attribute :ams_api_key, :ams_api_key_encrypted
   alias_attribute :postal_api_key, :postal_api_key_encrypted
   alias_attribute :postal_signing_key, :postal_signing_key_encrypted
   alias_attribute :webhook_secret, :webhook_secret_encrypted
+  alias_attribute :smtp_relay_password, :smtp_relay_password_encrypted
+  alias_attribute :smtp_relay_secret, :smtp_relay_secret_encrypted
 
   # Validations
   validates :domain, presence: true,
@@ -71,6 +75,14 @@ class SystemConfig < ApplicationRecord
       config.daily_limit = ENV.fetch('DAILY_LIMIT', 50000).to_i
       config.sidekiq_concurrency = ENV.fetch('SIDEKIQ_CONCURRENCY', 5).to_i
       config.webhook_secret = ENV['WEBHOOK_SECRET']
+
+      # SMTP Relay settings
+      config.smtp_relay_username = ENV.fetch('SMTP_RELAY_USERNAME', 'smtp_relay')
+      config.smtp_relay_password = ENV['SMTP_RELAY_PASSWORD']
+      config.smtp_relay_secret = ENV['SMTP_RELAY_SECRET']
+      config.smtp_relay_port = ENV.fetch('SMTP_RELAY_PORT', 2587).to_i
+      config.smtp_relay_auth_required = ENV.fetch('SMTP_AUTH_REQUIRED', 'true') == 'true'
+      config.smtp_relay_tls_enabled = ENV.fetch('SMTP_RELAY_TLS', 'true') == 'true'
     end
   end
 
@@ -174,7 +186,15 @@ class SystemConfig < ApplicationRecord
 
     daily_limit: ['api'],
     sidekiq_concurrency: ['sidekiq'],
-    webhook_secret: ['api']
+    webhook_secret: ['api'],
+
+    # SMTP Relay settings
+    smtp_relay_username: ['smtp-relay'],
+    smtp_relay_password: ['smtp-relay'],
+    smtp_relay_secret: ['smtp-relay', 'api'],
+    smtp_relay_port: ['smtp-relay'],
+    smtp_relay_auth_required: ['smtp-relay'],
+    smtp_relay_tls_enabled: ['smtp-relay']
   }.freeze
 
   # After save - determine which services require restart
@@ -234,6 +254,16 @@ class SystemConfig < ApplicationRecord
     env_content << "DAILY_LIMIT=#{daily_limit}"
     env_content << "SIDEKIQ_CONCURRENCY=#{sidekiq_concurrency}"
     env_content << "WEBHOOK_SECRET=#{webhook_secret}" if webhook_secret.present?
+    env_content << ""
+
+    # SMTP Relay
+    env_content << "# SMTP Relay"
+    env_content << "SMTP_RELAY_USERNAME=#{smtp_relay_username}" if smtp_relay_username.present?
+    env_content << "SMTP_RELAY_PASSWORD=#{smtp_relay_password}" if smtp_relay_password.present?
+    env_content << "SMTP_RELAY_SECRET=#{smtp_relay_secret}" if smtp_relay_secret.present?
+    env_content << "SMTP_RELAY_PORT=#{smtp_relay_port}"
+    env_content << "SMTP_AUTH_REQUIRED=#{smtp_relay_auth_required}"
+    env_content << "SMTP_RELAY_TLS=#{smtp_relay_tls_enabled}"
 
     File.write(env_path, env_content.join("\n"))
     Rails.logger.info "✅ Synced configuration to #{env_path}"
@@ -242,6 +272,59 @@ class SystemConfig < ApplicationRecord
   rescue => e
     Rails.logger.error "❌ Failed to sync to .env: #{e.message}"
     false
+  end
+
+  # Test SMTP Relay connection
+  def test_smtp_relay_connection
+    require 'net/smtp'
+
+    return { success: false, error: 'SMTP Relay username not configured' } if smtp_relay_username.blank?
+    return { success: false, error: 'SMTP Relay password not configured' } if smtp_relay_password.blank?
+
+    begin
+      # Connect to SMTP relay container
+      smtp_host = 'smtp-relay'
+      smtp_port = 587
+
+      Net::SMTP.start(smtp_host, smtp_port, domain, smtp_relay_username, smtp_relay_password, :plain) do |smtp|
+        # Connection successful
+      end
+
+      { success: true, message: 'Connected successfully' }
+    rescue Net::SMTPAuthenticationError => e
+      { success: false, error: "Authentication failed: #{e.message}" }
+    rescue Errno::ECONNREFUSED => e
+      { success: false, error: 'Connection refused - is SMTP Relay running?' }
+    rescue StandardError => e
+      { success: false, error: "#{e.class}: #{e.message}" }
+    end
+  end
+
+  # Generate secure random credentials
+  def generate_smtp_relay_credentials!
+    self.smtp_relay_username ||= 'smtp_relay'
+    self.smtp_relay_password = SecureRandom.base64(24)
+    self.smtp_relay_secret = SecureRandom.hex(32)
+    save!
+
+    {
+      username: smtp_relay_username,
+      password: smtp_relay_password,
+      secret: smtp_relay_secret
+    }
+  end
+
+  # Get SMTP Relay config as hash (for API endpoint)
+  def smtp_relay_config
+    {
+      username: smtp_relay_username,
+      password: smtp_relay_password,
+      secret: smtp_relay_secret,
+      port: smtp_relay_port,
+      auth_required: smtp_relay_auth_required,
+      tls_enabled: smtp_relay_tls_enabled,
+      domain: domain
+    }
   end
 
   # Get configuration value (for use in code)

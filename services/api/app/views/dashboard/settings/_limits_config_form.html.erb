@@ -61,6 +61,27 @@
             </div>
           </div>
 
+          <!-- SMTP Relay Secret -->
+          <div>
+            <%= form.label :smtp_relay_secret, "SMTP Relay Secret", class: "block text-sm font-medium text-gray-900" %>
+            <div class="mt-2">
+              <%= form.text_field :smtp_relay_secret,
+                  value: @system_config.smtp_relay_secret,
+                  placeholder: "Enter SMTP relay secret",
+                  autocomplete: "off",
+                  class: "block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm font-mono" %>
+            </div>
+            <p class="mt-2 text-sm text-gray-500">
+              Secret key for HMAC signing between SMTP Relay and API (internal security)
+            </p>
+            <div class="mt-2 text-xs bg-blue-50 text-blue-800 p-2 rounded">
+              <strong>Affects:</strong> SMTP Relay, API
+            </div>
+            <div class="mt-2 text-xs bg-gray-50 text-gray-600 p-2 rounded font-mono">
+              Generate: openssl rand -hex 32
+            </div>
+          </div>
+
         </div>
       </div>
     </div>

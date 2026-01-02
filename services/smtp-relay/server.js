@@ -25,9 +25,8 @@ const DOMAIN = process.env.DOMAIN || 'localhost';
 
 // Authentication settings
 const SMTP_AUTH_REQUIRED = process.env.SMTP_AUTH_REQUIRED !== 'false';
-const SMTP_USERNAME = process.env.SMTP_RELAY_USERNAME || '';
-const SMTP_PASSWORD = process.env.SMTP_RELAY_PASSWORD || '';
 const SMTP_RELAY_SECRET = process.env.SMTP_RELAY_SECRET || '';
+// Credentials are now validated via API against SmtpCredential model (managed in Dashboard)
 
 // Rate limiting
 const connectionAttempts = new Map();
@@ -64,14 +63,35 @@ console.log('API URL:', API_URL);
 console.log('Domain:', DOMAIN);
 console.log('TLS:', tlsEnabled ? 'ENABLED' : 'DISABLED');
 console.log('Auth Required:', SMTP_AUTH_REQUIRED ? 'YES' : 'NO');
-console.log('Auth Configured:', (SMTP_USERNAME && SMTP_PASSWORD) ? 'YES' : 'NO');
+console.log('Auth Mode: API (credentials managed via Dashboard)');
 console.log('HMAC Secret:', SMTP_RELAY_SECRET ? 'CONFIGURED' : 'NOT SET (WARNING!)');
 console.log('='.repeat(60));
 
-// Warn if auth is required but credentials not set
-if (SMTP_AUTH_REQUIRED && (!SMTP_USERNAME || !SMTP_PASSWORD)) {
-  console.error('WARNING: Authentication required but SMTP_RELAY_USERNAME or SMTP_RELAY_PASSWORD not set!');
-  console.error('Set these environment variables or set SMTP_AUTH_REQUIRED=false');
+// Async function to authenticate against API
+async function authenticateViaAPI(username, password) {
+  try {
+    const response = await axios.post(`${API_URL}/api/v1/internal/smtp_auth`, {
+      username: username,
+      password: password
+    }, {
+      timeout: 5000
+    });
+
+    if (response.data.success) {
+      return {
+        success: true,
+        username: response.data.username,
+        rateLimit: response.data.rate_limit
+      };
+    }
+    return { success: false, error: response.data.error || 'Authentication failed' };
+  } catch (error) {
+    if (error.response && error.response.status === 401) {
+      return { success: false, error: 'Invalid credentials' };
+    }
+    console.error('API auth error:', error.message);
+    return { success: false, error: 'Authentication service unavailable' };
+  }
 }
 
 // Helper functions
@@ -139,8 +159,8 @@ const serverOptions = {
     return callback(); // Accept connection
   },
 
-  // Handle authentication
-  onAuth(auth, session, callback) {
+  // Handle authentication (async via API)
+  async onAuth(auth, session, callback) {
     const ip = session.remoteAddress;
     console.log(`[${session.id}] Auth attempt: ${auth.username} from ${ip}`);
 
@@ -149,39 +169,27 @@ const serverOptions = {
       return callback(new Error('Too many authentication failures'));
     }
 
-    // If no credentials configured, reject all auth
-    if (!SMTP_USERNAME || !SMTP_PASSWORD) {
-      console.log(`[${session.id}] Auth rejected - no credentials configured`);
+    // Validate credentials via API (against SmtpCredential model in Dashboard)
+    try {
+      const result = await authenticateViaAPI(auth.username, auth.password);
+
+      if (result.success) {
+        console.log(`[${session.id}] Auth successful for ${auth.username} (rate_limit: ${result.rateLimit})`);
+        resetAuthFailures(ip);
+        return callback(null, {
+          user: result.username,
+          rateLimit: result.rateLimit
+        });
+      }
+
+      console.log(`[${session.id}] Auth failed for ${auth.username}: ${result.error}`);
       recordAuthFailure(ip);
-      return callback(new Error('Authentication not configured'));
+      return callback(new Error(result.error || 'Invalid username or password'));
+    } catch (error) {
+      console.error(`[${session.id}] Auth error:`, error.message);
+      recordAuthFailure(ip);
+      return callback(new Error('Authentication failed'));
     }
-
-    // Validate credentials using timing-safe comparison
-    // Note: timingSafeEqual throws if lengths differ, so we use a safe wrapper
-    const safeCompare = (a, b) => {
-      const bufA = Buffer.from(a || '');
-      const bufB = Buffer.from(b || '');
-      // Pad shorter buffer to prevent length-based timing attacks
-      const maxLen = Math.max(bufA.length, bufB.length);
-      const paddedA = Buffer.alloc(maxLen);
-      const paddedB = Buffer.alloc(maxLen);
-      bufA.copy(paddedA);
-      bufB.copy(paddedB);
-      return bufA.length === bufB.length && crypto.timingSafeEqual(paddedA, paddedB);
-    };
-
-    const usernameValid = safeCompare(auth.username, SMTP_USERNAME);
-    const passwordValid = safeCompare(auth.password, SMTP_PASSWORD);
-
-    if (usernameValid && passwordValid) {
-      console.log(`[${session.id}] Auth successful for ${auth.username}`);
-      resetAuthFailures(ip);
-      return callback(null, { user: auth.username });
-    }
-
-    console.log(`[${session.id}] Auth failed for ${auth.username}`);
-    recordAuthFailure(ip);
-    return callback(new Error('Invalid username or password'));
   },
 
   // Handle MAIL FROM

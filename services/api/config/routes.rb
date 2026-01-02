@@ -41,6 +41,13 @@ Rails.application.routes.draw do
 
       # Webhooks (from Postal)
       post 'webhook', to: 'webhooks#postal'
+
+      # Internal endpoints (for service communication)
+      namespace :internal do
+        get 'smtp_relay_config', to: 'config#smtp_relay'
+        post 'smtp_auth', to: 'config#smtp_auth'
+        post 'tracking_event', to: 'tracking#event'
+      end
     end
   end
 
@@ -104,6 +111,8 @@ Rails.application.routes.draw do
       patch :update_system_config, on: :collection
       post :test_ams_connection, on: :collection
       post :test_postal_connection, on: :collection
+      post :test_smtp_relay_connection, on: :collection
+      post :generate_smtp_credentials, on: :collection
       post :apply_changes, on: :collection
     end
 

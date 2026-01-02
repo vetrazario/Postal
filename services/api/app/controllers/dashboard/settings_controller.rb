@@ -59,6 +59,35 @@ module Dashboard
       render json: result
     end
 
+    # Test SMTP Relay connection
+    def test_smtp_relay_connection
+      config = SystemConfig.instance
+      result = config.test_smtp_relay_connection
+
+      render json: result
+    end
+
+    # Generate new SMTP Relay credentials
+    def generate_smtp_credentials
+      config = SystemConfig.instance
+      credentials = config.generate_smtp_relay_credentials!
+
+      # Sync to env file
+      config.sync_to_env_file
+
+      render json: {
+        success: true,
+        credentials: {
+          username: credentials[:username],
+          password: credentials[:password],
+          secret: credentials[:secret]
+        },
+        message: 'New credentials generated. SMTP Relay needs restart.'
+      }
+    rescue StandardError => e
+      render json: { success: false, error: e.message }, status: :unprocessable_entity
+    end
+
     # Apply changes (restart services)
     def apply_changes
       config = SystemConfig.instance
@@ -123,7 +152,15 @@ module Dashboard
         # Limits
         :daily_limit,
         :sidekiq_concurrency,
-        :webhook_secret
+        :webhook_secret,
+
+        # SMTP Relay
+        :smtp_relay_username,
+        :smtp_relay_password,
+        :smtp_relay_secret,
+        :smtp_relay_port,
+        :smtp_relay_auth_required,
+        :smtp_relay_tls_enabled
       )
     end
 
@@ -135,6 +172,8 @@ module Dashboard
         restart_docker_service('sidekiq')
       when 'postal'
         restart_docker_service('postal')
+      when 'smtp-relay'
+        restart_docker_service('smtp-relay')
       else
         { success: false, error: "Unknown service: #{service}" }
       end
