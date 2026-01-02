@@ -82,6 +82,46 @@
             </div>
           </div>
 
+          <!-- SMTP Relay Port -->
+          <div>
+            <%= form.label :smtp_relay_port, "SMTP Relay Port", class: "block text-sm font-medium text-gray-900" %>
+            <div class="mt-2">
+              <%= form.number_field :smtp_relay_port,
+                  min: 1,
+                  max: 65535,
+                  step: 1,
+                  class: "block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm" %>
+            </div>
+            <p class="mt-2 text-sm text-gray-500">
+              Port for SMTP Relay server (default: 2587)
+            </p>
+            <div class="mt-2 text-xs bg-blue-50 text-blue-800 p-2 rounded">
+              <strong>Affects:</strong> SMTP Relay
+            </div>
+          </div>
+
+          <!-- SMTP Auth Required -->
+          <div class="flex items-center justify-between">
+            <div class="flex-1">
+              <%= form.label :smtp_relay_auth_required, "SMTP Authentication Required", class: "block text-sm font-medium text-gray-900" %>
+              <p class="text-sm text-gray-500">Require authentication for SMTP connections</p>
+            </div>
+            <div class="ml-4">
+              <%= form.check_box :smtp_relay_auth_required, class: "h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600" %>
+            </div>
+          </div>
+
+          <!-- SMTP TLS Enabled -->
+          <div class="flex items-center justify-between">
+            <div class="flex-1">
+              <%= form.label :smtp_relay_tls_enabled, "SMTP TLS/STARTTLS", class: "block text-sm font-medium text-gray-900" %>
+              <p class="text-sm text-gray-500">Enable STARTTLS encryption for SMTP connections</p>
+            </div>
+            <div class="ml-4">
+              <%= form.check_box :smtp_relay_tls_enabled, class: "h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600" %>
+            </div>
+          </div>
+
         </div>
       </div>
     </div>

@@ -51,6 +51,110 @@
             </p>
           </div>
 
+          <!-- Let's Encrypt Email -->
+          <div>
+            <%= form.label :letsencrypt_email, "Let's Encrypt Email", class: "block text-sm font-medium text-gray-900" %>
+            <div class="mt-2">
+              <%= form.email_field :letsencrypt_email,
+                  placeholder: "admin@example.com",
+                  class: "block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm" %>
+            </div>
+            <p class="mt-2 text-sm text-gray-500">
+              Email for Let's Encrypt certificate notifications
+            </p>
+          </div>
+
+          <!-- Log Level -->
+          <div>
+            <%= form.label :log_level, "Log Level", class: "block text-sm font-medium text-gray-900" %>
+            <div class="mt-2">
+              <%= form.select :log_level,
+                  options_for_select([
+                    ['Debug', 'debug'],
+                    ['Info', 'info'],
+                    ['Warning', 'warn'],
+                    ['Error', 'error']
+                  ], @system_config.log_level || 'info'),
+                  {},
+                  class: "block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm" %>
+            </div>
+            <p class="mt-2 text-sm text-gray-500">
+              Application log verbosity level
+            </p>
+            <div class="mt-2 text-xs bg-blue-50 text-blue-800 p-2 rounded">
+              <strong>Affects:</strong> API, Sidekiq
+            </div>
+          </div>
+
+          <!-- Sentry DSN -->
+          <div>
+            <%= form.label :sentry_dsn, "Sentry DSN (optional)", class: "block text-sm font-medium text-gray-900" %>
+            <div class="mt-2">
+              <%= form.text_field :sentry_dsn,
+                  placeholder: "https://xxx@sentry.io/123",
+                  class: "block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm font-mono" %>
+            </div>
+            <p class="mt-2 text-sm text-gray-500">
+              Sentry DSN for error tracking (leave empty to disable)
+            </p>
+            <div class="mt-2 text-xs bg-blue-50 text-blue-800 p-2 rounded">
+              <strong>Affects:</strong> API, Sidekiq
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- Sidekiq Web UI Section -->
+    <div class="rounded-md bg-white shadow-sm ring-1 ring-gray-900/5">
+      <div class="px-4 py-6 sm:p-8">
+        <h3 class="text-base font-semibold text-gray-900 mb-4">Sidekiq Web UI Credentials</h3>
+        <div class="grid max-w-2xl grid-cols-1 gap-x-6 gap-y-8">
+
+          <!-- Sidekiq Web Username -->
+          <div>
+            <%= form.label :sidekiq_web_username, "Username", class: "block text-sm font-medium text-gray-900" %>
+            <div class="mt-2">
+              <%= form.text_field :sidekiq_web_username,
+                  placeholder: "admin",
+                  autocomplete: "off",
+                  class: "block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm" %>
+            </div>
+          </div>
+
+          <!-- Sidekiq Web Password -->
+          <div>
+            <%= form.label :sidekiq_web_password, "Password", class: "block text-sm font-medium text-gray-900" %>
+            <div class="mt-2">
+              <%= form.password_field :sidekiq_web_password,
+                  placeholder: "Enter new password",
+                  autocomplete: "new-password",
+                  class: "block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm" %>
+            </div>
+            <p class="mt-2 text-sm text-gray-500">
+              Leave empty to keep current password
+            </p>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- Info Box -->
+    <div class="rounded-md bg-blue-50 p-4">
+      <div class="flex">
+        <div class="flex-shrink-0">
+          <svg class="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clip-rule="evenodd" />
+          </svg>
+        </div>
+        <div class="ml-3">
+          <h3 class="text-sm font-medium text-blue-800">Server Settings</h3>
+          <div class="mt-2 text-sm text-blue-700">
+            <p>These settings control core server behavior.</p>
+            <p class="mt-1">Sidekiq Web UI is accessible at <code class="bg-blue-100 px-1 rounded">/sidekiq</code> path.</p>
+          </div>
         </div>
       </div>
     </div>

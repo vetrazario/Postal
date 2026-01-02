@@ -148,6 +148,7 @@ module Dashboard
         :postal_api_url,
         :postal_api_key,
         :postal_signing_key,
+        :postal_webhook_public_key,
 
         # Limits
         :daily_limit,
@@ -160,7 +161,18 @@ module Dashboard
         :smtp_relay_secret,
         :smtp_relay_port,
         :smtp_relay_auth_required,
-        :smtp_relay_tls_enabled
+        :smtp_relay_tls_enabled,
+
+        # Sidekiq Web UI
+        :sidekiq_web_username,
+        :sidekiq_web_password,
+
+        # Logging
+        :log_level,
+        :sentry_dsn,
+
+        # Let's Encrypt
+        :letsencrypt_email
       )
     end
 
