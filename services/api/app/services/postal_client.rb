@@ -8,17 +8,15 @@ class PostalClient
     domain = SystemConfig.get(:domain) || 'localhost'
     message_headers = build_headers(from, to, subject, domain).merge(headers)
 
-    # Log the request details for debugging
-    Rails.logger.info "PostalClient: Sending to #{@api_url}/api/v1/send/message with Host: #{domain}"
+    # Log request (without sensitive data)
+    Rails.logger.info "PostalClient: Sending to #{@api_url}/api/v1/send/message, recipient: #{mask_email(to)}"
 
-    response = HTTParty.post(
-      "#{@api_url}/api/v1/send/message",
+    request_options = {
       headers: {
         'Host' => domain,
         'X-Server-API-Key' => @api_key,
         'Content-Type' => 'application/json'
       },
-      debug_output: Rails.logger,
       body: {
         to: [to],
         from: from,
@@ -29,12 +27,27 @@ class PostalClient
         headers: message_headers,
         tag: tag,
         bounce: true
-      }.to_json
-    )
+      }.to_json,
+      timeout: 30
+    }
 
+    # Only enable debug output in development (but filter sensitive headers)
+    if Rails.env.development? && ENV['DEBUG_HTTP'] == 'true'
+      request_options[:debug_output] = FilteredLogger.new(Rails.logger)
+    end
+
+    response = HTTParty.post("#{@api_url}/api/v1/send/message", request_options)
     parse_response(response, to)
   rescue StandardError => e
+    Rails.logger.error "PostalClient error: #{e.class} - #{e.message}"
     { success: false, error: e.message }
+  end
+
+  # Mask email for safe logging
+  def mask_email(email)
+    return email unless email&.include?('@')
+    local, domain = email.split('@')
+    "#{local[0]}***@#{domain}"
   end
 
   private

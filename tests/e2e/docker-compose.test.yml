@@ -1,0 +1,38 @@
+# ===========================================
+# E2E Test Environment
+# Docker Compose Configuration
+# ===========================================
+
+services:
+  # Test runner
+  e2e-tests:
+    image: python:3.11-slim
+    container_name: email_e2e_tests
+    working_dir: /tests
+    volumes:
+      - ./:/tests
+      - ../..:/project:ro
+    environment:
+      API_URL: http://api:3000
+      TRACKING_URL: http://tracking:3001
+      SMTP_HOST: smtp-relay
+      SMTP_PORT: 587
+      TEST_API_KEY: ${TEST_API_KEY:-}
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET:-}
+    depends_on:
+      api:
+        condition: service_healthy
+      tracking:
+        condition: service_healthy
+    command: ["python", "-m", "pytest", "-v", "--tb=short", "test_e2e.py"]
+    networks:
+      - email_frontend
+      - email_backend
+
+networks:
+  email_frontend:
+    external: true
+    name: email_frontend
+  email_backend:
+    external: true
+    name: email_backend

@@ -212,3 +212,59 @@ info: ## Показать информацию о системе
 	@echo "  Postal:   https://$${DOMAIN:-localhost}/postal/"
 	@echo ""
 
+# ===========================================
+# TESTING
+# ===========================================
+
+test: ## Запустить все тесты
+	@echo "$(GREEN)Запуск тестов...$(NC)"
+	@make test-unit
+	@make test-e2e
+
+test-unit: ## Запустить unit тесты
+	@echo "$(GREEN)Запуск unit тестов...$(NC)"
+	docker compose exec api bundle exec rspec
+
+test-e2e: ## Запустить E2E тесты
+	@echo "$(GREEN)Запуск E2E тестов...$(NC)"
+	@./tests/e2e/run_tests.sh
+
+test-e2e-python: ## Запустить E2E тесты (Python)
+	@echo "$(GREEN)Запуск E2E тестов (Python)...$(NC)"
+	@cd tests/e2e && pip install -r requirements.txt && pytest -v test_e2e.py
+
+test-e2e-docker: ## Запустить E2E тесты в Docker
+	@echo "$(GREEN)Запуск E2E тестов в Docker...$(NC)"
+	docker compose -f tests/e2e/docker-compose.test.yml up --build --abort-on-container-exit
+
+test-security: ## Запустить security тесты
+	@echo "$(GREEN)Запуск security тестов...$(NC)"
+	@./tests/e2e/run_tests.sh | grep -E "(PASS|FAIL).*[Ss]ecurity"
+
+# ===========================================
+# VALIDATION
+# ===========================================
+
+validate: ## Проверить конфигурацию
+	@echo "$(GREEN)Проверка конфигурации...$(NC)"
+	@make validate-env
+	@make validate-nginx
+	@make validate-compose
+
+validate-env: ## Проверить переменные окружения
+	@echo "Проверка .env файла..."
+	@if [ -f .env ]; then \
+		echo "$(GREEN).env файл существует$(NC)"; \
+	else \
+		echo "$(RED).env файл не найден!$(NC)"; \
+		exit 1; \
+	fi
+
+validate-nginx: ## Проверить конфигурацию nginx
+	@echo "Проверка nginx конфигурации..."
+	docker compose exec nginx nginx -t
+
+validate-compose: ## Проверить docker-compose
+	@echo "Проверка docker-compose..."
+	docker compose config --quiet && echo "$(GREEN)docker-compose.yml валиден$(NC)"
+

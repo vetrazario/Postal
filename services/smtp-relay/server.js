@@ -17,9 +17,22 @@ const fs = require('fs');
 // Load environment variables
 require('dotenv').config({ path: path.join(__dirname, '../../.env') });
 
+const crypto = require('crypto');
+
 const PORT = process.env.SMTP_RELAY_PORT || 587;
 const API_URL = process.env.API_URL || 'http://api:3000';
 const DOMAIN = process.env.DOMAIN || 'localhost';
+
+// Authentication settings
+const SMTP_AUTH_REQUIRED = process.env.SMTP_AUTH_REQUIRED !== 'false';
+const SMTP_USERNAME = process.env.SMTP_RELAY_USERNAME || '';
+const SMTP_PASSWORD = process.env.SMTP_RELAY_PASSWORD || '';
+const SMTP_RELAY_SECRET = process.env.SMTP_RELAY_SECRET || '';
+
+// Rate limiting
+const connectionAttempts = new Map();
+const MAX_AUTH_FAILURES = 5;
+const AUTH_BLOCK_DURATION = 300000; // 5 minutes
 
 // TLS certificate paths
 const TLS_CERT = process.env.TLS_CERT_PATH || `/etc/letsencrypt/live/${DOMAIN}/fullchain.pem`;
@@ -50,7 +63,46 @@ console.log('Port:', PORT);
 console.log('API URL:', API_URL);
 console.log('Domain:', DOMAIN);
 console.log('TLS:', tlsEnabled ? 'ENABLED' : 'DISABLED');
+console.log('Auth Required:', SMTP_AUTH_REQUIRED ? 'YES' : 'NO');
+console.log('Auth Configured:', (SMTP_USERNAME && SMTP_PASSWORD) ? 'YES' : 'NO');
+console.log('HMAC Secret:', SMTP_RELAY_SECRET ? 'CONFIGURED' : 'NOT SET (WARNING!)');
 console.log('='.repeat(60));
+
+// Warn if auth is required but credentials not set
+if (SMTP_AUTH_REQUIRED && (!SMTP_USERNAME || !SMTP_PASSWORD)) {
+  console.error('WARNING: Authentication required but SMTP_RELAY_USERNAME or SMTP_RELAY_PASSWORD not set!');
+  console.error('Set these environment variables or set SMTP_AUTH_REQUIRED=false');
+}
+
+// Helper functions
+function isBlocked(ip) {
+  const attempts = connectionAttempts.get(ip);
+  if (!attempts) return false;
+  if (attempts.failures >= MAX_AUTH_FAILURES) {
+    if (Date.now() - attempts.lastFailure < AUTH_BLOCK_DURATION) {
+      return true;
+    }
+    // Reset after block duration
+    connectionAttempts.delete(ip);
+  }
+  return false;
+}
+
+function recordAuthFailure(ip) {
+  const attempts = connectionAttempts.get(ip) || { failures: 0, lastFailure: 0 };
+  attempts.failures++;
+  attempts.lastFailure = Date.now();
+  connectionAttempts.set(ip, attempts);
+  console.log(`Auth failure for ${ip}: ${attempts.failures}/${MAX_AUTH_FAILURES}`);
+}
+
+function resetAuthFailures(ip) {
+  connectionAttempts.delete(ip);
+}
+
+function generateHmacSignature(payload, secret) {
+  return crypto.createHmac('sha256', secret).update(JSON.stringify(payload)).digest('hex');
+}
 
 // Create SMTP server options
 const serverOptions = {
@@ -69,20 +121,60 @@ const serverOptions = {
     disabledCommands: ['STARTTLS']
   }),
 
-  // Disable authentication for now (can be added later)
-  authOptional: true,
+  // Authentication configuration
+  authOptional: !SMTP_AUTH_REQUIRED,
+  authMethods: ['PLAIN', 'LOGIN'],
 
   // Handle incoming connections
   onConnect(session, callback) {
-    console.log(`[${session.id}] New connection from ${session.remoteAddress}`);
+    const ip = session.remoteAddress;
+    console.log(`[${session.id}] New connection from ${ip}`);
+
+    // Check if IP is blocked due to too many auth failures
+    if (isBlocked(ip)) {
+      console.log(`[${session.id}] Connection rejected - IP blocked: ${ip}`);
+      return callback(new Error('Too many authentication failures. Try again later.'));
+    }
+
     return callback(); // Accept connection
   },
 
-  // Handle authentication (optional)
+  // Handle authentication
   onAuth(auth, session, callback) {
-    console.log(`[${session.id}] Auth attempt: ${auth.username}`);
-    // For now, accept all auth attempts
-    return callback(null, { user: auth.username });
+    const ip = session.remoteAddress;
+    console.log(`[${session.id}] Auth attempt: ${auth.username} from ${ip}`);
+
+    // Check if IP is blocked
+    if (isBlocked(ip)) {
+      return callback(new Error('Too many authentication failures'));
+    }
+
+    // If no credentials configured, reject all auth
+    if (!SMTP_USERNAME || !SMTP_PASSWORD) {
+      console.log(`[${session.id}] Auth rejected - no credentials configured`);
+      recordAuthFailure(ip);
+      return callback(new Error('Authentication not configured'));
+    }
+
+    // Validate credentials using timing-safe comparison
+    const usernameValid = crypto.timingSafeEqual(
+      Buffer.from(auth.username || ''),
+      Buffer.from(SMTP_USERNAME)
+    );
+    const passwordValid = crypto.timingSafeEqual(
+      Buffer.from(auth.password || ''),
+      Buffer.from(SMTP_PASSWORD)
+    );
+
+    if (usernameValid && passwordValid) {
+      console.log(`[${session.id}] Auth successful for ${auth.username}`);
+      resetAuthFailures(ip);
+      return callback(null, { user: auth.username });
+    }
+
+    console.log(`[${session.id}] Auth failed for ${auth.username}`);
+    recordAuthFailure(ip);
+    return callback(new Error('Invalid username or password'));
   },
 
   // Handle MAIL FROM
@@ -141,6 +233,7 @@ const server = new SMTPServer(serverOptions);
 // Forward email to Rails API
 async function forwardToAPI(session, parsed, raw) {
   try {
+    const timestamp = Date.now().toString();
     const payload = {
       envelope: {
         from: session.envelope.mailFrom?.address,
@@ -155,19 +248,35 @@ async function forwardToAPI(session, parsed, raw) {
         html: parsed.html,
         headers: parsed.headers
       },
-      raw: raw.toString('base64')
+      raw: raw.toString('base64'),
+      timestamp: timestamp
     };
 
+    // Build request headers
+    const headers = {
+      'Content-Type': 'application/json',
+      'X-SMTP-Relay-Timestamp': timestamp
+    };
+
+    // Add HMAC signature if secret is configured
+    if (SMTP_RELAY_SECRET) {
+      const signature = generateHmacSignature(payload, SMTP_RELAY_SECRET);
+      headers['X-SMTP-Relay-Signature'] = signature;
+      console.log(`[${session.id}] Request signed with HMAC`);
+    }
+
     const response = await axios.post(`${API_URL}/api/v1/smtp/receive`, payload, {
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers: headers,
       timeout: 30000
     });
 
     console.log(`API response:`, response.status, response.data);
   } catch (error) {
     console.error('Failed to forward to API:', error.message);
+    if (error.response) {
+      console.error('Response status:', error.response.status);
+      console.error('Response data:', error.response.data);
+    }
     throw error;
   }
 }

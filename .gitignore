@@ -15,6 +15,9 @@ get-*.rb
 # Nginx htpasswd (contains passwords)
 config/htpasswd
 
+# Postal config (generated from template, contains passwords)
+config/postal.yml
+
 # Logs
 *.log
 
