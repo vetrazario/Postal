@@ -467,98 +467,81 @@ curl -I "https://linenarrow.com/track/c?url=$(echo -n 'https://evil.com' | base6
 
 ---
 
-## ГДЕ ЗАДАЮТСЯ НОВЫЕ ПЕРЕМЕННЫЕ ОКРУЖЕНИЯ
+## ГДЕ ЗАДАЮТСЯ НАСТРОЙКИ: DASHBOARD!
 
-### Обзор потока конфигурации
+### Обзор: Dashboard - главный инструмент настройки
 
 ```
-┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
-│   .env файл     │────▶│ docker-compose   │────▶│   Контейнеры    │
-│ (на хосте)      │     │    .yml          │     │  (environment)  │
-└─────────────────┘     └──────────────────┘     └─────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                        DASHBOARD                                 │
+│  ┌─────────────────┐    ┌─────────────────┐                     │
+│  │ SMTP Credentials│    │ Settings        │                     │
+│  │ (логин/пароль)  │    │ (HMAC секреты)  │                     │
+│  └────────┬────────┘    └────────┬────────┘                     │
+│           │                      │                               │
+│           ▼                      ▼                               │
+│  ┌─────────────────────────────────────────┐                    │
+│  │         PostgreSQL Database              │                    │
+│  │    (зашифрованное хранение)              │                    │
+│  └─────────────────────────────────────────┘                    │
+│                      │                                           │
+│                      ▼                                           │
+│  ┌─────────────────────────────────────────┐                    │
+│  │  SMTP Relay ←→ API (аутентификация)     │                    │
+│  └─────────────────────────────────────────┘                    │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-### Новые переменные безопасности
+### SMTP Credentials (Логин/Пароль для AMS)
 
-| Переменная | Где задаётся | Где используется | Описание |
-|------------|--------------|------------------|----------|
-| `SMTP_RELAY_USERNAME` | `.env` файл | smtp-relay контейнер | Логин для AMS при подключении к SMTP |
-| `SMTP_RELAY_PASSWORD` | `.env` файл | smtp-relay контейнер | Пароль для AMS при подключении к SMTP |
-| `SMTP_RELAY_SECRET` | `.env` файл | api, sidekiq, smtp-relay | HMAC ключ для подписи запросов |
+| Настройка | ГДЕ задаётся | Описание |
+|-----------|--------------|----------|
+| SMTP Username | **Dashboard > SMTP Credentials** | Генерируется автоматически |
+| SMTP Password | **Dashboard > SMTP Credentials** | Показывается ОДИН раз при создании! |
+| SMTP Relay Secret | **Dashboard > Settings > Limits & Security** | HMAC ключ (опционально) |
 
-### Подробное описание
+### Как создать учетные данные для AMS:
 
-#### 1. SMTP_RELAY_USERNAME и SMTP_RELAY_PASSWORD
+1. Откройте **Dashboard** → **SMTP Credentials**
+2. Нажмите **"Generate New Credential"**
+3. **ВАЖНО:** Сохраните показанный пароль! Он показывается только один раз!
+4. Используйте эти данные в настройках AMS Enterprise
 
-**Где задаются:**
-- Файл: `.env` на сервере (корень проекта)
-- Шаблон: `env.example.txt` (строки 172-173)
+### Настройка AMS Enterprise
 
-**Как настроить в AMS Enterprise:**
+После создания credentials в Dashboard:
+
 ```
-В настройках AMS укажите:
-- SMTP сервер: your-domain.com
-- SMTP порт: 2587
-- SMTP логин: значение SMTP_RELAY_USERNAME из .env
-- SMTP пароль: значение SMTP_RELAY_PASSWORD из .env
-- TLS: включен (STARTTLS)
-```
-
-**НЕ в Dashboard!** Эти переменные задаются на уровне сервера, не в веб-интерфейсе.
-
-#### 2. SMTP_RELAY_SECRET
-
-**Где задаётся:**
-- Файл: `.env` на сервере (корень проекта)
-- Шаблон: `env.example.txt` (строка 178)
-
-**Как работает:**
-1. SMTP Relay (server.js) при отправке запроса к API подписывает payload HMAC-SHA256
-2. API (smtp_controller.rb) проверяет подпись
-3. Если подпись неверна - запрос отклоняется
-
-**Генерация:**
-```bash
-openssl rand -hex 32
+SMTP Server:   your-domain.com
+SMTP Port:     2587
+Security:      STARTTLS
+Username:      [из Dashboard > SMTP Credentials]
+Password:      [показывается один раз при создании]
 ```
 
-### Полный процесс настройки
+### SMTP Relay Secret (опционально)
 
-```bash
-# 1. Скопируйте шаблон
-cp env.example.txt .env
+Для дополнительной защиты можно задать HMAC секрет:
+- Откройте **Dashboard > Settings > Limits & Security**
+- Введите секрет в поле "SMTP Relay Secret"
+- Это обеспечит подпись всех внутренних запросов между SMTP Relay и API
 
-# 2. Отредактируйте .env
-nano .env
+### Что осталось в .env файле
 
-# 3. Сгенерируйте новые секреты
-echo "SMTP_RELAY_USERNAME=smtp_relay"
-echo "SMTP_RELAY_PASSWORD=$(openssl rand -base64 24)"
-echo "SMTP_RELAY_SECRET=$(openssl rand -hex 32)"
-
-# 4. Перезапустите сервисы
-docker compose down
-docker compose up -d
-
-# 5. Проверьте логи
-docker compose logs smtp-relay | grep -E "(Auth|HMAC)"
-```
-
-### Где НЕ задаются эти переменные
-
-❌ **НЕ в Dashboard** - Dashboard используется только для просмотра логов и статистики
-❌ **НЕ в Postal UI** - Postal имеет свой отдельный интерфейс
-❌ **НЕ в коде** - все секреты только через переменные окружения
-❌ **НЕ в docker-compose.yml** - там только ссылки на `.env` через `${VAR}`
+Только базовые настройки инфраструктуры:
+- `POSTGRES_PASSWORD` - пароль PostgreSQL
+- `MARIADB_PASSWORD` - пароль MariaDB
+- `SECRET_KEY_BASE` - секрет Rails
+- `DOMAIN` - домен сервера
 
 ### Файлы конфигурации
 
-| Файл | Назначение |
-|------|------------|
-| `.env` | **ГЛАВНЫЙ файл конфигурации** - все секреты здесь |
-| `env.example.txt` | Шаблон с описаниями переменных |
-| `docker-compose.yml` | Передаёт переменные из `.env` в контейнеры |
-| `config/postal.yml` | Генерируется автоматически (НЕ редактировать!) |
+| Источник | Назначение |
+|----------|------------|
+| **Dashboard > SMTP Credentials** | ✅ Логин/пароль для AMS |
+| **Dashboard > Settings** | ✅ HMAC секреты, лимиты |
+| `.env` | Пароли БД, базовые настройки |
+| `docker-compose.yml` | Передаёт переменные в контейнеры |
 
 ---
 
