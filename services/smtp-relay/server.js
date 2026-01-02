@@ -157,14 +157,21 @@ const serverOptions = {
     }
 
     // Validate credentials using timing-safe comparison
-    const usernameValid = crypto.timingSafeEqual(
-      Buffer.from(auth.username || ''),
-      Buffer.from(SMTP_USERNAME)
-    );
-    const passwordValid = crypto.timingSafeEqual(
-      Buffer.from(auth.password || ''),
-      Buffer.from(SMTP_PASSWORD)
-    );
+    // Note: timingSafeEqual throws if lengths differ, so we use a safe wrapper
+    const safeCompare = (a, b) => {
+      const bufA = Buffer.from(a || '');
+      const bufB = Buffer.from(b || '');
+      // Pad shorter buffer to prevent length-based timing attacks
+      const maxLen = Math.max(bufA.length, bufB.length);
+      const paddedA = Buffer.alloc(maxLen);
+      const paddedB = Buffer.alloc(maxLen);
+      bufA.copy(paddedA);
+      bufB.copy(paddedB);
+      return bufA.length === bufB.length && crypto.timingSafeEqual(paddedA, paddedB);
+    };
+
+    const usernameValid = safeCompare(auth.username, SMTP_USERNAME);
+    const passwordValid = safeCompare(auth.password, SMTP_PASSWORD);
 
     if (usernameValid && passwordValid) {
       console.log(`[${session.id}] Auth successful for ${auth.username}`);

@@ -178,6 +178,7 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS:-}
       SIDEKIQ_WEB_USERNAME: ${SIDEKIQ_WEB_USERNAME:-}
       SIDEKIQ_WEB_PASSWORD: ${SIDEKIQ_WEB_PASSWORD:-}
+      SMTP_RELAY_SECRET: ${SMTP_RELAY_SECRET}
       WEB_CONCURRENCY: 1
       RAILS_MAX_THREADS: 5
     volumes:
@@ -236,6 +237,7 @@ services:
       ENCRYPTION_KEY_DERIVATION_SALT: ${ENCRYPTION_KEY_DERIVATION_SALT}
       DASHBOARD_USERNAME: ${DASHBOARD_USERNAME}
       DASHBOARD_PASSWORD: ${DASHBOARD_PASSWORD}
+      SMTP_RELAY_SECRET: ${SMTP_RELAY_SECRET}
     volumes:
       - api_logs:/app/log
     deploy:
@@ -381,10 +383,14 @@ services:
       # SMTP Configuration
       SMTP_RELAY_PORT: 587
       SMTP_RELAY_TLS: "true"
-      SMTP_RELAY_AUTH_REQUIRED: "true"
+      SMTP_AUTH_REQUIRED: "true"
+      # Authentication (required for AMS connection)
+      SMTP_RELAY_USERNAME: ${SMTP_RELAY_USERNAME}
+      SMTP_RELAY_PASSWORD: ${SMTP_RELAY_PASSWORD}
+      # HMAC signing for API requests
+      SMTP_RELAY_SECRET: ${SMTP_RELAY_SECRET}
       # API Integration
       API_URL: http://api:3000
-      SMTP_RELAY_API_KEY: ${SMTP_RELAY_API_KEY:-}
       # Database
       POSTGRES_URL: postgres://email_sender:${POSTGRES_PASSWORD}@postgres:5432/email_sender
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}

@@ -2,6 +2,7 @@ require 'pg'
 require 'base64'
 require 'json'
 require 'uri'
+require 'openssl'
 require 'active_support/core_ext/object/blank'
 
 class TrackingHandler

@@ -31,9 +31,10 @@ class PostalClient
       timeout: 30
     }
 
-    # Only enable debug output in development (but filter sensitive headers)
+    # Debug output disabled in production to prevent credential leaks
+    # In development, enable with DEBUG_HTTP=true (credentials will still be visible!)
     if Rails.env.development? && ENV['DEBUG_HTTP'] == 'true'
-      request_options[:debug_output] = FilteredLogger.new(Rails.logger)
+      request_options[:debug_output] = $stderr
     end
 
     response = HTTParty.post("#{@api_url}/api/v1/send/message", request_options)
