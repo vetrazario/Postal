@@ -4,6 +4,62 @@
     <p class="mt-2 text-sm text-gray-700">Configure system settings and integrations</p>
   </div>
 
+  <!-- Infrastructure Summary -->
+  <div class="rounded-lg bg-white shadow">
+    <div class="px-4 py-5 sm:p-6">
+      <div class="flex items-center justify-between">
+        <h3 class="text-lg font-medium leading-6 text-gray-900">Infrastructure Summary</h3>
+        <span class="inline-flex items-center rounded-md bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-700 ring-1 ring-inset ring-indigo-600/20">
+          Quick Access
+        </span>
+      </div>
+
+      <div class="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-3">
+        <!-- API Keys -->
+        <div class="rounded-lg bg-gray-50 p-5 hover:bg-gray-100 transition-colors">
+          <div class="flex items-center justify-between">
+            <div>
+              <dt class="text-sm font-medium text-gray-500">API Keys</dt>
+              <dd class="mt-2 text-3xl font-semibold text-gray-900"><%= ApiKey.count %></dd>
+            </div>
+            <svg class="h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
+            </svg>
+          </div>
+          <%= link_to "Manage API Keys", dashboard_api_keys_path, class: "mt-4 block w-full text-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-700 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50" %>
+        </div>
+
+        <!-- SMTP Credentials -->
+        <div class="rounded-lg bg-gray-50 p-5 hover:bg-gray-100 transition-colors">
+          <div class="flex items-center justify-between">
+            <div>
+              <dt class="text-sm font-medium text-gray-500">SMTP Credentials</dt>
+              <dd class="mt-2 text-3xl font-semibold text-gray-900"><%= SmtpCredential.count %></dd>
+            </div>
+            <svg class="h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+            </svg>
+          </div>
+          <%= link_to "Manage SMTP Credentials", dashboard_smtp_credentials_path, class: "mt-4 block w-full text-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-700 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50" %>
+        </div>
+
+        <!-- Webhooks -->
+        <div class="rounded-lg bg-gray-50 p-5 hover:bg-gray-100 transition-colors">
+          <div class="flex items-center justify-between">
+            <div>
+              <dt class="text-sm font-medium text-gray-500">Webhooks</dt>
+              <dd class="mt-2 text-3xl font-semibold text-gray-900"><%= WebhookEndpoint.count %></dd>
+            </div>
+            <svg class="h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
+            </svg>
+          </div>
+          <%= link_to "Manage Webhooks", dashboard_webhooks_path, class: "mt-4 block w-full text-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-700 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50" %>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Restart Required Warning -->
   <% if @system_config.restart_required? %>
     <div class="rounded-md bg-yellow-50 p-4">
