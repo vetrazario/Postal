@@ -292,9 +292,13 @@ services:
     container_name: email_postal
     hostname: ${DOMAIN}
     restart: unless-stopped
-    # Postal automatically initializes DB on first run using ENV variables
-    # No manual 'initialize-db' needed - it's handled by docker-entrypoint.sh
-    command: ["postal", "boot"]
+    # Postal start command - runs web-server, smtp-server, and worker
+    # Initialize DB on first run if needed
+    command: >
+      sh -c "
+        postal initialize || true &&
+        postal start
+      "
     depends_on:
       mariadb:
         condition: service_healthy
