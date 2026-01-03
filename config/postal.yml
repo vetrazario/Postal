@@ -1,39 +1,69 @@
-version: 2
+# ===========================================
+# POSTAL MAIL SERVER
+# Configuration File
+# ===========================================
+
+general:
+  use_ip_pools: false
+
+web:
+  host: ${DOMAIN}
+  protocol: https
 
 main_db:
   host: mariadb
   port: 3306
   username: postal
-  password: <%= ENV['MARIADB_PASSWORD'] %>
+  password: ${MARIADB_PASSWORD}
   database: postal
+  pool_size: 5
+  socket: false
 
 message_db:
   host: mariadb
   port: 3306
   username: postal
-  password: <%= ENV['MARIADB_PASSWORD'] %>
+  password: ${MARIADB_PASSWORD}
   prefix: postal
+  socket: false
 
 rabbitmq:
   host: rabbitmq
   port: 5672
   username: postal
-  password: <%= ENV['RABBITMQ_PASSWORD'] %>
+  password: ${RABBITMQ_PASSWORD}
   vhost: postal
 
-web:
-  host: <%= "postal.#{ENV['DOMAIN']}" %>
-  protocol: https
+smtp_server:
+  port: 25
+  log_connect: true
+  proxy_protocol: false
+  ssl_mode: starttls
+  max_message_size: 14680064
 
 dns:
   mx_records:
-    - <%= ENV['DOMAIN'] %>
-  smtp_server_hostname: <%= ENV['DOMAIN'] %>
-  return_path_domain: <%= "rp.#{ENV['DOMAIN']}" %>
-  route_domain: <%= "routes.#{ENV['DOMAIN']}" %>
-  track_domain: <%= ENV['DOMAIN'] %>
+    - ${DOMAIN}
+  smtp_server_hostname: ${DOMAIN}
+  return_path: rp.${DOMAIN}
+  route_domain: routes.${DOMAIN}
+  track_domain: ${DOMAIN}
+  dkim_identifier: postal
+  check_ptr: false
+
+logging:
+  rails_log: true
+  log_level: info
 
 rails:
-  secret_key: <%= ENV['SECRET_KEY_BASE'] %>
+  secret_key: ${SECRET_KEY_BASE}
+  environment: production
 
-signing_key: <%= ENV['POSTAL_SIGNING_KEY'] %>
+smtp_client:
+  open_timeout: 30
+  read_timeout: 60
+  helo_hostname: ${DOMAIN}
+
+web_server:
+  bind_address: 0.0.0.0
+  port: 5000

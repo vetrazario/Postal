@@ -288,7 +288,14 @@ services:
     container_name: email_postal
     hostname: ${DOMAIN}
     restart: unless-stopped
-    command: ["postal", "boot"]
+    command: >
+      sh -c "
+        postal initialize-db || true &&
+        postal web-server &
+        postal smtp-server &
+        postal worker &
+        wait
+      "
     depends_on:
       mariadb:
         condition: service_healthy
@@ -317,7 +324,7 @@ services:
       POSTAL_RABBITMQ_USERNAME: postal
       POSTAL_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
       POSTAL_RABBITMQ_VHOST: postal
-      POSTAL_WEB_HOST: postal.${DOMAIN}
+      POSTAL_WEB_HOST: ${DOMAIN}
       POSTAL_WEB_PROTOCOL: https
       POSTAL_DNS_MX_RECORDS: ${DOMAIN}
       POSTAL_DNS_SMTP_SERVER_HOSTNAME: ${DOMAIN}
@@ -326,7 +333,8 @@ services:
       POSTAL_DNS_TRACK_DOMAIN: ${DOMAIN}
       POSTAL_RAILS_SECRET_KEY: ${SECRET_KEY_BASE}
     volumes:
-      # Postal configuration via ENV variables (no config file needed)
+      - ./config/postal.yml:/config/postal.yml:ro
+      - ./config/postal.yml:/opt/postal/config/postal.yml:ro
       - postal_data:/opt/postal/data
     deploy:
       resources:
