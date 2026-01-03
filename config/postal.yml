@@ -1,40 +1,39 @@
-# Postal Configuration
-# This file uses ERB to read from environment variables
+version: 2
 
 main_db:
-  host: <%= ENV.fetch("POSTAL_MAIN_DB_HOST", "mariadb") %>
-  port: <%= ENV.fetch("POSTAL_MAIN_DB_PORT", "3306").to_i %>
-  username: <%= ENV.fetch("POSTAL_MAIN_DB_USERNAME", "postal") %>
-  password: <%= ENV.fetch("POSTAL_MAIN_DB_PASSWORD", "") %>
-  database: <%= ENV.fetch("POSTAL_MAIN_DB_DATABASE", "postal") %>
+  host: mariadb
+  port: 3306
+  username: postal
+  password: <%= ENV['MARIADB_PASSWORD'] %>
+  database: postal
 
 message_db:
-  host: <%= ENV.fetch("POSTAL_MESSAGE_DB_HOST", "mariadb") %>
-  port: <%= ENV.fetch("POSTAL_MESSAGE_DB_PORT", "3306").to_i %>
-  username: <%= ENV.fetch("POSTAL_MESSAGE_DB_USERNAME", "postal") %>
-  password: <%= ENV.fetch("POSTAL_MESSAGE_DB_PASSWORD", "") %>
-  prefix: <%= ENV.fetch("POSTAL_MESSAGE_DB_PREFIX", "postal") %>
+  host: mariadb
+  port: 3306
+  username: postal
+  password: <%= ENV['MARIADB_PASSWORD'] %>
+  prefix: postal
 
 rabbitmq:
-  host: <%= ENV.fetch("POSTAL_RABBITMQ_HOST", "rabbitmq") %>
-  port: <%= ENV.fetch("POSTAL_RABBITMQ_PORT", "5672").to_i %>
-  username: <%= ENV.fetch("POSTAL_RABBITMQ_USERNAME", "postal") %>
-  password: <%= ENV.fetch("POSTAL_RABBITMQ_PASSWORD", "") %>
-  vhost: <%= ENV.fetch("POSTAL_RABBITMQ_VHOST", "/postal") %>
+  host: rabbitmq
+  port: 5672
+  username: postal
+  password: <%= ENV['RABBITMQ_PASSWORD'] %>
+  vhost: postal
+
+web:
+  host: <%= "postal.#{ENV['DOMAIN']}" %>
+  protocol: https
 
 dns:
   mx_records:
-    - <%= ENV.fetch("POSTAL_DNS_MX_RECORDS", ENV.fetch("DOMAIN", "localhost")) %>
-  smtp_server_hostname: <%= ENV.fetch("POSTAL_DNS_SMTP_SERVER_HOSTNAME", ENV.fetch("DOMAIN", "localhost")) %>
-  return_path: <%= ENV.fetch("POSTAL_DNS_RETURN_PATH", "rp." + ENV.fetch("DOMAIN", "localhost")) %>
-  route_domain: <%= ENV.fetch("POSTAL_DNS_ROUTE_DOMAIN", "routes." + ENV.fetch("DOMAIN", "localhost")) %>
-  track_domain: <%= ENV.fetch("POSTAL_DNS_TRACK_DOMAIN", ENV.fetch("DOMAIN", "localhost")) %>
-
-web:
-  host: <%= ENV.fetch("POSTAL_WEB_HOST", "postal." + ENV.fetch("DOMAIN", "localhost")) %>
-  protocol: <%= ENV.fetch("POSTAL_WEB_PROTOCOL", "https") %>
+    - <%= ENV['DOMAIN'] %>
+  smtp_server_hostname: <%= ENV['DOMAIN'] %>
+  return_path_domain: <%= "rp.#{ENV['DOMAIN']}" %>
+  route_domain: <%= "routes.#{ENV['DOMAIN']}" %>
+  track_domain: <%= ENV['DOMAIN'] %>
 
 rails:
-  secret_key: <%= ENV.fetch("POSTAL_RAILS_SECRET_KEY", ENV.fetch("SECRET_KEY_BASE", "")) %>
+  secret_key: <%= ENV['SECRET_KEY_BASE'] %>
 
-signing_key: <%= ENV.fetch("POSTAL_SIGNING_KEY", "") %>
+signing_key: <%= ENV['POSTAL_SIGNING_KEY'] %>

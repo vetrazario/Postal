@@ -311,39 +311,15 @@ services:
       - "587:587"
       - "5000:5000"
     environment:
-      # Postal v3 config v2 format uses double underscore
-      POSTAL_CONFIG_VERSION: "2"
-      # Main DB (double underscore = nested config)
-      MAIN_DB__HOST: mariadb
-      MAIN_DB__PORT: "3306"
-      MAIN_DB__USERNAME: postal
-      MAIN_DB__PASSWORD: ${MARIADB_PASSWORD}
-      MAIN_DB__DATABASE: postal
-      # Message DB
-      MESSAGE_DB__HOST: mariadb
-      MESSAGE_DB__PORT: "3306"
-      MESSAGE_DB__USERNAME: postal
-      MESSAGE_DB__PASSWORD: ${MARIADB_PASSWORD}
-      MESSAGE_DB__PREFIX: postal
-      # RabbitMQ
-      RABBITMQ__HOST: rabbitmq
-      RABBITMQ__PORT: "5672"
-      RABBITMQ__USERNAME: postal
-      RABBITMQ__PASSWORD: ${RABBITMQ_PASSWORD}
-      RABBITMQ__VHOST: postal
-      # Web
-      WEB__HOST: postal.${DOMAIN}
-      WEB__PROTOCOL: https
-      # DNS
-      DNS__MX_RECORDS: ${DOMAIN}
-      DNS__SMTP_SERVER_HOSTNAME: ${DOMAIN}
-      DNS__RETURN_PATH_DOMAIN: rp.${DOMAIN}
-      DNS__ROUTE_DOMAIN: routes.${DOMAIN}
-      DNS__TRACK_DOMAIN: ${DOMAIN}
-      # Rails
-      RAILS__SECRET_KEY: ${SECRET_KEY_BASE}
-      SIGNING_KEY: ${POSTAL_SIGNING_KEY}
+      # ENV vars for ERB templating in postal.yml
+      MARIADB_PASSWORD: ${MARIADB_PASSWORD}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      DOMAIN: ${DOMAIN}
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE}
+      POSTAL_SIGNING_KEY: ${POSTAL_SIGNING_KEY}
     volumes:
+      # Config file with v2 format (uses ERB to read ENV)
+      - ./config/postal.yml:/config/postal.yml:ro
       - postal_data:/opt/postal/data
     deploy:
       resources:
