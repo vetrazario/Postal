@@ -68,21 +68,23 @@ module Dashboard
     end
 
     # Generate new SMTP Relay credentials
+    # NOTE: SMTP credentials are now managed via SmtpCredential model
+    # This action creates a new credential and returns the details
     def generate_smtp_credentials
-      config = SystemConfig.instance
-      credentials = config.generate_smtp_relay_credentials!
-
-      # Sync to env file
-      config.sync_to_env_file
+      # Generate a new SMTP credential
+      smtp_credential, password = SmtpCredential.generate(
+        description: 'Auto-generated credential',
+        rate_limit: 100
+      )
 
       render json: {
         success: true,
         credentials: {
-          username: credentials[:username],
-          password: credentials[:password],
-          secret: credentials[:secret]
+          username: smtp_credential.username,
+          password: password,
+          id: smtp_credential.id
         },
-        message: 'New credentials generated. SMTP Relay needs restart.'
+        message: 'New SMTP credential generated. See SMTP Credentials page for details.'
       }
     rescue StandardError => e
       render json: { success: false, error: e.message }, status: :unprocessable_entity
