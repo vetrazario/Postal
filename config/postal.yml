@@ -1,0 +1,39 @@
+version: 2
+
+main_db:
+  host: mariadb
+  port: 3306
+  username: postal
+  password: <%= ENV['MARIADB_PASSWORD'] %>
+  database: postal
+
+message_db:
+  host: mariadb
+  port: 3306
+  username: postal
+  password: <%= ENV['MARIADB_PASSWORD'] %>
+  prefix: postal
+
+rabbitmq:
+  host: rabbitmq
+  port: 5672
+  username: postal
+  password: <%= ENV['RABBITMQ_PASSWORD'] %>
+  vhost: postal
+
+web:
+  host: <%= "postal.#{ENV['DOMAIN']}" %>
+  protocol: https
+
+dns:
+  mx_records:
+    - <%= ENV['DOMAIN'] %>
+  smtp_server_hostname: <%= ENV['DOMAIN'] %>
+  return_path_domain: <%= "rp.#{ENV['DOMAIN']}" %>
+  route_domain: <%= "routes.#{ENV['DOMAIN']}" %>
+  track_domain: <%= ENV['DOMAIN'] %>
+
+rails:
+  secret_key: <%= ENV['SECRET_KEY_BASE'] %>
+
+signing_key: <%= ENV['POSTAL_SIGNING_KEY'] %>

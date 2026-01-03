@@ -15,8 +15,7 @@ get-*.rb
 # Nginx htpasswd (contains passwords)
 config/htpasswd
 
-# Postal config (generated from template, contains passwords)
-config/postal.yml
+# Postal config template (uses ERB to read from ENV, safe to commit)
 
 # Logs
 *.log
