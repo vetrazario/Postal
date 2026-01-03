@@ -2,14 +2,6 @@
 # EMAIL SENDER INFRASTRUCTURE
 # Docker Compose Configuration
 # ===========================================
-#
-# Использование:
-#   docker compose up -d          # Запуск всех сервисов
-#   docker compose logs -f        # Просмотр логов
-#   docker compose ps             # Статус сервисов
-#   docker compose down           # Остановка
-#
-# ===========================================
 
 services:
   # ===========================================
@@ -77,6 +69,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 30s
     networks:
       - backend
 
@@ -103,7 +96,7 @@ services:
         reservations:
           memory: 200M
     healthcheck:
-      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      test: ["CMD-SHELL", "healthcheck.sh --connect --innodb_initialized"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -240,6 +233,8 @@ services:
       SMTP_RELAY_SECRET: ${SMTP_RELAY_SECRET}
     volumes:
       - api_logs:/app/log
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./docker-compose.yml:/project/docker-compose.yml:ro
     deploy:
       resources:
         limits:
@@ -275,10 +270,11 @@ services:
         reservations:
           memory: 100M
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      test: ["CMD-SHELL", "curl", "-f", "http://localhost:3001/health"]
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 60s
     networks:
       - frontend
       - backend
@@ -292,8 +288,6 @@ services:
     container_name: email_postal
     hostname: ${DOMAIN}
     restart: unless-stopped
-    # Postal automatically initializes DB on first run using ENV variables
-    # No manual 'initialize-db' needed - it's handled by docker-entrypoint.sh
     command: ["postal", "boot"]
     depends_on:
       mariadb:
@@ -305,37 +299,31 @@ services:
       - "587:587"
       - "5000:5000"
     environment:
-      RAILS_DEVELOPMENT_HOSTS: postal,linenarrow.com,postal.linenarrow.com
+      RAILS_DEVELOPMENT_HOSTS: postal,${DOMAIN},postal.${DOMAIN}
       DISABLE_HOST_CHECK: "true"
       POSTAL_SIGNING_KEY: ${POSTAL_SIGNING_KEY}
-      # Main DB
       POSTAL_MAIN_DB_HOST: mariadb
       POSTAL_MAIN_DB_PORT: "3306"
       POSTAL_MAIN_DB_USERNAME: postal
       POSTAL_MAIN_DB_PASSWORD: ${MARIADB_PASSWORD}
       POSTAL_MAIN_DB_DATABASE: postal
-      # Message DB
       POSTAL_MESSAGE_DB_HOST: mariadb
       POSTAL_MESSAGE_DB_PORT: "3306"
       POSTAL_MESSAGE_DB_USERNAME: postal
       POSTAL_MESSAGE_DB_PASSWORD: ${MARIADB_PASSWORD}
       POSTAL_MESSAGE_DB_PREFIX: postal
-      # RabbitMQ
       POSTAL_RABBITMQ_HOST: rabbitmq
       POSTAL_RABBITMQ_PORT: "5672"
       POSTAL_RABBITMQ_USERNAME: postal
       POSTAL_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
       POSTAL_RABBITMQ_VHOST: postal
-      # Web
       POSTAL_WEB_HOST: postal.${DOMAIN}
       POSTAL_WEB_PROTOCOL: https
-      # DNS
       POSTAL_DNS_MX_RECORDS: ${DOMAIN}
       POSTAL_DNS_SMTP_SERVER_HOSTNAME: ${DOMAIN}
       POSTAL_DNS_RETURN_PATH: rp.${DOMAIN}
       POSTAL_DNS_ROUTE_DOMAIN: routes.${DOMAIN}
       POSTAL_DNS_TRACK_DOMAIN: ${DOMAIN}
-      # Rails
       POSTAL_RAILS_SECRET_KEY: ${SECRET_KEY_BASE}
     volumes:
       # Postal configuration via ENV variables (no config file needed)
@@ -427,11 +415,6 @@ services:
       - ./config/htpasswd:/etc/nginx/.htpasswd:ro
       - /etc/letsencrypt:/etc/letsencrypt:ro
       - certbot_www:/var/www/certbot:ro
-    healthcheck:
-      test: ["CMD", "nginx", "-t"]
-      interval: 60s
-      timeout: 10s
-      retries: 3
     networks:
       - frontend
 
