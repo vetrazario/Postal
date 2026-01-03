@@ -295,6 +295,7 @@ services:
     # Generate config from ENV and run all Postal services
     command: >
       sh -c "
+        mkdir -p /config &&
         cat > /config/postal.yml << EOF
       version: 2
       main_db:
