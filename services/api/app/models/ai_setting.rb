@@ -5,25 +5,14 @@ class AiSetting < ApplicationRecord
   encrypts :openrouter_api_key
 
   # Validations
-  validates :ai_model, presence: true
+  validates :ai_model, presence: true, format: { with: /\A[\w\-]+\/[\w\-\.:]+\z/, message: "must be in OpenRouter format (e.g., anthropic/claude-sonnet-4)" }
   validates :temperature, numericality: { greater_than_or_equal_to: 0, less_than_or_equal_to: 2 }
   validates :max_tokens, numericality: { greater_than: 0, less_than_or_equal_to: 100000 }
-
-  # Available models
-  AVAILABLE_MODELS = {
-    'anthropic/claude-3.5-sonnet' => 'Claude 3.5 Sonnet (Recommended)',
-    'anthropic/claude-3-opus' => 'Claude 3 Opus',
-    'anthropic/claude-3-sonnet' => 'Claude 3 Sonnet',
-    'openai/gpt-4-turbo' => 'GPT-4 Turbo',
-    'openai/gpt-4' => 'GPT-4',
-    'meta-llama/llama-3-70b-instruct' => 'Llama 3 70B',
-    'google/gemini-pro-1.5' => 'Gemini Pro 1.5'
-  }.freeze
 
   # Singleton pattern - only one settings record
   def self.instance
     first_or_create!(id: 1) do |settings|
-      settings.ai_model = 'anthropic/claude-3.5-sonnet'
+      settings.ai_model = 'anthropic/claude-sonnet-4'
       settings.temperature = 0.7
       settings.max_tokens = 4000
       settings.enabled = false
@@ -68,8 +57,8 @@ class AiSetting < ApplicationRecord
     (total_tokens_used / 1000.0 * estimated_cost_per_1k_tokens).round(2)
   end
 
-  # Model display name
+  # Model display name (just return the model ID)
   def model_display_name
-    AVAILABLE_MODELS[ai_model] || ai_model
+    ai_model
   end
 end
