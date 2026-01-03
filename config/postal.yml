@@ -1,3 +1,0 @@
-# Postal configuration - minimal config that forces use of environment variables
-# All database settings are provided via ENV variables in docker-compose.yml
-# This file exists but intentionally left empty to prevent Postal from using defaults
