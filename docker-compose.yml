@@ -292,12 +292,14 @@ services:
     container_name: email_postal
     hostname: ${DOMAIN}
     restart: unless-stopped
-    # Postal start command - runs web-server, smtp-server, and worker
-    # Initialize DB on first run if needed
+    # Run all Postal services in single container
     command: >
       sh -c "
         postal initialize || true &&
-        postal start
+        postal web-server &
+        postal smtp-server &
+        postal worker &
+        wait
       "
     depends_on:
       mariadb:
