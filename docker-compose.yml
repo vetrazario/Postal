@@ -295,8 +295,7 @@ services:
     # Generate config from ENV and run all Postal services
     command: >
       sh -c "
-        mkdir -p /config &&
-        cat > /config/postal.yml << EOF
+        cat > /tmp/postal.yml << EOF
       version: 2
       main_db:
         host: mariadb
@@ -346,7 +345,7 @@ services:
       - "587:587"
       - "5000:5000"
     environment:
-      # ENV vars for ERB templating in postal.yml
+      POSTAL_CONFIG_FILE: /tmp/postal.yml
       MARIADB_PASSWORD: ${MARIADB_PASSWORD}
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
       DOMAIN: ${DOMAIN}
