@@ -81,6 +81,8 @@
                       <div class="flex items-center justify-end gap-2">
                         <%= button_to credential.active? ? 'Deactivate' : 'Activate', toggle_active_dashboard_smtp_credential_path(credential), method: :patch, class: "text-indigo-600 hover:text-indigo-900" %>
                         <span class="text-gray-300">|</span>
+                        <%= button_to 'New Password', regenerate_password_dashboard_smtp_credential_path(credential), method: :post, data: { confirm: 'Generate new password? Old password will stop working immediately.' }, class: "text-orange-600 hover:text-orange-900" %>
+                        <span class="text-gray-300">|</span>
                         <%= link_to 'Edit', edit_dashboard_smtp_credential_path(credential), class: "text-indigo-600 hover:text-indigo-900" %>
                         <span class="text-gray-300">|</span>
                         <%= button_to 'Delete', dashboard_smtp_credential_path(credential), method: :delete, data: { confirm: 'Are you sure?' }, class: "text-red-600 hover:text-red-900" %>
@@ -125,7 +127,7 @@
       <div><span class="text-gray-500">Password:</span> <strong>[Use password shown when creating credential]</strong></div>
     </div>
     <p class="text-xs text-green-700 mt-2">
-      Note: Password is only shown once when creating the credential. If you lose it, delete and generate a new one.
+      Note: Password is only shown once when creating the credential. Use "New Password" button to regenerate if lost.
     </p>
   </div>
 </div>

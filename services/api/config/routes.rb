@@ -1,20 +1,10 @@
 require 'sidekiq/web'
+require_relative '../lib/sidekiq_web_auth'
 
 # Sidekiq Web UI authentication
-# Монтируем только если заданы учетные данные
-if ENV['SIDEKIQ_WEB_USERNAME'].present? && ENV['SIDEKIQ_WEB_PASSWORD'].present?
-  Sidekiq::Web.use(Rack::Auth::Basic) do |username, password|
-    expected_username = ENV.fetch('SIDEKIQ_WEB_USERNAME')
-    expected_password = ENV.fetch('SIDEKIQ_WEB_PASSWORD')
-    
-    ActiveSupport::SecurityUtils.secure_compare(
-      ::Digest::SHA256.hexdigest(username.to_s),
-      ::Digest::SHA256.hexdigest(expected_username)
-    ) & ActiveSupport::SecurityUtils.secure_compare(
-      ::Digest::SHA256.hexdigest(password.to_s),
-      ::Digest::SHA256.hexdigest(expected_password)
-    )
-  end
+# Uses SidekiqWebAuth to check credentials from SystemConfig (database) or ENV
+Sidekiq::Web.use(Rack::Auth::Basic, 'Sidekiq') do |username, password|
+  SidekiqWebAuth.authenticate(username, password)
 end
 
 Rails.application.routes.draw do
@@ -67,6 +57,7 @@ Rails.application.routes.draw do
       member do
         patch :toggle_active
         post :test_connection
+        post :regenerate_password
       end
     end
 
@@ -129,9 +120,8 @@ Rails.application.routes.draw do
     end
   end
 
-  # Sidekiq Web UI (монтируем только если заданы учетные данные)
-  if defined?(Sidekiq::Web) && ENV['SIDEKIQ_WEB_USERNAME'].present? && ENV['SIDEKIQ_WEB_PASSWORD'].present?
-    mount Sidekiq::Web => '/sidekiq'
-  end
+  # Sidekiq Web UI
+  # Authentication is handled by SidekiqWebAuth middleware (reads from SystemConfig or ENV)
+  mount Sidekiq::Web => '/sidekiq' if defined?(Sidekiq::Web)
 end
 

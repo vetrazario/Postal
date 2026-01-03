@@ -155,9 +155,7 @@ module Dashboard
         :sidekiq_concurrency,
         :webhook_secret,
 
-        # SMTP Relay
-        :smtp_relay_username,
-        :smtp_relay_password,
+        # SMTP Relay (credentials managed via SMTP Credentials page)
         :smtp_relay_secret,
         :smtp_relay_port,
         :smtp_relay_auth_required,
