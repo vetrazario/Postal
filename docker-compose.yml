@@ -343,8 +343,8 @@ services:
       # Rails
       POSTAL_RAILS_SECRET_KEY: ${SECRET_KEY_BASE}
     volumes:
-      - ./config/postal.yml:/config/postal.yml:ro
-      - ./config/postal.yml:/opt/postal/config/postal.yml:ro
+      # Postal configuration is managed via environment variables (no config file needed)
+      # - ./config/postal.yml:/opt/postal/config/postal.yml:ro
       - postal_data:/opt/postal/data
     deploy:
       resources:
