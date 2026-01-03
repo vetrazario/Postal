@@ -311,41 +311,39 @@ services:
       - "587:587"
       - "5000:5000"
     environment:
-      RAILS_DEVELOPMENT_HOSTS: postal,linenarrow.com,postal.linenarrow.com
-      DISABLE_HOST_CHECK: "true"
-      POSTAL_SIGNING_KEY: ${POSTAL_SIGNING_KEY}
-      # Main DB
-      POSTAL_MAIN_DB_HOST: mariadb
-      POSTAL_MAIN_DB_PORT: "3306"
-      POSTAL_MAIN_DB_USERNAME: postal
-      POSTAL_MAIN_DB_PASSWORD: ${MARIADB_PASSWORD}
-      POSTAL_MAIN_DB_DATABASE: postal
+      # Postal v3 config v2 format uses double underscore
+      POSTAL_CONFIG_VERSION: "2"
+      # Main DB (double underscore = nested config)
+      MAIN_DB__HOST: mariadb
+      MAIN_DB__PORT: "3306"
+      MAIN_DB__USERNAME: postal
+      MAIN_DB__PASSWORD: ${MARIADB_PASSWORD}
+      MAIN_DB__DATABASE: postal
       # Message DB
-      POSTAL_MESSAGE_DB_HOST: mariadb
-      POSTAL_MESSAGE_DB_PORT: "3306"
-      POSTAL_MESSAGE_DB_USERNAME: postal
-      POSTAL_MESSAGE_DB_PASSWORD: ${MARIADB_PASSWORD}
-      POSTAL_MESSAGE_DB_PREFIX: postal
+      MESSAGE_DB__HOST: mariadb
+      MESSAGE_DB__PORT: "3306"
+      MESSAGE_DB__USERNAME: postal
+      MESSAGE_DB__PASSWORD: ${MARIADB_PASSWORD}
+      MESSAGE_DB__PREFIX: postal
       # RabbitMQ
-      POSTAL_RABBITMQ_HOST: rabbitmq
-      POSTAL_RABBITMQ_PORT: "5672"
-      POSTAL_RABBITMQ_USERNAME: postal
-      POSTAL_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
-      POSTAL_RABBITMQ_VHOST: postal
+      RABBITMQ__HOST: rabbitmq
+      RABBITMQ__PORT: "5672"
+      RABBITMQ__USERNAME: postal
+      RABBITMQ__PASSWORD: ${RABBITMQ_PASSWORD}
+      RABBITMQ__VHOST: postal
       # Web
-      POSTAL_WEB_HOST: postal.${DOMAIN}
-      POSTAL_WEB_PROTOCOL: https
+      WEB__HOST: postal.${DOMAIN}
+      WEB__PROTOCOL: https
       # DNS
-      POSTAL_DNS_MX_RECORDS: ${DOMAIN}
-      POSTAL_DNS_SMTP_SERVER_HOSTNAME: ${DOMAIN}
-      POSTAL_DNS_RETURN_PATH: rp.${DOMAIN}
-      POSTAL_DNS_ROUTE_DOMAIN: routes.${DOMAIN}
-      POSTAL_DNS_TRACK_DOMAIN: ${DOMAIN}
+      DNS__MX_RECORDS: ${DOMAIN}
+      DNS__SMTP_SERVER_HOSTNAME: ${DOMAIN}
+      DNS__RETURN_PATH_DOMAIN: rp.${DOMAIN}
+      DNS__ROUTE_DOMAIN: routes.${DOMAIN}
+      DNS__TRACK_DOMAIN: ${DOMAIN}
       # Rails
-      POSTAL_RAILS_SECRET_KEY: ${SECRET_KEY_BASE}
+      RAILS__SECRET_KEY: ${SECRET_KEY_BASE}
+      SIGNING_KEY: ${POSTAL_SIGNING_KEY}
     volumes:
-      # Postal configuration file (uses ERB to read ENV variables)
-      - ./config/postal.yml:/config/postal.yml:ro
       - postal_data:/opt/postal/data
     deploy:
       resources:
