@@ -292,43 +292,9 @@ services:
     container_name: email_postal
     hostname: ${DOMAIN}
     restart: unless-stopped
-    # Generate config from ENV and run all Postal services
+    # Run all Postal services
     command: >
       sh -c "
-        cat > /tmp/postal.yml << EOF
-      version: 2
-      main_db:
-        host: mariadb
-        port: 3306
-        username: postal
-        password: $MARIADB_PASSWORD
-        database: postal
-      message_db:
-        host: mariadb
-        port: 3306
-        username: postal
-        password: $MARIADB_PASSWORD
-        prefix: postal
-      rabbitmq:
-        host: rabbitmq
-        port: 5672
-        username: postal
-        password: $RABBITMQ_PASSWORD
-        vhost: postal
-      web:
-        host: postal.$DOMAIN
-        protocol: https
-      dns:
-        mx_records:
-          - $DOMAIN
-        smtp_server_hostname: $DOMAIN
-        return_path_domain: rp.$DOMAIN
-        route_domain: routes.$DOMAIN
-        track_domain: $DOMAIN
-      rails:
-        secret_key: $SECRET_KEY_BASE
-      signing_key: $POSTAL_SIGNING_KEY
-      EOF
         postal initialize || true &&
         postal web-server &
         postal smtp-server &
@@ -345,12 +311,31 @@ services:
       - "587:587"
       - "5000:5000"
     environment:
-      POSTAL_CONFIG_FILE: /tmp/postal.yml
-      MARIADB_PASSWORD: ${MARIADB_PASSWORD}
-      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
-      DOMAIN: ${DOMAIN}
-      SECRET_KEY_BASE: ${SECRET_KEY_BASE}
-      POSTAL_SIGNING_KEY: ${POSTAL_SIGNING_KEY}
+      # Postal v3 config via ENV (POSTAL__ prefix for all settings)
+      POSTAL__MAIN_DB__HOST: mariadb
+      POSTAL__MAIN_DB__PORT: "3306"
+      POSTAL__MAIN_DB__USERNAME: postal
+      POSTAL__MAIN_DB__PASSWORD: ${MARIADB_PASSWORD}
+      POSTAL__MAIN_DB__DATABASE: postal
+      POSTAL__MESSAGE_DB__HOST: mariadb
+      POSTAL__MESSAGE_DB__PORT: "3306"
+      POSTAL__MESSAGE_DB__USERNAME: postal
+      POSTAL__MESSAGE_DB__PASSWORD: ${MARIADB_PASSWORD}
+      POSTAL__MESSAGE_DB__PREFIX: postal
+      POSTAL__RABBITMQ__HOST: rabbitmq
+      POSTAL__RABBITMQ__PORT: "5672"
+      POSTAL__RABBITMQ__USERNAME: postal
+      POSTAL__RABBITMQ__PASSWORD: ${RABBITMQ_PASSWORD}
+      POSTAL__RABBITMQ__VHOST: postal
+      POSTAL__WEB__HOST: postal.${DOMAIN}
+      POSTAL__WEB__PROTOCOL: https
+      POSTAL__DNS__MX_RECORDS: ${DOMAIN}
+      POSTAL__DNS__SMTP_SERVER_HOSTNAME: ${DOMAIN}
+      POSTAL__DNS__RETURN_PATH_DOMAIN: rp.${DOMAIN}
+      POSTAL__DNS__ROUTE_DOMAIN: routes.${DOMAIN}
+      POSTAL__DNS__TRACK_DOMAIN: ${DOMAIN}
+      POSTAL__RAILS__SECRET_KEY: ${SECRET_KEY_BASE}
+      POSTAL__SIGNING_KEY: ${POSTAL_SIGNING_KEY}
     volumes:
       - postal_data:/opt/postal/data
     deploy:
