@@ -292,9 +292,43 @@ services:
     container_name: email_postal
     hostname: ${DOMAIN}
     restart: unless-stopped
-    # Run all Postal services in single container
+    # Generate config from ENV and run all Postal services
     command: >
       sh -c "
+        cat > /config/postal.yml << EOF
+      version: 2
+      main_db:
+        host: mariadb
+        port: 3306
+        username: postal
+        password: $MARIADB_PASSWORD
+        database: postal
+      message_db:
+        host: mariadb
+        port: 3306
+        username: postal
+        password: $MARIADB_PASSWORD
+        prefix: postal
+      rabbitmq:
+        host: rabbitmq
+        port: 5672
+        username: postal
+        password: $RABBITMQ_PASSWORD
+        vhost: postal
+      web:
+        host: postal.$DOMAIN
+        protocol: https
+      dns:
+        mx_records:
+          - $DOMAIN
+        smtp_server_hostname: $DOMAIN
+        return_path_domain: rp.$DOMAIN
+        route_domain: routes.$DOMAIN
+        track_domain: $DOMAIN
+      rails:
+        secret_key: $SECRET_KEY_BASE
+      signing_key: $POSTAL_SIGNING_KEY
+      EOF
         postal initialize || true &&
         postal web-server &
         postal smtp-server &
@@ -318,8 +352,6 @@ services:
       SECRET_KEY_BASE: ${SECRET_KEY_BASE}
       POSTAL_SIGNING_KEY: ${POSTAL_SIGNING_KEY}
     volumes:
-      # Config file with v2 format (uses ERB to read ENV)
-      - ./config/postal.yml:/config/postal.yml:ro
       - postal_data:/opt/postal/data
     deploy:
       resources:
