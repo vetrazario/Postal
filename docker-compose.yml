@@ -292,14 +292,9 @@ services:
     container_name: email_postal
     hostname: ${DOMAIN}
     restart: unless-stopped
-    command: >
-      sh -c "
-        postal initialize-db || true &&
-        postal web-server &
-        postal smtp-server &
-        postal worker &
-        wait
-      "
+    # Postal automatically initializes DB on first run using ENV variables
+    # No manual 'initialize-db' needed - it's handled by docker-entrypoint.sh
+    command: ["postal", "boot"]
     depends_on:
       mariadb:
         condition: service_healthy
@@ -343,7 +338,7 @@ services:
       # Rails
       POSTAL_RAILS_SECRET_KEY: ${SECRET_KEY_BASE}
     volumes:
-      - ./config/postal.yml:/opt/postal/config/postal.yml:ro
+      # Postal configuration via ENV variables (no config file needed)
       - postal_data:/opt/postal/data
     deploy:
       resources:
