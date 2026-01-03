@@ -384,10 +384,7 @@ services:
       SMTP_RELAY_PORT: 587
       SMTP_RELAY_TLS: "true"
       SMTP_AUTH_REQUIRED: "true"
-      # Authentication (required for AMS connection)
-      SMTP_RELAY_USERNAME: ${SMTP_RELAY_USERNAME}
-      SMTP_RELAY_PASSWORD: ${SMTP_RELAY_PASSWORD}
-      # HMAC signing for API requests
+      # HMAC signing for API requests (authentication now managed via Dashboard/SmtpCredential model)
       SMTP_RELAY_SECRET: ${SMTP_RELAY_SECRET}
       # API Integration
       API_URL: http://api:3000
