@@ -24,7 +24,34 @@ class Api::V1::WebhooksController < Api::V1::ApplicationController
   private
 
   def process_webhook_event(email_log, event, payload)
+    Rails.logger.info "Processing webhook event: #{event} for message_id: #{email_log.postal_message_id}"
+
     case event
+    when 'MessageSent'
+      # Postal отправляет MessageSent когда письмо принято удаленным SMTP сервером
+      smtp_output = payload['output'] || payload[:output]
+      smtp_details = payload['details'] || payload[:details]
+      delivery_time = payload['time'] || payload[:time]
+      sent_with_ssl = payload['sent_with_ssl'] || payload[:sent_with_ssl]
+
+      # Извлечь SMTP код из output (например "250 2.0.0 OK...")
+      smtp_code = smtp_output&.match(/^(\d{3})/)&.[](1)
+
+      email_log.update(
+        status: 'sent',
+        sent_at: Time.current,
+        smtp_code: smtp_code,
+        smtp_message: "#{smtp_output}\n---\n#{smtp_details}",
+        status_details: payload.merge(
+          delivery_time_seconds: delivery_time,
+          sent_with_ssl: sent_with_ssl
+        )
+      )
+
+      TrackingEvent.create_event(email_log: email_log, event_type: 'sent', event_data: payload)
+      ReportToAmsJob.perform_later(email_log.external_message_id, 'sent')
+      Rails.logger.info "MessageSent processed: #{email_log.recipient} - #{smtp_code} - #{smtp_details}"
+
     when 'MessageDelivered'
       email_log.update_status('delivered', details: payload)
       TrackingEvent.create_event(email_log: email_log, event_type: 'delivered', event_data: payload)
@@ -65,6 +92,21 @@ class Api::V1::WebhooksController < Api::V1::ApplicationController
     when 'MessageHeld'
       email_log.update_status('failed', details: payload)
       ReportToAmsJob.perform_later(email_log.external_message_id, 'failed', 'Message held')
+
+    when 'MessageLoaded'
+      # Email был открыт (tracking pixel загружен)
+      email_log.update(delivered_at: Time.current) unless email_log.delivered_at
+      TrackingEvent.create_event(email_log: email_log, event_type: 'open', event_data: payload)
+      Rails.logger.info "MessageLoaded (opened): #{email_log.recipient}"
+
+    when 'MessageLinkClicked'
+      # Клик по ссылке
+      url = payload['url'] || payload[:url]
+      TrackingEvent.create_event(email_log: email_log, event_type: 'click', event_data: payload)
+      Rails.logger.info "MessageLinkClicked: #{email_log.recipient} -> #{url}"
+
+    else
+      Rails.logger.warn "Unknown webhook event: #{event}"
     end
   end
 
