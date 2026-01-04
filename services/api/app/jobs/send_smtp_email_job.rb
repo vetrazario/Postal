@@ -3,6 +3,10 @@
 class SendSmtpEmailJob < ApplicationJob
   queue_as :default
 
+  # Retry on transient failures (network issues, temporary Postal unavailability)
+  retry_on StandardError, wait: :polynomially_longer, attempts: 5
+  discard_on ActiveRecord::RecordNotFound # Don't retry if email_log was deleted
+
   # Process email received from SMTP Relay
   def perform(email_data)
     # Ensure hash with indifferent access
@@ -69,21 +73,20 @@ class SendSmtpEmailJob < ApplicationJob
 
   rescue => e
     Rails.logger.error "SendSmtpEmailJob error: #{e.message}"
-    Rails.logger.error e.backtrace.join("\n")
 
-    # Update email log with error
+    # Update email log with error (no backtrace for security)
     begin
       email_data = email_data.with_indifferent_access if email_data.is_a?(Hash)
       email_log = EmailLog.find(email_data[:email_log_id])
       email_log.update!(
         status: 'failed',
-        status_details: { error: e.message, backtrace: e.backtrace.first(5) }
+        status_details: { error: e.class.name, message: e.message.truncate(200) }
       )
     rescue => update_error
       Rails.logger.error "Failed to update email log: #{update_error.message}"
     end
 
-    # Retry job
+    # Re-raise for retry logic
     raise e
   end
 

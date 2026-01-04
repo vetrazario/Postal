@@ -3,14 +3,15 @@
 module Api
   module V1
     class SmtpController < ApplicationController
-      # Skip API key authentication for internal SMTP relay
+      # Use separate authentication for SMTP relay
       skip_before_action :authenticate_api_key
+      before_action :authenticate_smtp_relay
 
       # POST /api/v1/smtp/receive
       # Receives parsed email from SMTP Relay
       def receive
-        # Log incoming payload for debugging
-        Rails.logger.info "SMTP receive payload: #{params.to_unsafe_h.inspect}"
+        # Log minimal info (no sensitive data)
+        Rails.logger.info "SMTP receive: from=#{params.dig(:envelope, :from)}"
 
         # Validate required fields
         unless valid_smtp_payload?
@@ -83,16 +84,36 @@ module Api
         }, status: :accepted
 
       rescue => e
-        Rails.logger.error "SMTP receive error: #{e.message}"
-        Rails.logger.error e.backtrace.join("\n")
+        Rails.logger.error "SMTP receive error: #{e.class.name}"
 
         render json: {
           error: 'Processing failed',
-          message: e.message
+          message: 'Internal error'
         }, status: :internal_server_error
       end
 
       private
+
+      def authenticate_smtp_relay
+        # SMTP relay must provide valid API key via header
+        relay_key = request.headers['X-SMTP-Relay-Key'] || params[:smtp_relay_key]
+        expected_key = ENV['SMTP_RELAY_API_KEY']
+
+        # If no key configured, allow internal network only (Docker network)
+        if expected_key.blank?
+          # Accept requests from internal Docker network (172.x.x.x, 10.x.x.x)
+          client_ip = request.remote_ip
+          unless client_ip.start_with?('172.', '10.', '127.')
+            render json: { error: 'Unauthorized' }, status: :unauthorized
+          end
+          return
+        end
+
+        # Validate key
+        unless ActiveSupport::SecurityUtils.secure_compare(relay_key.to_s, expected_key)
+          render json: { error: 'Unauthorized' }, status: :unauthorized
+        end
+      end
 
       def valid_smtp_payload?
         params[:envelope].present? && params[:message].present?
@@ -103,15 +124,23 @@ module Api
       end
 
       def encrypt_email(email)
-        # Use Rails 7.1 encryption
-        email
+        return email if email.blank?
+
+        # Use symmetric encryption with app secret
+        key = Rails.application.secret_key_base[0, 32]
+        crypt = ActiveSupport::MessageEncryptor.new(key)
+        crypt.encrypt_and_sign(email)
+      rescue => e
+        Rails.logger.error "Email encryption failed: #{e.class.name}"
+        # Return masked version as fallback (never store plaintext)
+        mask_email(email)
       end
 
       def mask_email(email)
-        return email unless email.include?('@')
+        return email unless email.to_s.include?('@')
 
         local, domain = email.split('@')
-        masked_local = local[0] + ('*' * (local.length - 1))
+        masked_local = local[0] + ('*' * [local.length - 1, 1].max)
         "#{masked_local}@#{domain}"
       end
     end

@@ -141,9 +141,14 @@ module Dashboard
     end
 
     def restart_docker_service(service)
+      # Whitelist of allowed services (defense in depth)
+      allowed_services = %w[api sidekiq postal]
+      unless allowed_services.include?(service)
+        return { service: service, success: false, error: "Service not allowed: #{service}" }
+      end
+
       # Docker CLI path
-      docker_cmd = `which docker 2>/dev/null`.strip
-      docker_cmd = '/usr/bin/docker' if docker_cmd.empty?
+      docker_cmd = '/usr/bin/docker'
 
       # Use mounted docker-compose.yml file
       compose_file = '/project/docker-compose.yml'
@@ -156,12 +161,14 @@ module Dashboard
         }
       end
 
-      # Execute docker compose restart with explicit file path
-      command = "#{docker_cmd} compose -f #{compose_file} restart #{service}"
+      # Use Open3 with array args to prevent shell injection
+      require 'open3'
+      args = [docker_cmd, 'compose', '-f', compose_file, 'restart', service]
 
-      Rails.logger.info "Executing: #{command}"
-      output = `#{command} 2>&1`
-      success = $?.success?
+      Rails.logger.info "Executing: #{args.join(' ')}"
+      stdout, stderr, status = Open3.capture3(*args)
+      success = status.success?
+      output = stdout.presence || stderr
 
       Rails.logger.info "Result: success=#{success}, output=#{output}"
 

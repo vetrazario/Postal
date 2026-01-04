@@ -72,18 +72,39 @@ class Api::V1::WebhooksController < Api::V1::ApplicationController
     raw_body = read_raw_body
     signature = request.headers['X-Postal-Signature'].to_s
 
-    return head(:unauthorized) if signature.blank?
+    # Skip verification if disabled via ENV (for testing only)
+    if ENV['SKIP_POSTAL_WEBHOOK_VERIFICATION'] == 'true'
+      Rails.logger.warn "Webhook signature verification SKIPPED (testing mode)"
+      request.body.rewind if request.body.respond_to?(:rewind)
+      return
+    end
+
+    if signature.blank?
+      Rails.logger.warn "Missing webhook signature from #{request.remote_ip}"
+      return head(:unauthorized)
+    end
 
     public_key = load_public_key
-    return head(:unauthorized) unless public_key
+    unless public_key
+      Rails.logger.error "Postal public key not configured - rejecting webhook"
+      return head(:unauthorized)
+    end
 
-    # TODO: Fix Postal webhook signature verification
-    # EncryptoSigno doesn't work correctly with Postal's RSA signature format
-    # Temporarily disabled until proper verification is implemented
-    # unless public_key.verify(OpenSSL::Digest::SHA1.new, Base64.decode64(signature), raw_body)
-    #   Rails.logger.warn "Invalid webhook signature from #{request.remote_ip}"
-    #   return head(:unauthorized)
-    # end
+    # Postal uses RSA-SHA256 for webhook signatures
+    begin
+      decoded_signature = Base64.decode64(signature)
+      # Try SHA256 first (Postal's default), fallback to SHA1
+      verified = public_key.verify(OpenSSL::Digest::SHA256.new, decoded_signature, raw_body) ||
+                 public_key.verify(OpenSSL::Digest::SHA1.new, decoded_signature, raw_body)
+
+      unless verified
+        Rails.logger.warn "Invalid webhook signature from #{request.remote_ip}"
+        return head(:unauthorized)
+      end
+    rescue OpenSSL::PKey::RSAError, ArgumentError => e
+      Rails.logger.error "Signature verification error: #{e.class.name}"
+      return head(:unauthorized)
+    end
 
     request.body.rewind if request.body.respond_to?(:rewind)
   end
