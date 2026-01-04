@@ -69,7 +69,7 @@
     <div class="px-4 py-5 sm:p-6">
       <h3 class="text-base font-semibold leading-6 text-gray-900">Preview</h3>
       <div class="mt-4 rounded-lg border border-gray-200 p-4">
-        <%= @template.html_content.html_safe %>
+        <%= sanitize @template.html_content, tags: %w[h1 h2 h3 h4 h5 h6 p br div span a img table tr td th thead tbody ul ol li strong em b i u blockquote hr], attributes: %w[href src alt title class style width height align valign border cellpadding cellspacing] %>
       </div>
       <p class="mt-2 text-sm text-gray-500">This is a preview with no variables rendered</p>
     </div>
