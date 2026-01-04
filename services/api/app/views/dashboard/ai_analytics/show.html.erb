@@ -1,7 +1,7 @@
-<div class="space-y-8" x-data="{ activeTab: 'bounces' }">
+<div class="space-y-8">
   <div>
-    <h1 class="text-3xl font-bold text-gray-900">AI Analytics</h1>
-    <p class="mt-2 text-sm text-gray-700">AI-powered insights for email performance optimization</p>
+    <h1 class="text-3xl font-bold text-gray-900">AI Аналитика</h1>
+    <p class="mt-2 text-sm text-gray-700">Анализ кампаний с помощью AI</p>
   </div>
 
   <!-- AI Settings Status -->
@@ -9,87 +9,231 @@
     <div class="flex items-center justify-between">
       <div>
         <h3 class="text-sm font-medium <%= @ai_settings.enabled? ? 'text-green-800' : 'text-yellow-800' %>">
-          AI Analytics <%= @ai_settings.enabled? ? 'Enabled' : 'Disabled' %>
+          AI Аналитика <%= @ai_settings.enabled? ? 'Включена' : 'Отключена' %>
         </h3>
         <p class="mt-1 text-sm <%= @ai_settings.enabled? ? 'text-green-700' : 'text-yellow-700' %>">
           <% if @ai_settings.enabled? %>
-            Model: <%= @ai_settings.ai_model %> | Total Cost: $<%= @total_cost %>
+            Модель: <%= @ai_settings.ai_model %> | Потрачено: $<%= @total_cost %>
           <% else %>
-            Configure AI settings to enable analytics features
+            Настройте AI в разделе Settings
           <% end %>
         </p>
       </div>
-      <%= link_to "Settings", dashboard_settings_path, class: "rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm hover:bg-gray-50" %>
+      <%= link_to "Настройки", dashboard_settings_path, class: "rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50" %>
     </div>
   </div>
 
   <% if @ai_settings.enabled? %>
-    <!-- AI Analysis Actions -->
-    <div class="grid grid-cols-1 gap-6 sm:grid-cols-3">
-      <div class="rounded-lg bg-white p-6 shadow">
-        <h3 class="text-lg font-medium text-gray-900">Analyze Bounces</h3>
-        <p class="mt-2 text-sm text-gray-500">Get AI insights on why emails are bouncing and how to reduce bounce rates</p>
-        <%= button_to "Run Analysis", analyze_bounces_dashboard_ai_analytics_path, method: :post, class: "mt-4 w-full rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500" %>
-      </div>
+    <!-- Campaign Selector -->
+    <div class="rounded-lg bg-white p-6 shadow">
+      <h3 class="text-lg font-medium text-gray-900 mb-4">Выберите кампанию</h3>
 
-      <div class="rounded-lg bg-white p-6 shadow">
-        <h3 class="text-lg font-medium text-gray-900">Optimize Send Time</h3>
-        <p class="mt-2 text-sm text-gray-500">Discover the best times to send emails for maximum engagement</p>
-        <form action="<%= optimize_timing_dashboard_ai_analytics_path %>" method="post" class="mt-4">
-          <%= hidden_field_tag :authenticity_token, form_authenticity_token %>
-          <input type="text" name="campaign_id" placeholder="Campaign ID" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm mb-2" required>
-          <button type="submit" class="w-full rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">Run Analysis</button>
-        </form>
-      </div>
+      <%= form_tag dashboard_ai_analytics_path, method: :get, class: "flex gap-4 items-end" do %>
+        <div class="flex-1">
+          <label class="block text-sm font-medium text-gray-700 mb-1">Кампания</label>
+          <select name="campaign_id" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" onchange="this.form.submit()">
+            <option value="">-- Выберите кампанию --</option>
+            <% @campaigns.each do |campaign| %>
+              <option value="<%= campaign.campaign_id %>" <%= 'selected' if @selected_campaign == campaign.campaign_id %>>
+                <%= campaign.campaign_id %> (<%= campaign.total_sent %> писем, <%= campaign.ended_at&.strftime('%d.%m.%Y') %>)
+              </option>
+            <% end %>
+          </select>
+        </div>
+      <% end %>
 
-      <div class="rounded-lg bg-white p-6 shadow">
-        <h3 class="text-lg font-medium text-gray-900">Compare Campaigns</h3>
-        <p class="mt-2 text-sm text-gray-500">Compare multiple campaigns to identify success factors</p>
-        <form action="<%= compare_campaigns_dashboard_ai_analytics_path %>" method="post" class="mt-4">
-          <%= hidden_field_tag :authenticity_token, form_authenticity_token %>
-          <input type="text" name="campaign_ids[]" placeholder="Campaign ID 1" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm mb-2" required>
-          <input type="text" name="campaign_ids[]" placeholder="Campaign ID 2" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm mb-2" required>
-          <button type="submit" class="w-full rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">Run Analysis</button>
-        </form>
-      </div>
+      <% if @campaigns.empty? %>
+        <p class="mt-4 text-sm text-gray-500">Нет кампаний для анализа. Отправьте email с campaign_id.</p>
+      <% end %>
     </div>
+
+    <!-- Campaign Stats (if selected) -->
+    <% if @campaign_stats %>
+      <div class="rounded-lg bg-white p-6 shadow">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-medium text-gray-900">Статистика: <%= @selected_campaign %></h3>
+          <span class="text-sm text-gray-500">
+            <%= @campaign_stats[:started_at]&.strftime('%d.%m.%Y %H:%M') %> - <%= @campaign_stats[:ended_at]&.strftime('%d.%m.%Y %H:%M') %>
+          </span>
+        </div>
+
+        <!-- Stats Grid -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div class="bg-gray-50 rounded-lg p-4">
+            <dt class="text-sm font-medium text-gray-500">Отправлено</dt>
+            <dd class="mt-1 text-2xl font-semibold text-gray-900"><%= @campaign_stats[:total_sent] %></dd>
+          </div>
+          <div class="bg-green-50 rounded-lg p-4">
+            <dt class="text-sm font-medium text-gray-500">Доставлено</dt>
+            <dd class="mt-1 text-2xl font-semibold text-green-700"><%= @campaign_stats[:delivered] %></dd>
+            <dd class="text-sm text-green-600"><%= @campaign_stats[:delivery_rate] %>%</dd>
+          </div>
+          <div class="bg-blue-50 rounded-lg p-4">
+            <dt class="text-sm font-medium text-gray-500">Открытий</dt>
+            <dd class="mt-1 text-2xl font-semibold text-blue-700"><%= @campaign_stats[:opens] %></dd>
+            <dd class="text-sm text-blue-600"><%= @campaign_stats[:open_rate] %>%</dd>
+          </div>
+          <div class="bg-purple-50 rounded-lg p-4">
+            <dt class="text-sm font-medium text-gray-500">Кликов</dt>
+            <dd class="mt-1 text-2xl font-semibold text-purple-700"><%= @campaign_stats[:clicks] %></dd>
+            <dd class="text-sm text-purple-600"><%= @campaign_stats[:click_rate] %>%</dd>
+          </div>
+        </div>
+
+        <% if @campaign_stats[:bounced] > 0 %>
+          <div class="bg-red-50 rounded-lg p-4 mb-6">
+            <div class="flex items-center">
+              <div class="flex-shrink-0">
+                <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                </svg>
+              </div>
+              <div class="ml-3">
+                <h3 class="text-sm font-medium text-red-800">Отказов: <%= @campaign_stats[:bounced] %> (<%= @campaign_stats[:bounce_rate] %>%)</h3>
+              </div>
+            </div>
+          </div>
+        <% end %>
+
+        <!-- AI Analysis Buttons -->
+        <div class="flex gap-4">
+          <%= form_tag analyze_campaign_dashboard_ai_analytics_path, method: :post, class: "inline", data: { turbo_confirm: "Запустить AI анализ кампании?\nПримерная стоимость: ~$0.01-0.05" } do %>
+            <%= hidden_field_tag :campaign_id, @selected_campaign %>
+            <button type="submit" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">
+              🤖 AI Анализ кампании
+            </button>
+          <% end %>
+
+          <% if @campaign_stats[:bounced] > 0 %>
+            <%= form_tag analyze_bounces_dashboard_ai_analytics_path, method: :post, class: "inline", data: { turbo_confirm: "Запустить AI анализ отказов?\nПримерная стоимость: ~$0.01-0.03" } do %>
+              <%= hidden_field_tag :campaign_id, @selected_campaign %>
+              <button type="submit" class="rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500">
+                🔍 Анализ отказов
+              </button>
+            <% end %>
+          <% end %>
+        </div>
+      </div>
+    <% end %>
+
+    <!-- Analysis Result -->
+    <% if @analysis_result %>
+      <div class="rounded-lg bg-white p-6 shadow border-l-4 border-indigo-500">
+        <h3 class="text-lg font-medium text-gray-900 mb-4">
+          <%= @analysis_type == 'campaign' ? '📊 Результат анализа кампании' : '🔍 Результат анализа отказов' %>
+        </h3>
+
+        <% if @analysis_result['summary'] %>
+          <div class="mb-4 p-4 bg-indigo-50 rounded-lg">
+            <h4 class="text-sm font-medium text-indigo-800 mb-2">Резюме</h4>
+            <p class="text-sm text-indigo-700"><%= @analysis_result['summary'] %></p>
+          </div>
+        <% end %>
+
+        <% if @analysis_result['effectiveness_score'] %>
+          <div class="mb-4">
+            <span class="text-sm font-medium text-gray-700">Оценка эффективности: </span>
+            <span class="text-lg font-bold <%= @analysis_result['effectiveness_score'].to_i >= 7 ? 'text-green-600' : @analysis_result['effectiveness_score'].to_i >= 4 ? 'text-yellow-600' : 'text-red-600' %>">
+              <%= @analysis_result['effectiveness_score'] %>/10
+            </span>
+          </div>
+        <% end %>
+
+        <% if @analysis_result['best_send_times'].present? %>
+          <div class="mb-4">
+            <h4 class="text-sm font-medium text-gray-700 mb-2">Лучшее время отправки</h4>
+            <div class="flex flex-wrap gap-2">
+              <% Array(@analysis_result['best_send_times']).each do |time| %>
+                <span class="inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
+                  <%= time %>
+                </span>
+              <% end %>
+            </div>
+          </div>
+        <% end %>
+
+        <% if @analysis_result['delivery_issues'].present? || @analysis_result['red_flags'].present? %>
+          <div class="mb-4">
+            <h4 class="text-sm font-medium text-gray-700 mb-2">Проблемы</h4>
+            <ul class="list-disc list-inside text-sm text-red-700 space-y-1">
+              <% Array(@analysis_result['delivery_issues'] || @analysis_result['red_flags']).each do |issue| %>
+                <li><%= issue %></li>
+              <% end %>
+            </ul>
+          </div>
+        <% end %>
+
+        <% if @analysis_result['recommendations'].present? || @analysis_result['next_steps'].present? %>
+          <div class="mb-4">
+            <h4 class="text-sm font-medium text-gray-700 mb-2">Рекомендации</h4>
+            <ul class="list-disc list-inside text-sm text-gray-700 space-y-1">
+              <% Array(@analysis_result['recommendations'] || @analysis_result['next_steps']).each do |rec| %>
+                <li><%= rec %></li>
+              <% end %>
+            </ul>
+          </div>
+        <% end %>
+
+        <% if @analysis_result['patterns'].present? %>
+          <div class="mb-4">
+            <h4 class="text-sm font-medium text-gray-700 mb-2">Паттерны</h4>
+            <ul class="list-disc list-inside text-sm text-gray-700 space-y-1">
+              <% Array(@analysis_result['patterns']).each do |pattern| %>
+                <li><%= pattern %></li>
+              <% end %>
+            </ul>
+          </div>
+        <% end %>
+      </div>
+    <% end %>
 
     <!-- Recent Analyses -->
     <div class="rounded-lg bg-white shadow">
       <div class="px-4 py-5 sm:p-6">
-        <h3 class="text-lg font-medium text-gray-900">Recent Analyses</h3>
+        <h3 class="text-lg font-medium text-gray-900">История анализов</h3>
         <div class="mt-4 divide-y divide-gray-200">
           <% if @recent_analyses.empty? %>
-            <p class="py-4 text-center text-sm text-gray-500">No analyses yet. Run your first analysis above.</p>
+            <p class="py-4 text-center text-sm text-gray-500">Нет анализов. Выберите кампанию и запустите анализ.</p>
           <% else %>
             <% @recent_analyses.each do |analysis| %>
-              <div class="py-4">
-                <div class="flex items-center justify-between">
+              <div class="py-4" x-data="{ expanded: false }">
+                <div class="flex items-center justify-between cursor-pointer" @click="expanded = !expanded">
                   <div>
-                    <h4 class="text-sm font-medium text-gray-900"><%= analysis.analysis_type.titleize %></h4>
-                    <p class="mt-1 text-sm text-gray-500"><%= analysis.created_at.strftime('%Y-%m-%d %H:%M') %> | Tokens: <%= analysis.total_tokens %></p>
+                    <h4 class="text-sm font-medium text-gray-900"><%= analysis.analysis_type.titleize.gsub('_', ' ') %></h4>
+                    <p class="mt-1 text-sm text-gray-500">
+                      <%= analysis.created_at.strftime('%d.%m.%Y %H:%M') %> |
+                      <%= analysis.model_used %> |
+                      <%= analysis.total_tokens %> токенов (~$<%= (analysis.total_tokens.to_f / 1000 * 0.003).round(3) %>)
+                    </p>
                   </div>
-                  <button @click="console.log(<%= analysis.analysis_result.to_json.html_safe %>)" class="text-sm text-indigo-600 hover:text-indigo-900">View Details</button>
+                  <svg class="h-5 w-5 text-gray-400 transition-transform" :class="expanded && 'rotate-180'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                  </svg>
                 </div>
                 <% if analysis.analysis_result['summary'] %>
-                  <p class="mt-2 text-sm text-gray-700"><%= analysis.analysis_result['summary'] %></p>
+                  <p class="mt-2 text-sm text-gray-700"><%= analysis.analysis_result['summary'].to_s.truncate(200) %></p>
                 <% end %>
+                <div x-show="expanded" x-cloak class="mt-3 p-3 bg-gray-50 rounded-lg">
+                  <pre class="text-xs text-gray-600 whitespace-pre-wrap"><%= JSON.pretty_generate(analysis.analysis_result) rescue analysis.analysis_result.to_s %></pre>
+                </div>
               </div>
             <% end %>
           <% end %>
         </div>
       </div>
     </div>
+
   <% else %>
+    <!-- AI Not Enabled -->
     <div class="rounded-lg bg-gray-50 p-12 text-center">
       <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
       </svg>
-      <h3 class="mt-2 text-sm font-semibold text-gray-900">AI Analytics Not Configured</h3>
-      <p class="mt-1 text-sm text-gray-500">Enable AI analytics in settings to start analyzing your email performance</p>
+      <h3 class="mt-2 text-sm font-semibold text-gray-900">AI Аналитика не настроена</h3>
+      <p class="mt-1 text-sm text-gray-500">Включите AI в настройках для анализа кампаний</p>
       <div class="mt-6">
         <%= link_to dashboard_settings_path, class: "inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500" do %>
-          Configure AI Settings
+          Настроить AI
         <% end %>
       </div>
     </div>

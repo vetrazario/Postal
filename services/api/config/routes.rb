@@ -93,6 +93,7 @@ Rails.application.routes.draw do
 
     # AI Analytics
     resource :ai_analytics, only: [:show] do
+      post :analyze_campaign
       post :analyze_bounces
       post :optimize_timing
       post :compare_campaigns
