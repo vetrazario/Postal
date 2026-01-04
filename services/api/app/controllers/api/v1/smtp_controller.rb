@@ -34,11 +34,15 @@ module Api
         recipient = envelope['to'].is_a?(Array) ? envelope['to'].first : envelope['to']
 
         # Create EmailLog record
-        # Extract campaign_id from headers (AMS sends it as X-Campaign-ID or x-campaign-id)
-        campaign_id = message['headers']&.dig('x-campaign-id') || 
-                      message['headers']&.dig('X-Campaign-ID') ||
-                      message['headers']&.dig('x-mailing-id') ||
-                      message['headers']&.dig('X-Mailing-ID')
+        # Extract campaign_id from headers (various formats supported)
+        headers = message['headers'] || {}
+        campaign_id = headers['x-id-mail'] ||
+                      headers['X-ID-mail'] ||
+                      headers['X-Id-Mail'] ||
+                      headers['x-campaign-id'] ||
+                      headers['X-Campaign-ID'] ||
+                      headers['x-mailing-id'] ||
+                      headers['X-Mailing-ID']
         
         email_log = EmailLog.create!(
           message_id: message_id,
