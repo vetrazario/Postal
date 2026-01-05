@@ -46,11 +46,14 @@ exports.hook_data_post = function(next, connection) {
     let plainBody = parsed.body.text || '';
 
     if (htmlBody) {
-      // Inject tracking pixel
-      htmlBody = injectTrackingPixel(htmlBody, trackingParams);
-
-      // Rewrite all links for click tracking
+      // Rewrite all links for click tracking (before adding unsubscribe)
       htmlBody = rewriteLinks(htmlBody, trackingParams);
+
+      // Inject unsubscribe link at the bottom
+      htmlBody = injectUnsubscribeLink(htmlBody, trackingParams);
+
+      // Inject tracking pixel (last, so it's at the very end)
+      htmlBody = injectTrackingPixel(htmlBody, trackingParams);
     }
 
     // Store modified bodies
@@ -119,7 +122,7 @@ function injectTrackingPixel(html, params) {
     cid: base64Encode(params.campaignId)
   });
 
-  const pixel = `<img src="http://${domain}${trackingUrl}" width="1" height="1" alt="" style="display:block;width:1px;height:1px;" />`;
+  const pixel = `<img src="https://${domain}${trackingUrl}" width="1" height="1" alt="" style="display:block;width:1px;height:1px;" />`;
 
   // Try to insert before </body>
   if (html.includes('</body>')) {
@@ -128,6 +131,29 @@ function injectTrackingPixel(html, params) {
 
   // If no </body>, append to end
   return html + '\n' + pixel;
+}
+
+/**
+ * Inject unsubscribe link before </body> tag
+ */
+function injectUnsubscribeLink(html, params) {
+  const domain = process.env.DOMAIN || 'linenarrow.com';
+
+  const unsubscribeUrl = `https://${domain}/unsubscribe?eid=${base64Encode(params.email)}&cid=${base64Encode(params.campaignId)}`;
+
+  const unsubscribeHtml = `
+<div style="text-align:center;padding:20px 0;margin-top:20px;border-top:1px solid #eee;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:12px;color:#999;">
+  <p style="margin:0 0 8px 0;">If you no longer wish to receive these emails, you can</p>
+  <a href="${unsubscribeUrl}" style="color:#666;text-decoration:underline;">unsubscribe here</a>
+</div>`;
+
+  // Try to insert before </body>
+  if (html.includes('</body>')) {
+    return html.replace('</body>', `${unsubscribeHtml}\n</body>`);
+  }
+
+  // If no </body>, append to end
+  return html + '\n' + unsubscribeHtml;
 }
 
 /**
@@ -153,6 +179,11 @@ function rewriteLinks(html, params) {
       return match;
     }
 
+    // Skip unsubscribe links (they should not be tracked)
+    if (url.includes('/unsubscribe') || url.includes('unsubscribe')) {
+      return match;
+    }
+
     // Build tracking URL
     const trackingUrl = buildTrackingUrl('/track/c', {
       url: base64Encode(url),
@@ -162,7 +193,7 @@ function rewriteLinks(html, params) {
     });
 
     // Replace with tracked URL
-    return `<a ${before}href="http://${domain}${trackingUrl}"${after}>`;
+    return `<a ${before}href="https://${domain}${trackingUrl}"${after}>`;
   });
 }
 
