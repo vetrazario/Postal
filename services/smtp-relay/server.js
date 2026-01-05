@@ -141,6 +141,14 @@ const server = new SMTPServer(serverOptions);
 // Forward email to Rails API
 async function forwardToAPI(session, parsed, raw) {
   try {
+    // Convert headers Map to plain object
+    const headersObj = {};
+    if (parsed.headers && parsed.headers instanceof Map) {
+      parsed.headers.forEach((value, key) => {
+        headersObj[key.toLowerCase()] = value;
+      });
+    }
+
     const payload = {
       envelope: {
         from: session.envelope.mailFrom?.address,
@@ -153,10 +161,15 @@ async function forwardToAPI(session, parsed, raw) {
         subject: parsed.subject,
         text: parsed.text,
         html: parsed.html,
-        headers: parsed.headers
+        headers: headersObj
       },
       raw: raw.toString('base64')
     };
+
+    // Log headers for debugging
+    if (headersObj['x-id-mail']) {
+      console.log(`  X-ID-mail: ${headersObj['x-id-mail']}`);
+    }
 
     const response = await axios.post(`${API_URL}/api/v1/smtp/receive`, payload, {
       headers: {

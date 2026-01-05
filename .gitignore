@@ -31,3 +31,8 @@ Thumbs.db
 # Docker
 docker-compose.override.yml
 
+# Signing keys (generated per server, never commit!)
+config/signing.key
+postal_public.key
+*.pem
+

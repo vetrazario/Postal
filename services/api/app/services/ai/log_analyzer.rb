@@ -6,6 +6,87 @@ module Ai
       @client = OpenrouterClient.new
     end
 
+    def analyze_campaign(campaign_id)
+      logs = EmailLog.where(campaign_id: campaign_id)
+      return { error: 'Campaign not found' } if logs.empty?
+
+      # Collect comprehensive stats
+      total = logs.count
+      delivered = logs.where(status: 'delivered').count
+      bounced = logs.where(status: 'bounced').count
+      failed = logs.where(status: 'failed').count
+
+      opens = TrackingEvent.where(email_log_id: logs.ids, event_type: 'open').count
+      clicks = TrackingEvent.where(email_log_id: logs.ids, event_type: 'click').count
+
+      # Hourly engagement
+      hourly_stats = {}
+      (0..23).each do |hour|
+        hour_opens = TrackingEvent.joins(:email_log)
+                                  .where(email_logs: { campaign_id: campaign_id }, event_type: 'open')
+                                  .where('EXTRACT(HOUR FROM tracking_events.created_at) = ?', hour)
+                                  .count
+        hour_clicks = TrackingEvent.joins(:email_log)
+                                   .where(email_logs: { campaign_id: campaign_id }, event_type: 'click')
+                                   .where('EXTRACT(HOUR FROM tracking_events.created_at) = ?', hour)
+                                   .count
+        hourly_stats[hour] = { opens: hour_opens, clicks: hour_clicks } if hour_opens > 0 || hour_clicks > 0
+      end
+
+      # Domain distribution for bounces
+      bounce_domains = logs.where(status: 'bounced').pluck(:recipient).map { |r| r.to_s.split('@').last }.tally.sort_by { |_, v| -v }.first(10).to_h
+
+      prompt = <<~PROMPT
+        Проанализируй эту email кампанию и дай рекомендации на русском языке:
+
+        1. Общая оценка эффективности кампании
+        2. Анализ времени открытий - когда лучше отправлять
+        3. Проблемы с доставкой (если есть баунсы)
+        4. Конкретные рекомендации по улучшению
+
+        Ответь в JSON формате с ключами: summary, effectiveness_score (1-10), best_send_times, delivery_issues, recommendations
+      PROMPT
+
+      context = JSON.pretty_generate({
+        campaign_id: campaign_id,
+        period: "#{logs.minimum(:created_at)&.strftime('%Y-%m-%d %H:%M')} - #{logs.maximum(:created_at)&.strftime('%Y-%m-%d %H:%M')}",
+        stats: {
+          total_sent: total,
+          delivered: delivered,
+          bounced: bounced,
+          failed: failed,
+          opens: opens,
+          clicks: clicks,
+          delivery_rate: total > 0 ? (delivered.to_f / total * 100).round(1) : 0,
+          open_rate: delivered > 0 ? (opens.to_f / delivered * 100).round(1) : 0,
+          click_rate: delivered > 0 ? (clicks.to_f / delivered * 100).round(1) : 0,
+          bounce_rate: total > 0 ? (bounced.to_f / total * 100).round(1) : 0
+        },
+        hourly_engagement: hourly_stats,
+        bounce_domains: bounce_domains
+      })
+
+      result = @client.analyze(prompt: prompt, context: context)
+
+      analysis_result = begin
+        JSON.parse(result[:content])
+      rescue JSON::ParserError
+        { summary: result[:content], effectiveness_score: nil, best_send_times: [], delivery_issues: [], recommendations: [] }
+      end
+
+      AiAnalysis.create!(
+        analysis_type: 'campaign_analysis',
+        prompt_tokens: result[:prompt_tokens],
+        completion_tokens: result[:completion_tokens],
+        total_tokens: result[:total_tokens],
+        model_used: result[:model],
+        analysis_result: analysis_result,
+        status: 'completed'
+      )
+
+      analysis_result
+    end
+
     def analyze_bounces(bounced_log_ids)
       logs = EmailLog.where(id: bounced_log_ids, status: 'bounced')
                      .includes(:tracking_events)
@@ -23,13 +104,13 @@ module Ai
       end
 
       prompt = <<~PROMPT
-        Analyze these bounced emails and provide:
-        1. Common patterns or reasons for bounces
-        2. Specific recommendations to reduce bounce rate
-        3. Any red flags in the data (e.g., spam-like subjects, problematic domains)
-        4. Suggested next steps
+        Проанализируй эти отказные письма (bounces) и предоставь на русском языке:
+        1. Общие паттерны и причины отказов
+        2. Конкретные рекомендации по снижению bounce rate
+        3. Красные флаги в данных (спамные темы, проблемные домены)
+        4. Следующие шаги
 
-        Return your analysis in JSON format with keys: summary, patterns, recommendations, red_flags, next_steps
+        Ответь в JSON формате с ключами: summary, patterns, recommendations, red_flags, next_steps
       PROMPT
 
       context = JSON.pretty_generate({
@@ -61,7 +142,8 @@ module Ai
         completion_tokens: result[:completion_tokens],
         total_tokens: result[:total_tokens],
         model_used: result[:model],
-        analysis_result: analysis_result
+        analysis_result: analysis_result,
+        status: 'completed'
       )
 
       analysis_result

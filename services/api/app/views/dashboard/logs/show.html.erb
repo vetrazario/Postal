@@ -79,12 +79,43 @@
     </div>
   </div>
 
-  <!-- Bounce/Error Classification -->
-  <% if @log.bounce_category.present? || @log.smtp_code.present? %>
+  <!-- SMTP Response Section -->
+  <% if @log.smtp_code.present? || @log.smtp_message.present? %>
+    <%
+      # Определить тип ответа по SMTP коду
+      is_success = @log.smtp_code.to_s.start_with?('2')
+      is_error = @log.bounce_category.present? || @log.smtp_code.to_s.match?(/^[45]/)
+
+      if is_success
+        section_bg = 'bg-green-50'
+        section_title_color = 'text-green-900'
+        section_text_color = 'text-green-700'
+        section_icon = '✅'
+        section_title = 'Delivery Confirmation'
+        section_subtitle = 'Email accepted by recipient mail server'
+        code_class = 'bg-green-100 text-green-800'
+      elsif is_error
+        section_bg = 'bg-red-50'
+        section_title_color = 'text-red-900'
+        section_text_color = 'text-red-700'
+        section_icon = '⚠️'
+        section_title = 'Delivery Error'
+        section_subtitle = 'Error details from mail server'
+        code_class = 'bg-red-100 text-red-800'
+      else
+        section_bg = 'bg-gray-50'
+        section_title_color = 'text-gray-900'
+        section_text_color = 'text-gray-700'
+        section_icon = '📧'
+        section_title = 'SMTP Response'
+        section_subtitle = 'Response from mail server'
+        code_class = 'bg-gray-100 text-gray-800'
+      end
+    %>
     <div class="overflow-hidden bg-white shadow sm:rounded-lg">
-      <div class="px-4 py-6 sm:px-6 bg-red-50">
-        <h3 class="text-base font-semibold text-red-900">⚠️ Delivery Error Classification</h3>
-        <p class="mt-1 text-sm text-red-700">Error details from mail server</p>
+      <div class="px-4 py-6 sm:px-6 <%= section_bg %>">
+        <h3 class="text-base font-semibold <%= section_title_color %>"><%= section_icon %> <%= section_title %></h3>
+        <p class="mt-1 text-sm <%= section_text_color %>"><%= section_subtitle %></p>
       </div>
       <div class="border-t border-gray-100">
         <dl class="divide-y divide-gray-100">
@@ -114,13 +145,13 @@
             <div class="px-4 py-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
               <dt class="text-sm font-medium text-gray-900">SMTP Code</dt>
               <dd class="mt-1 text-sm sm:col-span-2 sm:mt-0">
-                <code class="bg-gray-100 px-2 py-1 rounded font-mono text-red-600"><%= @log.smtp_code %></code>
+                <code class="px-2 py-1 rounded font-mono font-bold <%= code_class %>"><%= @log.smtp_code %></code>
               </dd>
             </div>
           <% end %>
           <% if @log.smtp_message.present? %>
             <div class="px-4 py-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-              <dt class="text-sm font-medium text-gray-900">SMTP Message</dt>
+              <dt class="text-sm font-medium text-gray-900">Server Response</dt>
               <dd class="mt-1 text-sm text-gray-700 sm:col-span-2 sm:mt-0">
                 <code class="bg-gray-50 px-2 py-1 rounded block whitespace-pre-wrap text-xs"><%= @log.smtp_message %></code>
               </dd>
@@ -165,10 +196,16 @@
           <% end %>
           
           <% if details['output'].present? %>
+            <%
+              # Определить цвет по SMTP коду в output
+              output_code = details['output'].to_s.match(/^(\d{3})/)&.[](1)
+              output_success = output_code&.start_with?('2')
+              output_class = output_success ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+            %>
             <div class="px-4 py-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
               <dt class="text-sm font-medium text-gray-900">SMTP Response</dt>
               <dd class="mt-1 text-sm sm:col-span-2 sm:mt-0">
-                <code class="bg-red-50 text-red-700 px-3 py-2 rounded block whitespace-pre-wrap text-xs font-mono"><%= details['output'] %></code>
+                <code class="<%= output_class %> px-3 py-2 rounded block whitespace-pre-wrap text-xs font-mono"><%= details['output'] %></code>
               </dd>
             </div>
           <% end %>

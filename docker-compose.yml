@@ -343,6 +343,7 @@ services:
     volumes:
       - ./config/postal.yml:/config/postal.yml:ro
       - ./config/postal.yml:/opt/postal/config/postal.yml:ro
+      - ./config/signing.key:/config/signing.key:ro
       - postal_data:/opt/postal/data
     deploy:
       resources:
