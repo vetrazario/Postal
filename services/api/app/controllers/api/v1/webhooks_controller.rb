@@ -28,7 +28,7 @@ class Api::V1::WebhooksController < Api::V1::ApplicationController
 
     case event
     when 'MessageSent'
-      # Postal отправляет MessageSent когда письмо принято удаленным SMTP сервером
+      # Postal "Sent" = письмо принято удаленным SMTP сервером = для нас это "delivered"
       smtp_output = payload['output'] || payload[:output]
       smtp_details = payload['details'] || payload[:details]
       delivery_time = payload['time'] || payload[:time]
@@ -38,8 +38,9 @@ class Api::V1::WebhooksController < Api::V1::ApplicationController
       smtp_code = smtp_output&.match(/^(\d{3})/)&.[](1)
 
       email_log.update(
-        status: 'sent',
+        status: 'delivered',  # Postal Sent = наш Delivered
         sent_at: Time.current,
+        delivered_at: Time.current,
         smtp_code: smtp_code,
         smtp_message: "#{smtp_output}\n---\n#{smtp_details}",
         status_details: payload.merge(
@@ -48,9 +49,9 @@ class Api::V1::WebhooksController < Api::V1::ApplicationController
         )
       )
 
-      TrackingEvent.create_event(email_log: email_log, event_type: 'sent', event_data: payload)
-      ReportToAmsJob.perform_later(email_log.external_message_id, 'sent')
-      Rails.logger.info "MessageSent processed: #{email_log.recipient} - #{smtp_code} - #{smtp_details}"
+      TrackingEvent.create_event(email_log: email_log, event_type: 'delivered', event_data: payload)
+      ReportToAmsJob.perform_later(email_log.external_message_id, 'delivered')
+      Rails.logger.info "MessageSent->Delivered: #{email_log.recipient} - #{smtp_code} - #{smtp_details}"
 
     when 'MessageDelivered'
       email_log.update_status('delivered', details: payload)
