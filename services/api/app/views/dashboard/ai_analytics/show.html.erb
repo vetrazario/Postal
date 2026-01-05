@@ -248,20 +248,18 @@
                     <% if result.is_a?(Hash) && result['summary'].present? %>
                       <% 
                         summary_text = result['summary']
-                        # Если summary - это JSON строка, попробуем распарсить
-                        if summary_text.is_a?(String) && summary_text.strip.start_with?('{')
-                          begin
-                            parsed_summary = JSON.parse(summary_text)
-                            # Если это объект с ключом "summary", извлечем его
-                            if parsed_summary.is_a?(Hash) && parsed_summary['summary']
-                              summary_text = parsed_summary['summary']
-                            elsif parsed_summary.is_a?(Hash) && parsed_summary['json']
-                              # Если обернут в "json", извлечем
-                              inner = parsed_summary['json']
-                              summary_text = inner.is_a?(Hash) && inner['summary'] ? inner['summary'] : summary_text
+                        # Если summary - это JSON строка (начинается с { или ```json), распарсим
+                        if summary_text.is_a?(String) && (summary_text.strip.start_with?('{') || summary_text.strip.start_with?('```'))
+                          # Убрать markdown code block если есть
+                          clean_summary = summary_text.gsub(/^```(?:json)?\n?/, '').gsub(/\n?```$/, '').strip
+                          if clean_summary.start_with?('{')
+                            begin
+                              parsed = JSON.parse(clean_summary)
+                              # Если внутри есть summary, извлечем его
+                              summary_text = parsed['summary'] || summary_text
+                            rescue JSON::ParserError
+                              # Оставляем как есть, если не JSON
                             end
-                          rescue JSON::ParserError
-                            # Оставляем как есть, если не JSON
                           end
                         end
                       %>

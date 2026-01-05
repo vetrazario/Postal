@@ -67,11 +67,20 @@ module Ai
       })
 
       result = @client.analyze(prompt: prompt, context: context)
+      
+      # Убрать markdown code block если AI вернул JSON в ```json ... ```
+      content = result[:content]
+      if content.start_with?('```')
+        # Убрать ```json или ``` в начале и ``` в конце
+        content = content.gsub(/^```(?:json)?\n?/, '').gsub(/\n?```$/, '').strip
+      end
 
       analysis_result = begin
-        JSON.parse(result[:content])
-      rescue JSON::ParserError
-        { summary: result[:content], effectiveness_score: nil, best_send_times: [], delivery_issues: [], recommendations: [] }
+        JSON.parse(content)
+      rescue JSON::ParserError => e
+        Rails.logger.error "JSON Parse Error in analyze_campaign: #{e.message}"
+        Rails.logger.error "Content (first 500): #{content[0..500]}"
+        { summary: content, effectiveness_score: nil, best_send_times: [], delivery_issues: [], recommendations: [] }
       end
 
       AiAnalysis.create!(
@@ -120,14 +129,21 @@ module Ai
       })
 
       result = @client.analyze(prompt: prompt, context: context)
+      
+      # Убрать markdown code block если AI вернул JSON в ```json ... ```
+      content = result[:content]
+      if content.start_with?('```')
+        content = content.gsub(/^```(?:json)?\n?/, '').gsub(/\n?```$/, '').strip
+      end
 
       # Parse the AI response (assuming JSON)
       analysis_result = begin
-        JSON.parse(result[:content])
-      rescue JSON::ParserError
+        JSON.parse(content)
+      rescue JSON::ParserError => e
+        Rails.logger.error "JSON Parse Error in analyze_bounces: #{e.message}"
         # If not valid JSON, structure it manually
         {
-          summary: result[:content],
+          summary: content,
           patterns: [],
           recommendations: [],
           red_flags: [],
@@ -191,11 +207,18 @@ module Ai
       })
 
       result = @client.analyze(prompt: prompt, context: context)
+      
+      # Убрать markdown code block если AI вернул JSON в ```json ... ```
+      content = result[:content]
+      if content.start_with?('```')
+        content = content.gsub(/^```(?:json)?\n?/, '').gsub(/\n?```$/, '').strip
+      end
 
       analysis_result = begin
-        JSON.parse(result[:content])
-      rescue JSON::ParserError
-        { summary: result[:content], best_hours: [], worst_hours: [], recommendations: [] }
+        JSON.parse(content)
+      rescue JSON::ParserError => e
+        Rails.logger.error "JSON Parse Error in optimize_send_time: #{e.message}"
+        { summary: content, best_hours: [], worst_hours: [], recommendations: [] }
       end
 
       AiAnalysis.create!(
@@ -251,11 +274,18 @@ module Ai
       context = JSON.pretty_generate({ campaigns: campaign_stats })
 
       result = @client.analyze(prompt: prompt, context: context)
+      
+      # Убрать markdown code block если AI вернул JSON в ```json ... ```
+      content = result[:content]
+      if content.start_with?('```')
+        content = content.gsub(/^```(?:json)?\n?/, '').gsub(/\n?```$/, '').strip
+      end
 
       analysis_result = begin
-        JSON.parse(result[:content])
-      rescue JSON::ParserError
-        { summary: result[:content], best_campaign: nil, worst_campaign: nil, success_factors: [], recommendations: [] }
+        JSON.parse(content)
+      rescue JSON::ParserError => e
+        Rails.logger.error "JSON Parse Error in compare_campaigns: #{e.message}"
+        { summary: content, best_campaign: nil, worst_campaign: nil, success_factors: [], recommendations: [] }
       end
 
       AiAnalysis.create!(
