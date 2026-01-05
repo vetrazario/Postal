@@ -4,9 +4,9 @@ class PostalClient
     @api_key = api_key
   end
 
-  def send_message(to:, from:, subject:, html_body:, headers: {}, tag: nil)
+  def send_message(to:, from:, subject:, html_body:, headers: {}, tag: nil, campaign_id: nil)
     domain = SystemConfig.get(:domain) || 'localhost'
-    message_headers = build_headers(from, to, subject, domain).merge(headers)
+    message_headers = build_headers(from, to, subject, domain, campaign_id).merge(headers)
 
     # Log the request details for debugging
     Rails.logger.info "PostalClient: Sending to #{@api_url}/api/v1/send/message with Host: #{domain}"
@@ -39,7 +39,12 @@ class PostalClient
 
   private
 
-  def build_headers(from, to, subject, domain)
+  def build_headers(from, to, subject, domain, campaign_id = nil)
+    # Build unsubscribe URL with encoded parameters
+    encoded_email = Base64.urlsafe_encode64(to)
+    encoded_cid = campaign_id ? Base64.urlsafe_encode64(campaign_id) : ''
+    unsubscribe_url = "https://#{domain}/unsubscribe?eid=#{encoded_email}&cid=#{encoded_cid}"
+
     {
       'From' => from,
       'To' => to,
@@ -48,7 +53,8 @@ class PostalClient
       'Date' => Time.current.rfc2822,
       'Return-Path' => "bounce@#{domain}",
       'Reply-To' => "reply@#{domain}",
-      'List-Unsubscribe' => "<mailto:unsubscribe@#{domain}>"
+      'List-Unsubscribe' => "<#{unsubscribe_url}>, <mailto:unsubscribe@#{domain}>",
+      'List-Unsubscribe-Post' => 'List-Unsubscribe=One-Click'
     }
   end
 

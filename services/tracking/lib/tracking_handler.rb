@@ -92,7 +92,68 @@ class TrackingHandler
     end
   end
 
+  def handle_unsubscribe(eid:, cid:, ip:, user_agent:)
+    return { success: false } if eid.blank?
+
+    # Decode parameters
+    email = Base64.urlsafe_decode64(eid) rescue nil
+    campaign_id = cid.present? ? (Base64.urlsafe_decode64(cid) rescue nil) : nil
+
+    return { success: false } unless email
+
+    # Mask email for display (e.g., t***@example.com)
+    email_masked = mask_email(email)
+
+    conn = nil
+    begin
+      conn = PG.connect(@database_url)
+
+      # Find email logs for this recipient (optionally filtered by campaign)
+      query = if campaign_id
+                "SELECT id, external_message_id FROM email_logs WHERE recipient = $1 AND campaign_id = $2 ORDER BY created_at DESC LIMIT 1"
+              else
+                "SELECT id, external_message_id FROM email_logs WHERE recipient = $1 ORDER BY created_at DESC LIMIT 1"
+              end
+
+      params = campaign_id ? [email, campaign_id] : [email]
+      result = conn.exec_params(query, params)
+
+      email_log_id = result.rows.first&.[](0)
+      message_id = result.rows.first&.[](1)
+
+      # Create unsubscribe tracking event
+      if email_log_id
+        conn.exec_params(
+          "INSERT INTO tracking_events (email_log_id, event_type, event_data, ip_address, user_agent, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, NOW(), NOW())",
+          [email_log_id, 'unsubscribe', { campaign_id: campaign_id, email_masked: email_masked }.to_json, ip, user_agent]
+        )
+      end
+
+      # Enqueue webhook job for unsubscribe notification
+      enqueue_webhook_job(message_id || 'unknown', 'unsubscribed', {
+        email_masked: email_masked,
+        campaign_id: campaign_id,
+        ip: ip,
+        user_agent: user_agent
+      })
+
+      { success: true, email_masked: email_masked }
+    rescue => e
+      puts "TrackingHandler unsubscribe error: #{e.message}"
+      { success: false }
+    ensure
+      conn&.close
+    end
+  end
+
   private
+
+  def mask_email(email)
+    return email unless email.include?('@')
+    local, domain = email.split('@')
+    masked_local = local.length > 2 ? "#{local[0]}***#{local[-1]}" : "#{local[0]}***"
+    "#{masked_local}@#{domain}"
+  end
 
   def enqueue_webhook_job(message_id, event_type, data)
     # Use Sidekiq to enqueue job
