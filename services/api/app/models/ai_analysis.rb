@@ -17,6 +17,7 @@ class AiAnalysis < ApplicationRecord
     'bounce_analysis' => 'Bounce Reason Analysis',
     'time_optimization' => 'Send Time Optimization',
     'campaign_comparison' => 'Campaign Performance Comparison',
+    'campaign_analysis' => 'Campaign Analysis',
     'deliverability_insights' => 'Deliverability Insights'
   }.freeze
 

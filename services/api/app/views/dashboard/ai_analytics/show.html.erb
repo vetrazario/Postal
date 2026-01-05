@@ -92,29 +92,29 @@
 
     <!-- AI Analysis Actions -->
     <div class="grid grid-cols-1 gap-6 sm:grid-cols-3">
-      <div class="rounded-lg bg-white p-6 shadow">
+      <div class="rounded-lg bg-white p-6 shadow flex flex-col">
         <h3 class="text-lg font-medium text-gray-900">Analyze Bounces</h3>
         <p class="mt-2 text-sm text-gray-500">Get AI insights on why emails are bouncing and how to reduce bounce rates</p>
-        <form action="<%= analyze_bounces_dashboard_ai_analytics_path %>" method="post" class="mt-4">
+        <form action="<%= analyze_bounces_dashboard_ai_analytics_path %>" method="post" class="mt-4 mt-auto">
           <%= hidden_field_tag :authenticity_token, form_authenticity_token %>
           <button type="submit" class="w-full rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">Run Analysis</button>
         </form>
       </div>
 
-      <div class="rounded-lg bg-white p-6 shadow">
+      <div class="rounded-lg bg-white p-6 shadow flex flex-col">
         <h3 class="text-lg font-medium text-gray-900">Optimize Send Time</h3>
         <p class="mt-2 text-sm text-gray-500">Discover the best times to send emails for maximum engagement</p>
-        <form action="<%= optimize_timing_dashboard_ai_analytics_path %>" method="post" class="mt-4">
+        <form action="<%= optimize_timing_dashboard_ai_analytics_path %>" method="post" class="mt-4 mt-auto">
           <%= hidden_field_tag :authenticity_token, form_authenticity_token %>
           <input type="text" name="campaign_id" placeholder="Campaign ID" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm mb-2" required>
           <button type="submit" class="w-full rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">Run Analysis</button>
         </form>
       </div>
 
-      <div class="rounded-lg bg-white p-6 shadow">
+      <div class="rounded-lg bg-white p-6 shadow flex flex-col">
         <h3 class="text-lg font-medium text-gray-900">Compare Campaigns</h3>
         <p class="mt-2 text-sm text-gray-500">Compare multiple campaigns to identify success factors</p>
-        <form action="<%= compare_campaigns_dashboard_ai_analytics_path %>" method="post" class="mt-4">
+        <form action="<%= compare_campaigns_dashboard_ai_analytics_path %>" method="post" class="mt-4 mt-auto">
           <%= hidden_field_tag :authenticity_token, form_authenticity_token %>
           <input type="text" name="campaign_ids[]" placeholder="Campaign ID 1" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm mb-2" required>
           <input type="text" name="campaign_ids[]" placeholder="Campaign ID 2" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm mb-2" required>
@@ -184,13 +184,58 @@
                      class="px-4 py-4 border-t border-gray-200">
 
                   <% if analysis.status == 'completed' && analysis.analysis_result.present? %>
-                    <% result = analysis.analysis_result %>
+                    <% 
+                      # Parse result if it's a string (JSON)
+                      raw_result = analysis.analysis_result
+                      result = if raw_result.is_a?(String)
+                        begin
+                          JSON.parse(raw_result)
+                        rescue JSON::ParserError
+                          { 'error' => 'Invalid JSON format', 'raw' => raw_result }
+                        end
+                      else
+                        raw_result.is_a?(Hash) ? raw_result.with_indifferent_access : {}
+                      end
+                    %>
+
+                    <!-- Effectiveness Score (for campaign analysis) -->
+                    <% if result['effectiveness_score'].present? %>
+                      <div class="mb-4">
+                        <h5 class="text-sm font-semibold text-gray-900 mb-2">Оценка эффективности</h5>
+                        <% score = result['effectiveness_score'].to_i %>
+                        <% score_class = score >= 7 ? 'text-green-600' : score >= 4 ? 'text-yellow-600' : 'text-red-600' %>
+                        <% score_bg = score >= 7 ? 'bg-green-50' : score >= 4 ? 'bg-yellow-50' : 'bg-red-50' %>
+                        <div class="<%= score_bg %> p-4 rounded-md">
+                          <div class="flex items-center gap-4">
+                            <span class="text-4xl font-bold <%= score_class %>"><%= score %></span>
+                            <span class="text-sm text-gray-600">из 10</span>
+                          </div>
+                        </div>
+                      </div>
+                    <% end %>
 
                     <!-- Summary -->
                     <% if result['summary'].present? %>
                       <div class="mb-4">
-                        <h5 class="text-sm font-semibold text-gray-900 mb-2">Summary</h5>
-                        <p class="text-sm text-gray-700 bg-blue-50 p-3 rounded-md"><%= result['summary'] %></p>
+                        <h5 class="text-sm font-semibold text-gray-900 mb-2">Резюме</h5>
+                        <p class="text-sm text-gray-700 bg-blue-50 p-3 rounded-md whitespace-pre-wrap"><%= result['summary'] %></p>
+                      </div>
+                    <% end %>
+
+                    <!-- Delivery Issues (for campaign analysis) -->
+                    <% if result['delivery_issues'].present? %>
+                      <div class="mb-4">
+                        <h5 class="text-sm font-semibold text-gray-900 mb-2">Проблемы с доставкой</h5>
+                        <% issues = result['delivery_issues'] %>
+                        <% if issues.is_a?(Array) %>
+                          <ul class="list-disc list-inside text-sm text-red-700 space-y-1 bg-red-50 p-3 rounded-md">
+                            <% issues.each do |issue| %>
+                              <li><%= issue.is_a?(Hash) ? (issue['description'] || issue['text'] || issue.to_s) : issue.to_s %></li>
+                            <% end %>
+                          </ul>
+                        <% else %>
+                          <p class="text-sm text-red-700 bg-red-50 p-3 rounded-md whitespace-pre-wrap"><%= issues.to_s %></p>
+                        <% end %>
                       </div>
                     <% end %>
 
@@ -219,25 +264,38 @@
                     <% end %>
 
                     <!-- Best/Worst Hours (for time optimization) -->
-                    <% if result['best_hours'].present? %>
+                    <% if result['best_hours'].present? || result['best_send_times'].present? %>
+                      <% 
+                        best_hours = result['best_hours'] || result['best_send_times']
+                        # Handle string format
+                        if best_hours.is_a?(String)
+                          best_hours = best_hours.split(',').map(&:strip)
+                        end
+                      %>
                       <div class="mb-4 grid grid-cols-2 gap-4">
                         <div>
-                          <h5 class="text-sm font-semibold text-gray-900 mb-2">Best Hours to Send</h5>
+                          <h5 class="text-sm font-semibold text-gray-900 mb-2">Лучшее время отправки</h5>
                           <div class="bg-green-50 p-3 rounded-md">
-                            <% Array(result['best_hours']).each do |hour| %>
+                            <% Array(best_hours).each do |hour| %>
                               <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-200 text-green-800 mr-1 mb-1">
-                                <%= hour.is_a?(Hash) ? "#{hour['hour']}:00" : "#{hour}:00" %>
+                                <%= hour.is_a?(Hash) ? "#{hour['hour']}:00" : hour.to_s %>
                               </span>
                             <% end %>
                           </div>
                         </div>
                         <% if result['worst_hours'].present? %>
+                          <% 
+                            worst_hours = result['worst_hours']
+                            if worst_hours.is_a?(String)
+                              worst_hours = worst_hours.split(',').map(&:strip)
+                            end
+                          %>
                           <div>
-                            <h5 class="text-sm font-semibold text-gray-900 mb-2">Worst Hours to Send</h5>
+                            <h5 class="text-sm font-semibold text-gray-900 mb-2">Худшее время отправки</h5>
                             <div class="bg-red-50 p-3 rounded-md">
-                              <% Array(result['worst_hours']).each do |hour| %>
+                              <% Array(worst_hours).each do |hour| %>
                                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-200 text-red-800 mr-1 mb-1">
-                                  <%= hour.is_a?(Hash) ? "#{hour['hour']}:00" : "#{hour}:00" %>
+                                  <%= hour.is_a?(Hash) ? "#{hour['hour']}:00" : hour.to_s %>
                                 </span>
                               <% end %>
                             </div>
