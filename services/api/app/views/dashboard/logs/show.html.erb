@@ -196,10 +196,16 @@
           <% end %>
           
           <% if details['output'].present? %>
+            <%
+              # Определить цвет по SMTP коду в output
+              output_code = details['output'].to_s.match(/^(\d{3})/)&.[](1)
+              output_success = output_code&.start_with?('2')
+              output_class = output_success ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+            %>
             <div class="px-4 py-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
               <dt class="text-sm font-medium text-gray-900">SMTP Response</dt>
               <dd class="mt-1 text-sm sm:col-span-2 sm:mt-0">
-                <code class="bg-red-50 text-red-700 px-3 py-2 rounded block whitespace-pre-wrap text-xs font-mono"><%= details['output'] %></code>
+                <code class="<%= output_class %> px-3 py-2 rounded block whitespace-pre-wrap text-xs font-mono"><%= details['output'] %></code>
               </dd>
             </div>
           <% end %>
