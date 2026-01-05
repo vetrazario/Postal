@@ -6,13 +6,15 @@ module Dashboard
       @ai_settings = AiSetting.instance
       @recent_analyses = AiAnalysis.order(created_at: :desc).limit(10)
       @total_cost = @ai_settings.total_estimated_cost
+      @selected_analysis = AiAnalysis.find_by(id: params[:analysis_id]) if params[:analysis_id]
     end
 
     def analyze_bounces
       ai_settings = AiSetting.instance
 
       unless ai_settings.enabled?
-        return render json: { error: 'AI analytics is not enabled' }, status: :unprocessable_entity
+        flash[:error] = 'AI analytics is not enabled'
+        return redirect_to dashboard_ai_analytics_path
       end
 
       # Get recent bounced emails
@@ -21,70 +23,67 @@ module Dashboard
                              .limit(100)
 
       if bounced_logs.empty?
-        return render json: { error: 'No bounced emails found in the last 30 days' }, status: :not_found
+        flash[:error] = 'No bounced emails found in the last 30 days'
+        return redirect_to dashboard_ai_analytics_path
       end
 
       # Queue analysis job
       AnalyzeBouncesJob.perform_later(bounced_logs.pluck(:id))
 
-      render json: {
-        status: 'queued',
-        message: 'Bounce analysis job queued',
-        email_count: bounced_logs.count
-      }, status: :accepted
+      flash[:success] = "Bounce analysis queued (#{bounced_logs.count} emails). Results will appear below shortly."
+      redirect_to dashboard_ai_analytics_path
     end
 
     def optimize_timing
       ai_settings = AiSetting.instance
 
       unless ai_settings.enabled?
-        return render json: { error: 'AI analytics is not enabled' }, status: :unprocessable_entity
+        flash[:error] = 'AI analytics is not enabled'
+        return redirect_to dashboard_ai_analytics_path
       end
 
       campaign_id = params[:campaign_id]
 
       unless campaign_id.present?
-        return render json: { error: 'campaign_id is required' }, status: :bad_request
+        flash[:error] = 'Campaign ID is required'
+        return redirect_to dashboard_ai_analytics_path
       end
 
       # Get campaign logs
       campaign_logs = EmailLog.where(campaign_id: campaign_id)
 
       if campaign_logs.empty?
-        return render json: { error: 'Campaign not found' }, status: :not_found
+        flash[:error] = 'Campaign not found'
+        return redirect_to dashboard_ai_analytics_path
       end
 
       # Queue analysis job
       OptimizeSendTimeJob.perform_later(campaign_id)
 
-      render json: {
-        status: 'queued',
-        message: 'Send time optimization job queued',
-        campaign_id: campaign_id
-      }, status: :accepted
+      flash[:success] = "Send time optimization queued for campaign #{campaign_id}. Results will appear below shortly."
+      redirect_to dashboard_ai_analytics_path
     end
 
     def compare_campaigns
       ai_settings = AiSetting.instance
 
       unless ai_settings.enabled?
-        return render json: { error: 'AI analytics is not enabled' }, status: :unprocessable_entity
+        flash[:error] = 'AI analytics is not enabled'
+        return redirect_to dashboard_ai_analytics_path
       end
 
-      campaign_ids = params[:campaign_ids]
+      campaign_ids = params[:campaign_ids]&.reject(&:blank?)
 
       unless campaign_ids.is_a?(Array) && campaign_ids.length >= 2
-        return render json: { error: 'At least 2 campaign_ids are required' }, status: :bad_request
+        flash[:error] = 'At least 2 campaign IDs are required'
+        return redirect_to dashboard_ai_analytics_path
       end
 
       # Queue analysis job
       CompareCampaignsJob.perform_later(campaign_ids)
 
-      render json: {
-        status: 'queued',
-        message: 'Campaign comparison job queued',
-        campaign_ids: campaign_ids
-      }, status: :accepted
+      flash[:success] = "Campaign comparison queued for #{campaign_ids.length} campaigns. Results will appear below shortly."
+      redirect_to dashboard_ai_analytics_path
     end
 
     def history
