@@ -14,6 +14,6 @@ class CreateTrackingEvents < ActiveRecord::Migration[7.1]
     add_index :tracking_events, :created_at
     add_index :tracking_events, [:event_type, :created_at], name: "idx_tracking_type_created"
     
-    add_check_constraint :tracking_events, "event_type IN ('open', 'click', 'bounce', 'complaint', 'delivered')", name: "tracking_events_type_check"
+    add_check_constraint :tracking_events, "event_type IN ('open', 'click', 'bounce', 'complaint', 'delivered', 'unsubscribe')", name: "tracking_events_type_check"
   end
 end

@@ -91,7 +91,11 @@
       Showing <%= @logs.size %> results
       <span id="last-updated" class="ml-2 text-gray-400"></span>
     </div>
-    <%= link_to "Export to CSV", export_dashboard_logs_path(request.query_parameters), class: "rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50" %>
+    <div class="flex gap-2">
+      <%= link_to "Export to CSV", export_dashboard_logs_path(request.query_parameters), class: "rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50" %>
+      <%= link_to "Export Unsubscribes", export_unsubscribes_dashboard_logs_path(request.query_parameters), class: "rounded-md bg-orange-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-orange-500" %>
+      <%= link_to "Export Bounces", export_bounces_dashboard_logs_path(request.query_parameters), class: "rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500" %>
+    </div>
   </div>
 </div>
 

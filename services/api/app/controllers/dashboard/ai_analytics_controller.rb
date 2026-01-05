@@ -179,6 +179,138 @@ module Dashboard
       }
     end
 
+    def export_opens
+      require 'csv'
+      
+      campaign_id = params[:campaign_id]
+      unless campaign_id.present?
+        flash[:error] = 'Campaign ID required'
+        return redirect_to dashboard_ai_analytics_path
+      end
+      
+      email_log_ids = EmailLog.where(campaign_id: campaign_id).pluck(:id)
+      opens = TrackingEvent.where(email_log_id: email_log_ids, event_type: 'open')
+                           .includes(:email_log)
+                           .order(created_at: :desc)
+                           .limit(10_000)
+      
+      csv_data = CSV.generate(headers: true) do |csv|
+        csv << ['Email', 'Opened At', 'IP Address', 'User Agent']
+        opens.each do |open|
+          csv << [
+            open.email_log.recipient_masked,
+            open.created_at.iso8601,
+            open.ip_address,
+            open.user_agent
+          ]
+        end
+      end
+      
+      send_data csv_data,
+                filename: "campaign_#{campaign_id}_opens_#{Time.current.strftime('%Y%m%d')}.csv",
+                type: 'text/csv'
+    end
+
+    def export_clicks
+      require 'csv'
+      
+      campaign_id = params[:campaign_id]
+      unless campaign_id.present?
+        flash[:error] = 'Campaign ID required'
+        return redirect_to dashboard_ai_analytics_path
+      end
+      
+      email_log_ids = EmailLog.where(campaign_id: campaign_id).pluck(:id)
+      clicks = TrackingEvent.where(email_log_id: email_log_ids, event_type: 'click')
+                            .includes(:email_log)
+                            .order(created_at: :desc)
+                            .limit(10_000)
+      
+      csv_data = CSV.generate(headers: true) do |csv|
+        csv << ['Email', 'URL', 'Clicked At', 'IP Address', 'User Agent']
+        clicks.each do |click|
+          url = if click.event_data.is_a?(Hash)
+                  click.event_data['url'] || click.event_data[:url] || 'N/A'
+                else
+                  JSON.parse(click.event_data)['url'] rescue 'N/A'
+                end
+          csv << [
+            click.email_log.recipient_masked,
+            url,
+            click.created_at.iso8601,
+            click.ip_address,
+            click.user_agent
+          ]
+        end
+      end
+      
+      send_data csv_data,
+                filename: "campaign_#{campaign_id}_clicks_#{Time.current.strftime('%Y%m%d')}.csv",
+                type: 'text/csv'
+    end
+
+    def export_unsubscribes
+      require 'csv'
+      
+      campaign_id = params[:campaign_id]
+      unless campaign_id.present?
+        flash[:error] = 'Campaign ID required'
+        return redirect_to dashboard_ai_analytics_path
+      end
+      
+      unsubscribes = Unsubscribe.where(campaign_id: campaign_id)
+                                .order(unsubscribed_at: :desc)
+                                .limit(10_000)
+      
+      csv_data = CSV.generate(headers: true) do |csv|
+        csv << ['Email', 'Unsubscribed At', 'IP Address', 'User Agent']
+        unsubscribes.each do |unsub|
+          csv << [
+            unsub.email,
+            unsub.unsubscribed_at.iso8601,
+            unsub.ip_address,
+            unsub.user_agent
+          ]
+        end
+      end
+      
+      send_data csv_data,
+                filename: "campaign_#{campaign_id}_unsubscribes_#{Time.current.strftime('%Y%m%d')}.csv",
+                type: 'text/csv'
+    end
+
+    def export_bounces
+      require 'csv'
+      
+      campaign_id = params[:campaign_id]
+      unless campaign_id.present?
+        flash[:error] = 'Campaign ID required'
+        return redirect_to dashboard_ai_analytics_path
+      end
+      
+      bounces = BouncedEmail.where(campaign_id: campaign_id)
+                           .order(last_bounced_at: :desc)
+                           .limit(10_000)
+      
+      csv_data = CSV.generate(headers: true) do |csv|
+        csv << ['Email', 'Bounce Type', 'Category', 'SMTP Code', 'SMTP Message', 'Bounced At']
+        bounces.each do |bounce|
+          csv << [
+            bounce.email,
+            bounce.bounce_type,
+            bounce.bounce_category,
+            bounce.smtp_code,
+            bounce.smtp_message,
+            bounce.last_bounced_at.iso8601
+          ]
+        end
+      end
+      
+      send_data csv_data,
+                filename: "campaign_#{campaign_id}_bounces_#{Time.current.strftime('%Y%m%d')}.csv",
+                type: 'text/csv'
+    end
+
     private
 
     def load_campaign_stats(campaign_id)

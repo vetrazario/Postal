@@ -62,6 +62,9 @@ class Api::V1::WebhooksController < Api::V1::ApplicationController
       # Классифицировать ошибку
       error_info = ErrorClassifier.classify(payload)
       
+      # Определить тип bounce (hard/soft)
+      bounce_type = determine_bounce_type(error_info)
+      
       # Обновить email_log с классификацией
       # MessageDeliveryFailed должен быть 'failed', а не 'bounced'
       status = event == 'MessageDeliveryFailed' ? 'failed' : 'bounced'
@@ -70,6 +73,16 @@ class Api::V1::WebhooksController < Api::V1::ApplicationController
         bounce_category: error_info[:category].to_s,
         smtp_code: error_info[:smtp_code],
         smtp_message: error_info[:message]
+      )
+      
+      # Сохранить в таблицу bounced_emails
+      BouncedEmail.record_bounce(
+        email: email_log.recipient,
+        bounce_type: bounce_type,
+        bounce_category: error_info[:category].to_s,
+        smtp_code: error_info[:smtp_code],
+        smtp_message: error_info[:message],
+        campaign_id: email_log.campaign_id
       )
       
       # Создать запись DeliveryError
@@ -169,5 +182,14 @@ class Api::V1::WebhooksController < Api::V1::ApplicationController
   rescue OpenSSL::PKey::PKeyError, Errno::ENOENT => e
     Rails.logger.error "Invalid POSTAL_WEBHOOK_PUBLIC_KEY_FILE: #{e.message}"
     nil
+  end
+
+  def determine_bounce_type(error_info)
+    # Hard bounces: permanent failures
+    hard_categories = %w[user_not_found invalid_domain mailbox_full]
+    return 'hard' if hard_categories.include?(error_info[:category].to_s)
+    
+    # Soft bounces: temporary failures
+    'soft'
   end
 end

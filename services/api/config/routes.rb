@@ -81,6 +81,8 @@ Rails.application.routes.draw do
     resources :logs, only: [:index, :show] do
       collection do
         get :export
+        get :export_unsubscribes
+        get :export_bounces
       end
     end
 
@@ -98,6 +100,10 @@ Rails.application.routes.draw do
       post :optimize_timing
       post :compare_campaigns
       get :history
+      get :export_opens
+      get :export_clicks
+      get :export_unsubscribes
+      get :export_bounces
     end
 
     # Settings

@@ -69,7 +69,7 @@
           </div>
 
           <!-- AI Analysis Buttons for Campaign -->
-          <div class="mt-6 flex gap-4">
+          <div class="mt-6 flex flex-wrap gap-4">
             <%= form_tag analyze_campaign_dashboard_ai_analytics_path, method: :post, class: "inline" do %>
               <%= hidden_field_tag :campaign_id, @selected_campaign %>
               <button type="submit" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">
@@ -85,6 +85,18 @@
                 </button>
               <% end %>
             <% end %>
+          </div>
+
+          <!-- Export Buttons for Campaign -->
+          <div class="mt-4 flex flex-wrap gap-2">
+            <%= link_to "📥 Export Opens", export_opens_dashboard_ai_analytics_path(campaign_id: @selected_campaign), 
+                class: "rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500" %>
+            <%= link_to "📥 Export Clicks", export_clicks_dashboard_ai_analytics_path(campaign_id: @selected_campaign), 
+                class: "rounded-md bg-purple-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-purple-500" %>
+            <%= link_to "📥 Export Unsubscribes", export_unsubscribes_dashboard_ai_analytics_path(campaign_id: @selected_campaign), 
+                class: "rounded-md bg-orange-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-orange-500" %>
+            <%= link_to "📥 Export Bounces", export_bounces_dashboard_ai_analytics_path(campaign_id: @selected_campaign), 
+                class: "rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500" %>
           </div>
         <% end %>
       </div>

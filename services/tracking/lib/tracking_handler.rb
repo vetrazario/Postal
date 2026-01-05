@@ -121,6 +121,19 @@ class TrackingHandler
       email_log_id = result.rows.first&.[](0)
       message_id = result.rows.first&.[](1)
 
+      # Сохранить в таблицу unsubscribes
+      # Используем ON CONFLICT с колонками уникального индекса
+      conn.exec_params(
+        "INSERT INTO unsubscribes (email, campaign_id, reason, ip_address, user_agent, unsubscribed_at, created_at, updated_at) 
+         VALUES ($1, $2, $3, $4, $5, NOW(), NOW(), NOW())
+         ON CONFLICT (email, campaign_id) DO UPDATE SET 
+           unsubscribed_at = NOW(), 
+           ip_address = EXCLUDED.ip_address,
+           user_agent = EXCLUDED.user_agent,
+           updated_at = NOW()",
+        [email, campaign_id, 'user_request', ip, user_agent]
+      )
+
       # Create unsubscribe tracking event
       if email_log_id
         conn.exec_params(

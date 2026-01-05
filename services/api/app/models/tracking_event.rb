@@ -1,7 +1,7 @@
 class TrackingEvent < ApplicationRecord
   belongs_to :email_log
 
-  validates :event_type, presence: true, inclusion: { in: %w[open click bounce complaint delivered] }
+  validates :event_type, presence: true, inclusion: { in: %w[open click bounce complaint delivered unsubscribe] }
   validates :email_log_id, presence: true
 
   # Create event with IP and user agent

@@ -105,6 +105,70 @@ module Dashboard
                 type: 'text/csv'
     end
 
+    def export_unsubscribes
+      unsubscribes = Unsubscribe.order(unsubscribed_at: :desc)
+      
+      # Фильтры
+      unsubscribes = unsubscribes.where(campaign_id: params[:campaign_id]) if params[:campaign_id].present?
+      unsubscribes = unsubscribes.where('unsubscribed_at >= ?', params[:date_from]) if params[:date_from].present?
+      unsubscribes = unsubscribes.where('unsubscribed_at <= ?', params[:date_to]) if params[:date_to].present?
+      
+      # Лимит экспорта
+      unsubscribes = unsubscribes.limit(10_000)
+      
+      csv_data = CSV.generate(headers: true) do |csv|
+        csv << ['Email', 'Campaign ID', 'Reason', 'Unsubscribed At', 'IP Address', 'User Agent']
+        unsubscribes.each do |unsub|
+          csv << [
+            unsub.email,
+            unsub.campaign_id || 'Global',
+            unsub.reason,
+            unsub.unsubscribed_at.iso8601,
+            unsub.ip_address,
+            unsub.user_agent
+          ]
+        end
+      end
+      
+      send_data csv_data,
+                filename: "unsubscribes_#{Time.current.strftime('%Y%m%d_%H%M%S')}.csv",
+                type: 'text/csv'
+    end
+
+    def export_bounces
+      bounces = BouncedEmail.order(last_bounced_at: :desc)
+      
+      # Фильтры
+      bounces = bounces.where(campaign_id: params[:campaign_id]) if params[:campaign_id].present?
+      bounces = bounces.where(bounce_type: params[:bounce_type]) if params[:bounce_type].present?
+      bounces = bounces.where('last_bounced_at >= ?', params[:date_from]) if params[:date_from].present?
+      bounces = bounces.where('last_bounced_at <= ?', params[:date_to]) if params[:date_to].present?
+      
+      # Лимит экспорта
+      bounces = bounces.limit(10_000)
+      
+      csv_data = CSV.generate(headers: true) do |csv|
+        csv << ['Email', 'Bounce Type', 'Category', 'SMTP Code', 'SMTP Message', 'Campaign ID', 'Bounce Count', 'First Bounced', 'Last Bounced']
+        bounces.each do |bounce|
+          csv << [
+            bounce.email,
+            bounce.bounce_type,
+            bounce.bounce_category,
+            bounce.smtp_code,
+            bounce.smtp_message,
+            bounce.campaign_id || 'Global',
+            bounce.bounce_count,
+            bounce.first_bounced_at.iso8601,
+            bounce.last_bounced_at.iso8601
+          ]
+        end
+      end
+      
+      send_data csv_data,
+                filename: "bounces_#{Time.current.strftime('%Y%m%d_%H%M%S')}.csv",
+                type: 'text/csv'
+    end
+
     private
 
     def calculate_filter_stats(logs_relation)
