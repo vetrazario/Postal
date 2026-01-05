@@ -17,9 +17,6 @@ module Dashboard
 
       # Quick stats
       @total_sent = EmailLog.count
-      @total_api_keys = ApiKey.count
-      @total_smtp_credentials = SmtpCredential.count
-      @total_webhooks = WebhookEndpoint.count
     end
 
     private
