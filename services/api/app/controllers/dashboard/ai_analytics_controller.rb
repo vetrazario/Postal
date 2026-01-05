@@ -131,21 +131,21 @@ module Dashboard
 
       begin
         analyzer = Ai::LogAnalyzer.new
-        result = analyzer.analyze_campaign(campaign_id)
+        # analyze_campaign уже создает запись в базе, возвращает только результат
+        analysis_result = analyzer.analyze_campaign(campaign_id)
 
-        # Create analysis record
-        analysis = AiAnalysis.create!(
-          analysis_type: 'campaign_analysis',
-          status: 'completed',
-          analysis_result: result,
-          prompt_tokens: 0,
-          completion_tokens: 0,
-          total_tokens: 0,
-          model_used: 'internal'
-        )
+        # Найти созданную запись (последнюю для этой кампании)
+        analysis = AiAnalysis.where(analysis_type: 'campaign_analysis')
+                             .order(created_at: :desc)
+                             .first
 
-        flash[:notice] = "Анализ кампании завершен"
-        redirect_to dashboard_ai_analytics_path(campaign_id: campaign_id, analysis_id: analysis.id)
+        if analysis
+          flash[:notice] = "Анализ кампании завершен"
+          redirect_to dashboard_ai_analytics_path(campaign_id: campaign_id, analysis_id: analysis.id)
+        else
+          flash[:error] = "Ошибка: анализ не был сохранен"
+          redirect_to dashboard_ai_analytics_path(campaign_id: campaign_id)
+        end
       rescue => e
         Rails.logger.error "Campaign analysis failed: #{e.message}"
         flash[:error] = "Ошибка анализа: #{e.message}"

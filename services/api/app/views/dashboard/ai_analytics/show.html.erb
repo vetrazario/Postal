@@ -189,12 +189,42 @@
                       raw_result = analysis.analysis_result
                       result = if raw_result.is_a?(String)
                         begin
-                          JSON.parse(raw_result)
+                          parsed = JSON.parse(raw_result)
+                          # Handle case when AI returns wrapped JSON like {"json": {...}}
+                          if parsed.is_a?(Hash) && parsed.keys.length == 1 && parsed['json']
+                            parsed['json']
+                          elsif parsed.is_a?(Hash) && parsed.keys.length == 1 && parsed[:json]
+                            parsed[:json]
+                          else
+                            parsed
+                          end
                         rescue JSON::ParserError
                           { 'error' => 'Invalid JSON format', 'raw' => raw_result }
                         end
                       else
                         raw_result.is_a?(Hash) ? raw_result.with_indifferent_access : {}
+                      end
+                      
+                      # Если result - это все еще строка (JSON), попробуем еще раз
+                      if result.is_a?(String) && result.strip.start_with?('{')
+                        begin
+                          result = JSON.parse(result)
+                          result = result.with_indifferent_access if result.is_a?(Hash)
+                        rescue
+                        end
+                      end
+                      
+                      # Если summary содержит Hash или Array вместо строки - это ошибка парсинга
+                      if result.is_a?(Hash) && result['summary'].present? && !result['summary'].is_a?(String)
+                        # Summary - это не строка, значит что-то пошло не так с парсингом
+                        # Попробуем извлечь summary из объекта
+                        summary_obj = result['summary']
+                        if summary_obj.is_a?(Hash) && summary_obj['summary']
+                          result['summary'] = summary_obj['summary']
+                        elsif summary_obj.is_a?(Hash)
+                          # Если summary - это весь объект, значит парсинг неправильный
+                          result = summary_obj
+                        end
                       end
                     %>
 
@@ -215,11 +245,32 @@
                     <% end %>
 
                     <!-- Summary -->
-                    <% if result['summary'].present? %>
-                      <div class="mb-4">
-                        <h5 class="text-sm font-semibold text-gray-900 mb-2">Резюме</h5>
-                        <p class="text-sm text-gray-700 bg-blue-50 p-3 rounded-md whitespace-pre-wrap"><%= result['summary'] %></p>
-                      </div>
+                    <% if result.is_a?(Hash) && result['summary'].present? %>
+                      <% 
+                        summary_text = result['summary']
+                        # Если summary - это JSON строка, попробуем распарсить
+                        if summary_text.is_a?(String) && summary_text.strip.start_with?('{')
+                          begin
+                            parsed_summary = JSON.parse(summary_text)
+                            # Если это объект с ключом "summary", извлечем его
+                            if parsed_summary.is_a?(Hash) && parsed_summary['summary']
+                              summary_text = parsed_summary['summary']
+                            elsif parsed_summary.is_a?(Hash) && parsed_summary['json']
+                              # Если обернут в "json", извлечем
+                              inner = parsed_summary['json']
+                              summary_text = inner.is_a?(Hash) && inner['summary'] ? inner['summary'] : summary_text
+                            end
+                          rescue JSON::ParserError
+                            # Оставляем как есть, если не JSON
+                          end
+                        end
+                      %>
+                      <% if summary_text.is_a?(String) %>
+                        <div class="mb-4">
+                          <h5 class="text-sm font-semibold text-gray-900 mb-2">Резюме</h5>
+                          <p class="text-sm text-gray-700 bg-blue-50 p-3 rounded-md whitespace-pre-wrap"><%= summary_text %></p>
+                        </div>
+                      <% end %>
                     <% end %>
 
                     <!-- Delivery Issues (for campaign analysis) -->
