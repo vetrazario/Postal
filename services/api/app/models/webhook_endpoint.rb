@@ -14,7 +14,7 @@ class WebhookEndpoint < ApplicationRecord
   scope :for_event, ->(event_type) { where("events::jsonb @> ?", [event_type].to_json) }
 
   # Default events
-  DEFAULT_EVENTS = %w[delivered opened clicked bounced failed complained].freeze
+  DEFAULT_EVENTS = %w[delivered opened clicked bounced failed complained unsubscribed].freeze
 
   # Check if event should be sent
   def should_send_event?(event_type)

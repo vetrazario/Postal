@@ -50,12 +50,24 @@ class Api::V1::WebhooksController < Api::V1::ApplicationController
       )
 
       TrackingEvent.create_event(email_log: email_log, event_type: 'delivered', event_data: payload)
+      
+      # Обновить статистику кампании
+      if email_log.campaign_id.present?
+        CampaignStats.find_or_initialize_for(email_log.campaign_id).increment_delivered
+      end
+      
       ReportToAmsJob.perform_later(email_log.external_message_id, 'delivered')
       Rails.logger.info "MessageSent->Delivered: #{email_log.recipient} - #{smtp_code} - #{smtp_details}"
 
     when 'MessageDelivered'
       email_log.update_status('delivered', details: payload)
       TrackingEvent.create_event(email_log: email_log, event_type: 'delivered', event_data: payload)
+      
+      # Обновить статистику кампании
+      if email_log.campaign_id.present?
+        CampaignStats.find_or_initialize_for(email_log.campaign_id).increment_delivered
+      end
+      
       ReportToAmsJob.perform_later(email_log.external_message_id, 'delivered')
 
     when 'MessageBounced', 'MessageDeliveryFailed'
@@ -101,11 +113,36 @@ class Api::V1::WebhooksController < Api::V1::ApplicationController
       end
       
       TrackingEvent.create_event(email_log: email_log, event_type: 'bounce', event_data: payload)
+      
+      # Обновить статистику кампании
+      if email_log.campaign_id.present?
+        CampaignStats.find_or_initialize_for(email_log.campaign_id).increment_bounced
+      end
+      
       ReportToAmsJob.perform_later(email_log.external_message_id, 'bounced')
 
     when 'MessageHeld'
       email_log.update_status('failed', details: payload)
       ReportToAmsJob.perform_later(email_log.external_message_id, 'failed', 'Message held')
+
+    when 'MessageComplained'
+      Rails.logger.info "MessageComplained received for #{email_log.message_id}"
+      
+      # Обновить статус email_log
+      email_log.update_status('complained', details: payload)
+      
+      # Создать tracking event
+      TrackingEvent.create_event(email_log: email_log, event_type: 'complaint', event_data: payload)
+      
+      # Обновить статистику кампании
+      if email_log.campaign_id.present?
+        CampaignStats.find_or_initialize_for(email_log.campaign_id).increment_complained
+      end
+      
+      # Отправить webhook в AMS
+      ReportToAmsJob.perform_later(email_log.external_message_id, 'complained')
+      
+      Rails.logger.info "Complaint recorded for #{email_log.recipient_masked}"
 
     when 'MessageLoaded'
       # Email был открыт (tracking pixel загружен)

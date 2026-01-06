@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Threshold Alert</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .header {
+      background-color: #dc3545;
+      color: white;
+      padding: 20px;
+      border-radius: 5px 5px 0 0;
+    }
+    .content {
+      background-color: #f8f9fa;
+      padding: 20px;
+      border: 1px solid #dee2e6;
+      border-top: none;
+      border-radius: 0 0 5px 5px;
+    }
+    .violation {
+      background-color: white;
+      border-left: 4px solid #dc3545;
+      padding: 15px;
+      margin: 10px 0;
+      border-radius: 3px;
+    }
+    .violation-type {
+      font-weight: bold;
+      color: #dc3545;
+      text-transform: uppercase;
+      font-size: 12px;
+      letter-spacing: 1px;
+    }
+    .violation-message {
+      margin-top: 5px;
+      color: #333;
+    }
+    .footer {
+      margin-top: 20px;
+      padding-top: 20px;
+      border-top: 1px solid #dee2e6;
+      font-size: 12px;
+      color: #6c757d;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1 style="margin: 0;">⚠️ Threshold Alert</h1>
+  </div>
+  
+  <div class="content">
+    <p><strong>Campaign ID:</strong> <%= @campaign_id %></p>
+    <p>The following threshold violations have been detected:</p>
+    
+    <h2>Violations:</h2>
+    <% @violations.each do |violation| %>
+      <div class="violation">
+        <div class="violation-type"><%= violation[:type].to_s.humanize %></div>
+        <div class="violation-message">
+          <%= violation[:message] %>
+        </div>
+        <div style="margin-top: 10px; font-size: 14px; color: #6c757d;">
+          Current value: <strong><%= violation[:value] %></strong> | 
+          Threshold: <strong><%= violation[:threshold] %></strong>
+        </div>
+      </div>
+    <% end %>
+    
+    <div class="footer">
+      <p>This is an automated alert from the Email Sender system.</p>
+      <p>Please check the campaign immediately and take appropriate action.</p>
+    </div>
+  </div>
+</body>
+</html>
+

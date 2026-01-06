@@ -7,6 +7,19 @@ class BuildEmailJob < ApplicationJob
     return unless email_log
     return if email_log.status.in?(%w[sent delivered])
 
+    # Check if email is blocked (unsubscribed or bounced)
+    if Unsubscribe.blocked?(email: email_log.recipient, campaign_id: email_log.campaign_id)
+      email_log.update!(status: 'failed', status_details: { reason: 'unsubscribed' })
+      Rails.logger.warn "Email #{email_log.recipient_masked} is unsubscribed, skipping build"
+      return
+    end
+
+    if BouncedEmail.blocked?(email: email_log.recipient, campaign_id: email_log.campaign_id)
+      email_log.update!(status: 'failed', status_details: { reason: 'bounced' })
+      Rails.logger.warn "Email #{email_log.recipient_masked} is bounced, skipping build"
+      return
+    end
+
     email_log.update!(status: 'processing')
 
     html_body = render_html(email_log)

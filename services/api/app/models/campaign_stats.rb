@@ -10,17 +10,21 @@ class CampaignStats < ApplicationRecord
 
   # Find or initialize stats for campaign
   def self.find_or_initialize_for(campaign_id)
-    find_or_initialize_by(campaign_id: campaign_id) do |stats|
-      stats.total_sent = 0
-      stats.total_delivered = 0
-      stats.total_opened = 0
-      stats.total_clicked = 0
-      stats.total_bounced = 0
-      stats.total_complained = 0
-      stats.total_failed = 0
-      stats.unique_opened = 0
-      stats.unique_clicked = 0
+    stats = find_or_initialize_by(campaign_id: campaign_id) do |s|
+      s.total_sent = 0
+      s.total_delivered = 0
+      s.total_opened = 0
+      s.total_clicked = 0
+      s.total_bounced = 0
+      s.total_complained = 0
+      s.total_failed = 0
+      s.unique_opened = 0
+      s.unique_clicked = 0
     end
+    
+    # Сохранить запись, если она новая (нужно для increment!)
+    stats.save! if stats.new_record?
+    stats
   end
 
   # Increment counters (thread-safe)

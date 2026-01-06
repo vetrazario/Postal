@@ -41,6 +41,16 @@ class TrackingHandler
       # Enqueue webhook job
       enqueue_webhook_job(message_id, 'opened', { ip: ip, user_agent: user_agent })
       
+      # Обновить статистику кампании
+      if campaign_id.present? && email_log_id
+        require 'sidekiq'
+        Sidekiq::Client.push(
+          'class' => 'UpdateCampaignStatsJob',
+          'args' => [campaign_id, 'open', email_log_id],
+          'queue' => 'low'
+        )
+      end
+      
       { success: true }
     rescue => e
       puts "TrackingHandler error: #{e.message}"
@@ -82,6 +92,16 @@ class TrackingHandler
       
       # Enqueue webhook job
       enqueue_webhook_job(message_id, 'clicked', { url: original_url, ip: ip, user_agent: user_agent })
+      
+      # Обновить статистику кампании
+      if campaign_id.present? && email_log_id
+        require 'sidekiq'
+        Sidekiq::Client.push(
+          'class' => 'UpdateCampaignStatsJob',
+          'args' => [campaign_id, 'click', email_log_id],
+          'queue' => 'low'
+        )
+      end
       
       { success: true, url: original_url }
     rescue => e
@@ -143,12 +163,35 @@ class TrackingHandler
       end
 
       # Enqueue webhook job for unsubscribe notification
-      enqueue_webhook_job(message_id || 'unknown', 'unsubscribed', {
+      # Передаем данные как additional_data для случая, когда email_log не найден
+      unsubscribe_data = {
         email_masked: email_masked,
         campaign_id: campaign_id,
         ip: ip,
         user_agent: user_agent
-      })
+      }
+      
+      require 'sidekiq'
+      Sidekiq.configure_client do |config|
+        config.redis = { url: @redis_url }
+      end
+      
+      Sidekiq::Client.push(
+        'class' => 'ReportToAmsJob',
+        'args' => [message_id || 'unknown', 'unsubscribed', nil, unsubscribe_data],
+        'queue' => 'low',
+        'retry' => 3
+      )
+
+      # Обновить статистику кампании
+      if campaign_id.present?
+        require 'sidekiq'
+        Sidekiq::Client.push(
+          'class' => 'UpdateCampaignStatsJob',
+          'args' => [campaign_id, 'unsubscribe'],
+          'queue' => 'low'
+        )
+      end
 
       { success: true, email_masked: email_masked }
     rescue => e
@@ -175,9 +218,15 @@ class TrackingHandler
       config.redis = { url: @redis_url }
     end
     
-    # This will be handled by ReportToAmsJob in the API service
-    # For now, we'll just log it
-    puts "Webhook: #{event_type} for #{message_id}"
+    # Отправляем в ReportToAmsJob для обработки
+    Sidekiq::Client.push(
+      'class' => 'ReportToAmsJob',
+      'args' => [message_id, event_type, data],
+      'queue' => 'low',
+      'retry' => 3
+    )
+    
+    puts "Webhook enqueued: #{event_type} for #{message_id}"
   end
 end
 

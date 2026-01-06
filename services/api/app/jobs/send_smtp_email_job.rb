@@ -14,6 +14,19 @@ class SendSmtpEmailJob < ApplicationJob
 
     email_log = EmailLog.find(email_data[:email_log_id])
 
+    # Check if email is blocked (unsubscribed or bounced)
+    if Unsubscribe.blocked?(email: email_log.recipient, campaign_id: email_log.campaign_id)
+      email_log.update!(status: 'failed', status_details: { reason: 'unsubscribed' })
+      Rails.logger.warn "Email #{email_log.recipient_masked} is unsubscribed, skipping send"
+      return
+    end
+
+    if BouncedEmail.blocked?(email: email_log.recipient, campaign_id: email_log.campaign_id)
+      email_log.update!(status: 'failed', status_details: { reason: 'bounced' })
+      Rails.logger.warn "Email #{email_log.recipient_masked} is bounced, skipping send"
+      return
+    end
+
     # Update status
     email_log.update!(status: 'processing')
 
@@ -53,6 +66,11 @@ class SendSmtpEmailJob < ApplicationJob
         postal_message_id: response[:message_id],
         sent_at: Time.current
       )
+
+      # Update campaign statistics
+      if email_log.campaign_id.present?
+        CampaignStats.find_or_initialize_for(email_log.campaign_id).increment_sent
+      end
 
       Rails.logger.info "SMTP email sent successfully: #{email_log.message_id}"
 

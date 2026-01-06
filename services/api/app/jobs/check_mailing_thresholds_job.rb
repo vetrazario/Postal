@@ -18,7 +18,7 @@ class CheckMailingThresholdsJob < ApplicationJob
       stop_mailing_via_ams(rule, campaign_id, violations)
     end
 
-    send_notifications(rule, campaign_id, violations) if rule.notify_email? && rule.notification_email.present?
+    send_notifications(rule, campaign_id, violations) if rule.notify_email?
   rescue StandardError => e
     Rails.logger.error "CheckMailingThresholdsJob error for campaign #{campaign_id}: #{e.message}"
     Rails.logger.error e.backtrace.join("\n")
@@ -67,18 +67,37 @@ class CheckMailingThresholdsJob < ApplicationJob
   def send_notifications(rule, campaign_id, violations)
     return unless rule.notification_email.present?
 
-    subject = "Mailing #{campaign_id} stopped due to threshold violations"
-    message = violations.map { |v| "- #{v[:message]}" }.join("\n")
-    
-    # Здесь можно использовать ActionMailer или другой способ отправки
-    Rails.logger.info "Would send notification to #{rule.notification_email}: #{subject}\n#{message}"
-    
-    # TODO: Реализовать отправку email через ActionMailer
-    # NotificationMailer.mailing_stopped(
-    #   to: rule.notification_email,
-    #   campaign_id: campaign_id,
-    #   violations: violations
-    # ).deliver_later
+    # Отправить email уведомление
+    begin
+      NotificationMailer.threshold_alert(
+        campaign_id: campaign_id,
+        violations: violations,
+        rule: rule
+      ).deliver_later
+      
+      Rails.logger.info "Threshold alert email sent to #{rule.notification_email} for campaign #{campaign_id}"
+    rescue => e
+      Rails.logger.error "Failed to send threshold alert email: #{e.message}"
+    end
+
+    # Отправить уведомление в AMS если настроено
+    if rule.ams_api_url.present? && rule.ams_api_key.present?
+      begin
+        client = AmsClient.new(
+          api_url: rule.ams_api_url,
+          api_key: rule.ams_api_key
+        )
+        
+        client.send_threshold_alert(
+          campaign_id: campaign_id,
+          violations: violations
+        )
+        
+        Rails.logger.info "Threshold alert sent to AMS for campaign #{campaign_id}"
+      rescue => e
+        Rails.logger.error "Failed to send threshold alert to AMS: #{e.message}"
+      end
+    end
   end
 end
 

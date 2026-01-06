@@ -4,6 +4,20 @@ class SendToPostalJob < ApplicationJob
   def perform(email_log_id, html_body)
     email_log = EmailLog.find_by(id: email_log_id)
     return unless email_log
+    return if email_log.status.in?(%w[sent delivered])
+
+    # Check if email is blocked (unsubscribed or bounced)
+    if Unsubscribe.blocked?(email: email_log.recipient, campaign_id: email_log.campaign_id)
+      email_log.update!(status: 'failed', status_details: { reason: 'unsubscribed' })
+      Rails.logger.warn "Email #{email_log.recipient_masked} is unsubscribed, skipping send to Postal"
+      return
+    end
+
+    if BouncedEmail.blocked?(email: email_log.recipient, campaign_id: email_log.campaign_id)
+      email_log.update!(status: 'failed', status_details: { reason: 'bounced' })
+      Rails.logger.warn "Email #{email_log.recipient_masked} is bounced, skipping send to Postal"
+      return
+    end
 
     result = postal_client.send_message(
       to: email_log.recipient,

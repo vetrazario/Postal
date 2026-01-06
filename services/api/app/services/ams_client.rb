@@ -34,6 +34,18 @@ class AmsClient
     call_api('getSendingJobResult', { jobID: job_id, mailingID: mailing_id })
   end
 
+  def send_threshold_alert(campaign_id:, violations:)
+    # Отправка уведомления о превышении порогов в AMS
+    # Если AMS API поддерживает такой метод, можно использовать его
+    # Пока что просто логируем
+    Rails.logger.info "Threshold alert for campaign #{campaign_id}: #{violations.map { |v| v[:message] }.join('; ')}"
+    
+    # Если AMS API имеет метод для уведомлений, можно добавить:
+    # call_api('sendThresholdAlert', { campaign_id: campaign_id, violations: violations })
+    
+    { success: true }
+  end
+
   def test_connection
     result = get_mailings
     if result[:success]

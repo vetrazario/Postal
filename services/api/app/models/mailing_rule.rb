@@ -75,5 +75,10 @@ class MailingRule < ApplicationRecord
 
     violations.any? ? violations : false
   end
+
+  # Проверка: нужно ли отправлять email уведомления
+  def notify_email?
+    notification_email.present?
+  end
 end
 
