@@ -87,22 +87,26 @@ module Dashboard
 
         @logs.each do |log|
           csv << [
-            log.message_id,
-            log.campaign_id,
-            log.recipient_masked,
-            log.sender,
-            log.subject,
-            log.status,
-            log.created_at.iso8601,
-            log.sent_at&.iso8601,
-            log.delivered_at&.iso8601
+            log.message_id || '',
+            log.campaign_id || '',
+            log.recipient_masked || '',
+            log.sender || '',
+            log.subject || '',
+            log.status || '',
+            log.created_at&.iso8601 || '',
+            log.sent_at&.iso8601 || '',
+            log.delivered_at&.iso8601 || ''
           ]
         end
       end
 
       send_data csv_data,
                 filename: "email_logs_#{Time.current.strftime('%Y%m%d_%H%M%S')}.csv",
-                type: 'text/csv'
+                type: 'text/csv',
+                disposition: 'attachment'
+    rescue => e
+      Rails.logger.error "Export logs error: #{e.message}\n#{e.backtrace.join("\n")}"
+      head :internal_server_error
     end
 
     def export_unsubscribes
@@ -120,19 +124,23 @@ module Dashboard
         csv << ['Email', 'Campaign ID', 'Reason', 'Unsubscribed At', 'IP Address', 'User Agent']
         unsubscribes.each do |unsub|
           csv << [
-            unsub.email,
+            unsub.email || '',
             unsub.campaign_id || 'Global',
-            unsub.reason,
-            unsub.unsubscribed_at.iso8601,
-            unsub.ip_address,
-            unsub.user_agent
+            unsub.reason || '',
+            unsub.unsubscribed_at&.iso8601 || '',
+            unsub.ip_address || '',
+            unsub.user_agent || ''
           ]
         end
       end
       
       send_data csv_data,
                 filename: "unsubscribes_#{Time.current.strftime('%Y%m%d_%H%M%S')}.csv",
-                type: 'text/csv'
+                type: 'text/csv',
+                disposition: 'attachment'
+    rescue => e
+      Rails.logger.error "Export unsubscribes error: #{e.message}\n#{e.backtrace.join("\n")}"
+      head :internal_server_error
     end
 
     def export_bounces
@@ -151,22 +159,26 @@ module Dashboard
         csv << ['Email', 'Bounce Type', 'Category', 'SMTP Code', 'SMTP Message', 'Campaign ID', 'Bounce Count', 'First Bounced', 'Last Bounced']
         bounces.each do |bounce|
           csv << [
-            bounce.email,
-            bounce.bounce_type,
-            bounce.bounce_category,
-            bounce.smtp_code,
-            bounce.smtp_message,
+            bounce.email || '',
+            bounce.bounce_type || '',
+            bounce.bounce_category || '',
+            bounce.smtp_code || '',
+            bounce.smtp_message || '',
             bounce.campaign_id || 'Global',
-            bounce.bounce_count,
-            bounce.first_bounced_at.iso8601,
-            bounce.last_bounced_at.iso8601
+            bounce.bounce_count || 0,
+            bounce.first_bounced_at&.iso8601 || '',
+            bounce.last_bounced_at&.iso8601 || ''
           ]
         end
       end
       
       send_data csv_data,
                 filename: "bounces_#{Time.current.strftime('%Y%m%d_%H%M%S')}.csv",
-                type: 'text/csv'
+                type: 'text/csv',
+                disposition: 'attachment'
+    rescue => e
+      Rails.logger.error "Export bounces error: #{e.message}\n#{e.backtrace.join("\n")}"
+      head :internal_server_error
     end
 
     private

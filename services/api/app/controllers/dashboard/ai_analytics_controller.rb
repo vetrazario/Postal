@@ -184,11 +184,23 @@ module Dashboard
       
       campaign_id = params[:campaign_id]
       unless campaign_id.present?
-        flash[:error] = 'Campaign ID required'
-        return redirect_to dashboard_ai_analytics_path
+        head :bad_request
+        return
       end
       
       email_log_ids = EmailLog.where(campaign_id: campaign_id).pluck(:id)
+      
+      # Если нет email_logs для этой кампании, возвращаем пустой CSV
+      if email_log_ids.empty?
+        csv_data = CSV.generate(headers: true) do |csv|
+          csv << ['Email', 'Opened At', 'IP Address', 'User Agent']
+        end
+        return send_data csv_data,
+                        filename: "campaign_#{campaign_id}_opens_#{Time.current.strftime('%Y%m%d')}.csv",
+                        type: 'text/csv',
+                        disposition: 'attachment'
+      end
+      
       opens = TrackingEvent.where(email_log_id: email_log_ids, event_type: 'open')
                            .includes(:email_log)
                            .order(created_at: :desc)
@@ -197,18 +209,23 @@ module Dashboard
       csv_data = CSV.generate(headers: true) do |csv|
         csv << ['Email', 'Opened At', 'IP Address', 'User Agent']
         opens.each do |open|
+          next unless open.email_log # Защита от nil
           csv << [
-            open.email_log.recipient_masked,
-            open.created_at.iso8601,
-            open.ip_address,
-            open.user_agent
+            open.email_log.recipient_masked || '',
+            open.created_at&.iso8601 || '',
+            open.ip_address || '',
+            open.user_agent || ''
           ]
         end
       end
       
       send_data csv_data,
                 filename: "campaign_#{campaign_id}_opens_#{Time.current.strftime('%Y%m%d')}.csv",
-                type: 'text/csv'
+                type: 'text/csv',
+                disposition: 'attachment'
+    rescue => e
+      Rails.logger.error "Export opens error: #{e.message}\n#{e.backtrace.join("\n")}"
+      head :internal_server_error
     end
 
     def export_clicks
@@ -216,11 +233,22 @@ module Dashboard
       
       campaign_id = params[:campaign_id]
       unless campaign_id.present?
-        flash[:error] = 'Campaign ID required'
-        return redirect_to dashboard_ai_analytics_path
+        head :bad_request
+        return
       end
       
       email_log_ids = EmailLog.where(campaign_id: campaign_id).pluck(:id)
+      
+      if email_log_ids.empty?
+        csv_data = CSV.generate(headers: true) do |csv|
+          csv << ['Email', 'URL', 'Clicked At', 'IP Address', 'User Agent']
+        end
+        return send_data csv_data,
+                        filename: "campaign_#{campaign_id}_clicks_#{Time.current.strftime('%Y%m%d')}.csv",
+                        type: 'text/csv',
+                        disposition: 'attachment'
+      end
+      
       clicks = TrackingEvent.where(email_log_id: email_log_ids, event_type: 'click')
                             .includes(:email_log)
                             .order(created_at: :desc)
@@ -229,24 +257,35 @@ module Dashboard
       csv_data = CSV.generate(headers: true) do |csv|
         csv << ['Email', 'URL', 'Clicked At', 'IP Address', 'User Agent']
         clicks.each do |click|
+          next unless click.email_log # Защита от nil
           url = if click.event_data.is_a?(Hash)
                   click.event_data['url'] || click.event_data[:url] || 'N/A'
+                elsif click.event_data.present?
+                  begin
+                    JSON.parse(click.event_data.to_s)['url'] || 'N/A'
+                  rescue
+                    'N/A'
+                  end
                 else
-                  JSON.parse(click.event_data)['url'] rescue 'N/A'
+                  'N/A'
                 end
           csv << [
-            click.email_log.recipient_masked,
+            click.email_log.recipient_masked || '',
             url,
-            click.created_at.iso8601,
-            click.ip_address,
-            click.user_agent
+            click.created_at&.iso8601 || '',
+            click.ip_address || '',
+            click.user_agent || ''
           ]
         end
       end
       
       send_data csv_data,
                 filename: "campaign_#{campaign_id}_clicks_#{Time.current.strftime('%Y%m%d')}.csv",
-                type: 'text/csv'
+                type: 'text/csv',
+                disposition: 'attachment'
+    rescue => e
+      Rails.logger.error "Export clicks error: #{e.message}\n#{e.backtrace.join("\n")}"
+      head :internal_server_error
     end
 
     def export_unsubscribes
@@ -254,8 +293,8 @@ module Dashboard
       
       campaign_id = params[:campaign_id]
       unless campaign_id.present?
-        flash[:error] = 'Campaign ID required'
-        return redirect_to dashboard_ai_analytics_path
+        head :bad_request
+        return
       end
       
       unsubscribes = Unsubscribe.where(campaign_id: campaign_id)
@@ -266,17 +305,21 @@ module Dashboard
         csv << ['Email', 'Unsubscribed At', 'IP Address', 'User Agent']
         unsubscribes.each do |unsub|
           csv << [
-            unsub.email,
-            unsub.unsubscribed_at.iso8601,
-            unsub.ip_address,
-            unsub.user_agent
+            unsub.email || '',
+            unsub.unsubscribed_at&.iso8601 || '',
+            unsub.ip_address || '',
+            unsub.user_agent || ''
           ]
         end
       end
       
       send_data csv_data,
                 filename: "campaign_#{campaign_id}_unsubscribes_#{Time.current.strftime('%Y%m%d')}.csv",
-                type: 'text/csv'
+                type: 'text/csv',
+                disposition: 'attachment'
+    rescue => e
+      Rails.logger.error "Export unsubscribes error: #{e.message}\n#{e.backtrace.join("\n")}"
+      head :internal_server_error
     end
 
     def export_bounces
@@ -284,8 +327,8 @@ module Dashboard
       
       campaign_id = params[:campaign_id]
       unless campaign_id.present?
-        flash[:error] = 'Campaign ID required'
-        return redirect_to dashboard_ai_analytics_path
+        head :bad_request
+        return
       end
       
       bounces = BouncedEmail.where(campaign_id: campaign_id)
@@ -296,19 +339,23 @@ module Dashboard
         csv << ['Email', 'Bounce Type', 'Category', 'SMTP Code', 'SMTP Message', 'Bounced At']
         bounces.each do |bounce|
           csv << [
-            bounce.email,
-            bounce.bounce_type,
-            bounce.bounce_category,
-            bounce.smtp_code,
-            bounce.smtp_message,
-            bounce.last_bounced_at.iso8601
+            bounce.email || '',
+            bounce.bounce_type || '',
+            bounce.bounce_category || '',
+            bounce.smtp_code || '',
+            bounce.smtp_message || '',
+            bounce.last_bounced_at&.iso8601 || ''
           ]
         end
       end
       
       send_data csv_data,
                 filename: "campaign_#{campaign_id}_bounces_#{Time.current.strftime('%Y%m%d')}.csv",
-                type: 'text/csv'
+                type: 'text/csv',
+                disposition: 'attachment'
+    rescue => e
+      Rails.logger.error "Export bounces error: #{e.message}\n#{e.backtrace.join("\n")}"
+      head :internal_server_error
     end
 
     private
