@@ -110,6 +110,17 @@ module Dashboard
     end
 
     def export_unsubscribes
+      # Проверка существования таблицы
+      unless Unsubscribe.table_exists?
+        csv_data = CSV.generate(headers: true) do |csv|
+          csv << ['Email', 'Campaign ID', 'Reason', 'Unsubscribed At', 'IP Address', 'User Agent']
+        end
+        return send_data csv_data,
+                        filename: "unsubscribes_#{Time.current.strftime('%Y%m%d_%H%M%S')}.csv",
+                        type: 'text/csv',
+                        disposition: 'attachment'
+      end
+      
       unsubscribes = Unsubscribe.order(unsubscribed_at: :desc)
       
       # Фильтры
@@ -140,10 +151,28 @@ module Dashboard
                 disposition: 'attachment'
     rescue => e
       Rails.logger.error "Export unsubscribes error: #{e.message}\n#{e.backtrace.join("\n")}"
-      head :internal_server_error
+      # Возвращаем пустой CSV вместо ошибки
+      csv_data = CSV.generate(headers: true) do |csv|
+        csv << ['Email', 'Campaign ID', 'Reason', 'Unsubscribed At', 'IP Address', 'User Agent']
+      end
+      send_data csv_data,
+                filename: "unsubscribes_#{Time.current.strftime('%Y%m%d_%H%M%S')}.csv",
+                type: 'text/csv',
+                disposition: 'attachment'
     end
 
     def export_bounces
+      # Проверка существования таблицы
+      unless BouncedEmail.table_exists?
+        csv_data = CSV.generate(headers: true) do |csv|
+          csv << ['Email', 'Bounce Type', 'Category', 'SMTP Code', 'SMTP Message', 'Campaign ID', 'Bounce Count', 'First Bounced', 'Last Bounced']
+        end
+        return send_data csv_data,
+                        filename: "bounces_#{Time.current.strftime('%Y%m%d_%H%M%S')}.csv",
+                        type: 'text/csv',
+                        disposition: 'attachment'
+      end
+      
       bounces = BouncedEmail.order(last_bounced_at: :desc)
       
       # Фильтры
@@ -178,7 +207,14 @@ module Dashboard
                 disposition: 'attachment'
     rescue => e
       Rails.logger.error "Export bounces error: #{e.message}\n#{e.backtrace.join("\n")}"
-      head :internal_server_error
+      # Возвращаем пустой CSV вместо ошибки
+      csv_data = CSV.generate(headers: true) do |csv|
+        csv << ['Email', 'Bounce Type', 'Category', 'SMTP Code', 'SMTP Message', 'Campaign ID', 'Bounce Count', 'First Bounced', 'Last Bounced']
+      end
+      send_data csv_data,
+                filename: "bounces_#{Time.current.strftime('%Y%m%d_%H%M%S')}.csv",
+                type: 'text/csv',
+                disposition: 'attachment'
     end
 
     private
