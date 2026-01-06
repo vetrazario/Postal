@@ -110,8 +110,15 @@ module Dashboard
     end
 
     def export_unsubscribes
-      # Проверка существования таблицы
-      unless Unsubscribe.table_exists?
+      # Проверка существования таблицы с обработкой ошибок
+      table_exists = begin
+        Unsubscribe.table_exists?
+      rescue => e
+        Rails.logger.warn "Could not check if unsubscribes table exists: #{e.message}"
+        false
+      end
+      
+      unless table_exists
         csv_data = CSV.generate(headers: true) do |csv|
           csv << ['Email', 'Campaign ID', 'Reason', 'Unsubscribed At', 'IP Address', 'User Agent']
         end
@@ -162,8 +169,15 @@ module Dashboard
     end
 
     def export_bounces
-      # Проверка существования таблицы
-      unless BouncedEmail.table_exists?
+      # Проверка существования таблицы с обработкой ошибок
+      table_exists = begin
+        BouncedEmail.table_exists?
+      rescue => e
+        Rails.logger.warn "Could not check if bounced_emails table exists: #{e.message}"
+        false
+      end
+      
+      unless table_exists
         csv_data = CSV.generate(headers: true) do |csv|
           csv << ['Email', 'Bounce Type', 'Category', 'SMTP Code', 'SMTP Message', 'Campaign ID', 'Bounce Count', 'First Bounced', 'Last Bounced']
         end
