@@ -17,12 +17,22 @@ class BouncedEmail < ApplicationRecord
     # Hard bounces блокируют всегда (глобально)
     return true if exists?(email: email, bounce_type: 'hard', campaign_id: [campaign_id, nil].compact)
     
-    # Soft bounces блокируют только для конкретной кампании (если указана)
-    if campaign_id.present?
-      return true if exists?(email: email, bounce_type: 'soft', campaign_id: campaign_id)
-    end
-    
     false
+  end
+
+  # Добавить bounce ТОЛЬКО если нужно (не для rate_limit/temporary/connection)
+  def self.record_bounce_if_needed(email:, bounce_category: nil, smtp_code: nil, smtp_message: nil, campaign_id: nil)
+    # Не добавлять для rate_limit, temporary, connection
+    return nil if ErrorClassifier::NON_BOUNCE_CATEGORIES.include?(bounce_category.to_s)
+    
+    record_bounce(
+      email: email,
+      bounce_type: 'hard',
+      bounce_category: bounce_category,
+      smtp_code: smtp_code,
+      smtp_message: smtp_message,
+      campaign_id: campaign_id
+    )
   end
 
   # Добавить/обновить bounce
@@ -40,9 +50,8 @@ class BouncedEmail < ApplicationRecord
         bounce_count: 1
       )
     else
-      # Обновляем если новый bounce более серьезный (soft -> hard)
-      if bounce_type == 'hard' && bounced.bounce_type == 'soft'
-        bounced.bounce_type = 'hard'
+      # Обновляем только если категория изменилась
+      if bounce_category && bounced.bounce_category != bounce_category
         bounced.bounce_category = bounce_category
         bounced.smtp_code = smtp_code
         bounced.smtp_message = smtp_message
@@ -53,6 +62,28 @@ class BouncedEmail < ApplicationRecord
     
     bounced.save!
     bounced
+  end
+
+  # Получить описание статуса для CSV экспорта
+  def status_description
+    case bounce_category
+    when 'user_not_found'
+      'Hard: Not Found'
+    when 'mailbox_full'
+      'Hard: Mailbox Full'
+    when 'spam_block'
+      'Hard: Spam Block'
+    when 'authentication'
+      'Hard: Auth Fail'
+    when 'rate_limit'
+      'Rate Limited'
+    when 'temporary'
+      'Temporary Error'
+    when 'connection'
+      'Connection Error'
+    else
+      "Hard: #{bounce_category&.titleize || 'Unknown'}"
+    end
   end
 end
 

@@ -74,9 +74,6 @@ class Api::V1::WebhooksController < Api::V1::ApplicationController
       # Классифицировать ошибку
       error_info = ErrorClassifier.classify(payload)
       
-      # Определить тип bounce (hard/soft)
-      bounce_type = determine_bounce_type(error_info)
-      
       # Обновить email_log с классификацией
       # MessageDeliveryFailed должен быть 'failed', а не 'bounced'
       status = event == 'MessageDeliveryFailed' ? 'failed' : 'bounced'
@@ -87,15 +84,16 @@ class Api::V1::WebhooksController < Api::V1::ApplicationController
         smtp_message: error_info[:message]
       )
       
-      # Сохранить в таблицу bounced_emails
-      BouncedEmail.record_bounce(
-        email: email_log.recipient,
-        bounce_type: bounce_type,
-        bounce_category: error_info[:category].to_s,
-        smtp_code: error_info[:smtp_code],
-        smtp_message: error_info[:message],
-        campaign_id: email_log.campaign_id
-      )
+      # Добавить в bounce list ТОЛЬКО если нужно
+      if error_info[:should_add_to_bounce]
+        BouncedEmail.record_bounce_if_needed(
+          email: email_log.recipient,
+          bounce_category: error_info[:category],
+          smtp_code: error_info[:smtp_code],
+          smtp_message: error_info[:message],
+          campaign_id: email_log.campaign_id
+        )
+      end
       
       # Создать запись DeliveryError
       if email_log.campaign_id.present?
@@ -108,7 +106,7 @@ class Api::V1::WebhooksController < Api::V1::ApplicationController
           recipient_domain: email_log.recipient&.split('@')&.last
         )
         
-        # Проверить пороги асинхронно
+        # Проверить пороги асинхронно (останавливает рассылку если нужно)
         CheckMailingThresholdsJob.perform_later(email_log.campaign_id)
       end
       
@@ -119,7 +117,19 @@ class Api::V1::WebhooksController < Api::V1::ApplicationController
         CampaignStats.find_or_initialize_for(email_log.campaign_id).increment_bounced
       end
       
-      ReportToAmsJob.perform_later(email_log.external_message_id, 'bounced')
+      # Отправить webhook в AMS с полными данными
+      ReportToAmsJob.perform_later(
+        email_log.external_message_id,
+        'bounced',
+        nil,
+        {
+          bounce_category: error_info[:category],
+          smtp_code: error_info[:smtp_code],
+          smtp_message: error_info[:message],
+          should_add_to_bounce: error_info[:should_add_to_bounce],
+          should_stop_mailing: error_info[:should_stop_mailing]
+        }
+      )
 
     when 'MessageHeld'
       email_log.update_status('failed', details: payload)
@@ -221,12 +231,4 @@ class Api::V1::WebhooksController < Api::V1::ApplicationController
     nil
   end
 
-  def determine_bounce_type(error_info)
-    # Hard bounces: permanent failures
-    hard_categories = %w[user_not_found invalid_domain mailbox_full]
-    return 'hard' if hard_categories.include?(error_info[:category].to_s)
-    
-    # Soft bounces: temporary failures
-    'soft'
-  end
 end

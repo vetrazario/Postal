@@ -179,7 +179,7 @@ module Dashboard
       
       unless table_exists
         csv_data = CSV.generate(headers: true) do |csv|
-          csv << ['Email', 'Bounce Type', 'Category', 'SMTP Code', 'SMTP Message', 'Campaign ID', 'Bounce Count', 'First Bounced', 'Last Bounced']
+          csv << ['Email', 'Bounce Status', 'Bounce Type', 'Category', 'SMTP Code', 'SMTP Message', 'Campaign ID', 'Bounce Count', 'First Bounced', 'Last Bounced']
         end
         return send_data csv_data,
                         filename: "bounces_#{Time.current.strftime('%Y%m%d_%H%M%S')}.csv",
@@ -199,10 +199,12 @@ module Dashboard
       bounces = bounces.limit(10_000)
       
       csv_data = CSV.generate(headers: true) do |csv|
-        csv << ['Email', 'Bounce Type', 'Category', 'SMTP Code', 'SMTP Message', 'Campaign ID', 'Bounce Count', 'First Bounced', 'Last Bounced']
+        csv << ['Email', 'Bounce Status', 'Bounce Type', 'Category', 'SMTP Code', 'SMTP Message', 'Campaign ID', 'Bounce Count', 'First Bounced', 'Last Bounced']
         bounces.each do |bounce|
+          status_description = bounce.status_description
           csv << [
             bounce.email || '',
+            status_description,
             bounce.bounce_type || '',
             bounce.bounce_category || '',
             bounce.smtp_code || '',
@@ -223,7 +225,7 @@ module Dashboard
       Rails.logger.error "Export bounces error: #{e.message}\n#{e.backtrace.join("\n")}"
       # Возвращаем пустой CSV вместо ошибки
       csv_data = CSV.generate(headers: true) do |csv|
-        csv << ['Email', 'Bounce Type', 'Category', 'SMTP Code', 'SMTP Message', 'Campaign ID', 'Bounce Count', 'First Bounced', 'Last Bounced']
+        csv << ['Email', 'Bounce Status', 'Bounce Type', 'Category', 'SMTP Code', 'SMTP Message', 'Campaign ID', 'Bounce Count', 'First Bounced', 'Last Bounced']
       end
       send_data csv_data,
                 filename: "bounces_#{Time.current.strftime('%Y%m%d_%H%M%S')}.csv",

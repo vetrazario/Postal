@@ -9,7 +9,9 @@ class ErrorClassifier
       '429',
       'throttl',
       'connection rate limit',
-      'too many messages'
+      'too many messages',
+      'receiving mail at a rate',
+      '5.7.1.*rate.*limit'
     ],
     spam_block: [
       'spam',
@@ -20,7 +22,10 @@ class ErrorClassifier
       'rbl',
       'spamhaus',
       'suspected spam',
-      '550 5.7.1'
+      '550 5.7.1',
+      'message has been blocked',
+      'likely spam',
+      'policy restrictions'
     ],
     user_not_found: [
       'user unknown',
@@ -29,7 +34,8 @@ class ErrorClassifier
       '550 5.1.1',
       'no such user',
       'recipient not found',
-      'invalid recipient'
+      'invalid recipient',
+      'unable to find recipient'
     ],
     mailbox_full: [
       'mailbox full',
@@ -37,7 +43,10 @@ class ErrorClassifier
       'over quota',
       '552',
       'mailbox is full',
-      'storage quota'
+      'storage quota',
+      '550 5.2.1',
+      '552 5.2.2',
+      'exceeded storage allocation'
     ],
     temporary: [
       'try again',
@@ -45,7 +54,11 @@ class ErrorClassifier
       '4.7.',
       'greylisted',
       'temporary failure',
-      'try later'
+      'try later',
+      '421 4.7.0',
+      '450 4.2.1',
+      '451 4.5.1',
+      'insufficient system storage'
     ],
     authentication: [
       'authentication',
@@ -53,7 +66,11 @@ class ErrorClassifier
       'dkim',
       'dmarc',
       'authentication failed',
-      '550 5.7.23'
+      '550 5.7.23',
+      'unauthenticated email is not accepted',
+      'does not have authentication',
+      'spf/dkim/dmarc failure',
+      'tls required'
     ],
     connection: [
       'connection refused',
@@ -61,9 +78,17 @@ class ErrorClassifier
       'unreachable',
       'connection error',
       'network error',
-      'connection reset'
+      'connection reset',
+      'service not available',
+      'closing transmission channel'
     ]
   }.freeze
+
+  # Категории, которые НЕ добавлять в bounce list (проблемы скорости, а не качества адреса)
+  NON_BOUNCE_CATEGORIES = %w[rate_limit temporary connection].freeze
+
+  # Категории, при которых останавливать рассылку
+  STOP_MAILING_CATEGORIES = %w[rate_limit spam_block mailbox_full temporary connection].freeze
 
   class << self
     def classify(payload)
@@ -75,11 +100,16 @@ class ErrorClassifier
       
       category = find_category(full_text)
       smtp_code = extract_smtp_code(output)
+      should_add_to_bounce = !NON_BOUNCE_CATEGORIES.include?(category.to_s)
+      should_stop_mailing = STOP_MAILING_CATEGORIES.include?(category.to_s)
       
       {
         category: category,
+        bounce_type: 'hard',
         smtp_code: smtp_code,
-        message: output.presence || details.presence || status
+        message: output.presence || details.presence || status,
+        should_add_to_bounce: should_add_to_bounce,
+        should_stop_mailing: should_stop_mailing
       }
     end
 

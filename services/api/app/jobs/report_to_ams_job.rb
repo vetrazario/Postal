@@ -30,6 +30,7 @@ class ReportToAmsJob < ApplicationJob
     end
     
     webhook_data[:error] = error_message if error_message.present?
+    webhook_data.merge!(additional_data) if additional_data.is_a?(Hash)
     
     # Отправляем через все активные webhooks для данного события
     WebhookEndpoint.active.for_event(event_type).each do |endpoint|

@@ -10,6 +10,23 @@ class CheckMailingThresholdsJob < ApplicationJob
     return unless rule&.active?
 
     violations = rule.thresholds_exceeded?(campaign_id)
+    
+    # Проверить критические bounce категории за последние 5 минут
+    critical_bounce_exists = DeliveryError.where(campaign_id: campaign_id)
+                                         .where(category: ErrorClassifier::STOP_MAILING_CATEGORIES)
+                                         .where('created_at > ?', 5.minutes.ago)
+                                         .exists?
+    
+    if critical_bounce_exists
+      violations ||= []
+      violations << {
+        type: :critical_bounce,
+        message: 'Critical bounce detected (rate_limit, spam_block, mailbox_full, etc)',
+        value: 1,
+        threshold: 0
+      }
+    end
+    
     return unless violations
 
     Rails.logger.warn "Mailing #{campaign_id}: Thresholds exceeded: #{violations.map { |v| v[:message] }.join(', ')}"
