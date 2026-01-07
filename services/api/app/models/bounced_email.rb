@@ -25,10 +25,19 @@ class BouncedEmail < ApplicationRecord
 
   # Проверка: заблокирован ли email?
   def self.blocked?(email:, campaign_id: nil)
-    # Hard bounces блокируют всегда (глобально)
-    return true if exists?(email: email, bounce_type: 'hard', campaign_id: [campaign_id, nil].compact)
+    # Hard bounces блокируют всегда
+    # Проверяем глобальный блок (campaign_id = null) или блок для конкретной кампании
+    query = where(email: email, bounce_type: 'hard')
     
-    false
+    if campaign_id.present?
+      # Проверяем блок для конкретной кампании ИЛИ глобальный блок
+      query = query.where('campaign_id = ? OR campaign_id IS NULL', campaign_id)
+    else
+      # Проверяем только глобальный блок
+      query = query.where(campaign_id: nil)
+    end
+    
+    query.exists?
   end
 
   # Добавить bounce ТОЛЬКО если нужно (не для rate_limit/temporary/connection)
