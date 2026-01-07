@@ -59,20 +59,20 @@ echo "[2] Health Check API:"
 echo "----------------------------------------"
 HEALTH_RESPONSE=$(docker exec email_api curl -s http://localhost:3000/api/v1/health 2>/dev/null || echo "")
 if [ -n "$HEALTH_RESPONSE" ] && [ "$HEALTH_RESPONSE" != "null" ]; then
-    # Проверяем, что это валидный JSON
-    if echo "$HEALTH_RESPONSE" | jq . > /dev/null 2>&1; then
+    # Пробуем распарсить JSON, если jq доступен
+    if command -v jq > /dev/null 2>&1 && echo "$HEALTH_RESPONSE" | jq . > /dev/null 2>&1; then
         STATUS=$(echo "$HEALTH_RESPONSE" | jq -r '.status // "unknown"' 2>/dev/null)
         echo "Статус: $STATUS"
         echo ""
         echo "Детали проверок:"
-        if command -v jq > /dev/null 2>&1; then
-            echo "$HEALTH_RESPONSE" | jq -r '.checks // {} | to_entries[] | "  \(.key): \(.value.status // "unknown")\(if .value.message then " - \(.value.message)" else "" end)"' 2>/dev/null || echo "  (не удалось распарсить checks)"
-        else
-            echo "$HEALTH_RESPONSE"
-        fi
+        echo "$HEALTH_RESPONSE" | jq -r '.checks // {} | to_entries[] | "  \(.key): \(.value.status // "unknown")\(if .value.message then " - \(.value.message)" else "" end)"' 2>/dev/null || echo "  (не удалось распарсить checks)"
     else
-        echo -e "${YELLOW}  ⚠ Ответ не является валидным JSON${NC}"
-        echo "  Ответ: $HEALTH_RESPONSE"
+        # Если jq нет или JSON невалидный, выводим как есть
+        echo "Ответ (JSON):"
+        echo "$HEALTH_RESPONSE" | head -5
+        if command -v jq > /dev/null 2>&1; then
+            echo -e "${YELLOW}  ⚠ JSON не распарсился, но jq установлен${NC}"
+        fi
     fi
 else
     echo -e "${YELLOW}  ⚠ Health endpoint недоступен или контейнер еще запускается${NC}"
@@ -93,14 +93,19 @@ check "Индекс bounce_category" "docker exec email_api bundle exec rails ru
 # Детальная диагностика таблиц
 echo ""
 echo "Диагностика таблиц bounce:"
-BOUNCED_EXISTS=$(docker exec email_api bundle exec rails runner 'begin; puts BouncedEmail.table_exists?; rescue => e; puts "error: #{e.message}"; end' 2>/dev/null | tail -1)
-UNSUB_EXISTS=$(docker exec email_api bundle exec rails runner 'begin; puts Unsubscribe.table_exists?; rescue => e; puts "error: #{e.message}"; end' 2>/dev/null | tail -1)
-echo "  bounced_emails: $BOUNCED_EXISTS"
-echo "  unsubscribes: $UNSUB_EXISTS"
+BOUNCED_EXISTS=$(docker exec email_api bundle exec rails runner 'puts ActiveRecord::Base.connection.table_exists?("bounced_emails")' 2>/dev/null | grep -i "true\|false" | head -1)
+UNSUB_EXISTS=$(docker exec email_api bundle exec rails runner 'puts ActiveRecord::Base.connection.table_exists?("unsubscribes")' 2>/dev/null | grep -i "true\|false" | head -1)
+echo "  bounced_emails: ${BOUNCED_EXISTS:-unknown}"
+echo "  unsubscribes: ${UNSUB_EXISTS:-unknown}"
 if [ "$BOUNCED_EXISTS" != "true" ] || [ "$UNSUB_EXISTS" != "true" ]; then
     echo -e "${YELLOW}  ⚠ Проблема с таблицами. Проверьте миграции.${NC}"
     echo "  Список таблиц в БД (поиск по bounce/unsub):"
-    docker exec email_api bundle exec rails runner 'puts ActiveRecord::Base.connection.tables.select { |t| t.include?("bounce") || t.include?("unsub") }.join(", ")' 2>/dev/null || echo "    (не удалось получить список)"
+    TABLES=$(docker exec email_api bundle exec rails runner 'puts ActiveRecord::Base.connection.tables.select { |t| t.include?("bounce") || t.include?("unsub") }.join(", ")' 2>/dev/null)
+    if [ -n "$TABLES" ]; then
+        echo "    $TABLES"
+    else
+        echo "    (не удалось получить список или таблицы не найдены)"
+    fi
 fi
 echo ""
 
