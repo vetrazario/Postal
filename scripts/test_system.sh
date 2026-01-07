@@ -4,7 +4,8 @@
 # Комплексная проверка работоспособности системы
 # ===========================================
 
-set -e
+# Не останавливаемся при ошибках - продолжаем проверку
+set +e
 
 echo "=========================================="
 echo "Проверка работоспособности системы"
@@ -58,10 +59,15 @@ echo "[2] Health Check API:"
 echo "----------------------------------------"
 HEALTH_RESPONSE=$(docker exec email_api curl -s http://localhost:3000/api/v1/health 2>/dev/null || echo "")
 if [ -n "$HEALTH_RESPONSE" ]; then
-    echo "$HEALTH_RESPONSE" | jq -r '.status' 2>/dev/null || echo "$HEALTH_RESPONSE"
+    STATUS=$(echo "$HEALTH_RESPONSE" | jq -r '.status' 2>/dev/null || echo "unknown")
+    echo "Статус: $STATUS"
     echo ""
     echo "Детали проверок:"
-    echo "$HEALTH_RESPONSE" | jq -r '.checks | to_entries[] | "  \(.key): \(.value.status)\(if .value.message then " - \(.value.message)" else "" end)"' 2>/dev/null || echo "  (не удалось распарсить JSON)"
+    if command -v jq > /dev/null 2>&1; then
+        echo "$HEALTH_RESPONSE" | jq -r '.checks | to_entries[] | "  \(.key): \(.value.status)\(if .value.message then " - \(.value.message)" else "" end)"' 2>/dev/null
+    else
+        echo "$HEALTH_RESPONSE" | grep -o '"status":"[^"]*"' | sed 's/"status":"\([^"]*\)"/  \1/'
+    fi
 else
     echo -e "${RED}  ✗ Health endpoint недоступен${NC}"
     ((FAILED++))
@@ -77,6 +83,19 @@ check "Sidekiq подключение" "docker exec email_api bundle exec rails 
 check "Таблица bounced_emails" "docker exec email_api bundle exec rails runner 'ActiveRecord::Base.connection.table_exists?(\"bounced_emails\")'"
 check "Таблица unsubscribes" "docker exec email_api bundle exec rails runner 'ActiveRecord::Base.connection.table_exists?(\"unsubscribes\")'"
 check "Индекс bounce_category" "docker exec email_api bundle exec rails runner 'ActiveRecord::Base.connection.index_exists?(:bounced_emails, :bounce_category)'"
+
+# Детальная диагностика таблиц
+echo ""
+echo "Диагностика таблиц bounce:"
+BOUNCED_EXISTS=$(docker exec email_api bundle exec rails runner 'puts ActiveRecord::Base.connection.table_exists?("bounced_emails")' 2>/dev/null | grep -i true || echo "false")
+UNSUB_EXISTS=$(docker exec email_api bundle exec rails runner 'puts ActiveRecord::Base.connection.table_exists?("unsubscribes")' 2>/dev/null | grep -i true || echo "false")
+echo "  bounced_emails: $BOUNCED_EXISTS"
+echo "  unsubscribes: $UNSUB_EXISTS"
+if [ "$BOUNCED_EXISTS" != "true" ] || [ "$UNSUB_EXISTS" != "true" ]; then
+    echo -e "${YELLOW}  ⚠ Таблицы не найдены. Проверьте миграции.${NC}"
+    echo "  Список таблиц в БД:"
+    docker exec email_api bundle exec rails runner 'puts ActiveRecord::Base.connection.tables.grep(/bounce|unsub/).join(", ")' 2>/dev/null || echo "    (не удалось получить список)"
+fi
 echo ""
 
 echo "[4] Проверка API endpoints:"
@@ -106,11 +125,11 @@ echo ""
 
 echo "[8] Проверка логов (последние ошибки):"
 echo "----------------------------------------"
-ERROR_COUNT=$(docker logs email_api --tail=200 2>&1 | grep -i "error\|exception\|fatal" | wc -l)
-if [ "$ERROR_COUNT" -gt 0 ]; then
+ERROR_COUNT=$(docker logs email_api --tail=200 2>&1 | grep -i "error\|exception\|fatal" | wc -l 2>/dev/null || echo "0")
+if [ "$ERROR_COUNT" -gt 0 ] && [ "$ERROR_COUNT" != "0" ]; then
     echo -e "${YELLOW}  ⚠ Найдено $ERROR_COUNT потенциальных ошибок в логах${NC}"
     echo "  Последние ошибки:"
-    docker logs email_api --tail=200 2>&1 | grep -i "error\|exception\|fatal" | tail -5 | sed 's/^/    /'
+    docker logs email_api --tail=200 2>&1 | grep -i "error\|exception\|fatal" | tail -5 | sed 's/^/    /' 2>/dev/null || echo "    (не удалось получить логи)"
 else
     echo -e "${GREEN}  ✓ Критических ошибок в логах не найдено${NC}"
 fi
@@ -118,11 +137,16 @@ echo ""
 
 echo "[9] Тест API bounce_status:"
 echo "----------------------------------------"
-BOUNCE_TEST=$(docker exec email_api curl -s "http://localhost:3000/api/v1/bounce_status/check?email=test@example.com" 2>/dev/null)
+BOUNCE_TEST=$(docker exec email_api curl -s "http://localhost:3000/api/v1/bounce_status/check?email=test@example.com" 2>/dev/null || echo "")
 if [ -n "$BOUNCE_TEST" ]; then
-    echo "$BOUNCE_TEST" | jq . 2>/dev/null || echo "$BOUNCE_TEST"
+    if command -v jq > /dev/null 2>&1; then
+        echo "$BOUNCE_TEST" | jq . 2>/dev/null || echo "$BOUNCE_TEST"
+    else
+        echo "$BOUNCE_TEST"
+    fi
 else
     echo -e "${RED}  ✗ Endpoint недоступен${NC}"
+    ((FAILED++))
 fi
 echo ""
 
