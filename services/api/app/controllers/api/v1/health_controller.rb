@@ -67,13 +67,25 @@ module Api
 
       def check_bounce_tables
         # Проверка что таблицы bounce существуют
-        bounced_exists = ActiveRecord::Base.connection.table_exists?('bounced_emails')
-        unsubscribes_exists = ActiveRecord::Base.connection.table_exists?('unsubscribes')
+        # Используем метод модели, как в других местах кода
+        bounced_exists = begin
+          BouncedEmail.table_exists?
+        rescue => e
+          Rails.logger.warn "Could not check bounced_emails table: #{e.message}"
+          false
+        end
+        
+        unsubscribes_exists = begin
+          Unsubscribe.table_exists?
+        rescue => e
+          Rails.logger.warn "Could not check unsubscribes table: #{e.message}"
+          false
+        end
         
         if bounced_exists && unsubscribes_exists
           { status: 'ok' }
         else
-          { status: 'error', message: 'Bounce tables missing' }
+          { status: 'error', message: "Bounce tables missing (bounced: #{bounced_exists}, unsub: #{unsubscribes_exists})" }
         end
       rescue StandardError => e
         { status: 'error', message: e.message }
