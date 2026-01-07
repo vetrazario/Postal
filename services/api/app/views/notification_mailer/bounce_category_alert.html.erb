@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bounce Category Alert</title>
+</head>
+<body style="font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #f5f5f5;">
+  <div style="max-width: 600px; margin: 20px auto; padding: 20px; background-color: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+    <h1 style="color: #dc3545; margin-top: 0;">⚠️ Bounce Category Alert</h1>
+    
+    <p><strong>Campaign:</strong> <%= @campaign_id %></p>
+    
+    <h2 style="color: #333; border-bottom: 2px solid #dc3545; padding-bottom: 10px;">Category Thresholds Exceeded</h2>
+    
+    <table border="1" cellpadding="10" style="border-collapse: collapse; width: 100%; margin: 20px 0;">
+      <tr style="background-color: #f9f9f9;">
+        <th style="text-align: left; padding: 10px; border: 1px solid #ddd;">Category</th>
+        <th style="text-align: left; padding: 10px; border: 1px solid #ddd;">Threshold</th>
+        <th style="text-align: left; padding: 10px; border: 1px solid #ddd;">Actual</th>
+        <th style="text-align: left; padding: 10px; border: 1px solid #ddd;">Count</th>
+      </tr>
+      <% @alerts.each do |alert| %>
+        <tr>
+          <td style="padding: 10px; border: 1px solid #ddd;"><%= alert[:category].to_s.titleize %></td>
+          <td style="padding: 10px; border: 1px solid #ddd;"><%= (alert[:threshold] * 100).round(2) %>%</td>
+          <td style="padding: 10px; border: 1px solid #ddd; color: #dc3545; font-weight: bold;"><%= (alert[:actual_rate] * 100).round(2) %>%</td>
+          <td style="padding: 10px; border: 1px solid #ddd;"><%= alert[:count] %></td>
+        </tr>
+      <% end %>
+    </table>
+    
+    <p style="color: #666; margin-top: 20px;">Please check the bounce categories and take action if necessary.</p>
+    
+    <p style="color: #999; font-size: 12px; margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px;">
+      This is an automated alert from Email Sender Infrastructure.
+    </p>
+  </div>
+</body>
+</html>
+
+

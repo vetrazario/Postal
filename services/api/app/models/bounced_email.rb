@@ -3,6 +3,12 @@
 class BouncedEmail < ApplicationRecord
   validates :email, presence: true
   validates :bounce_type, presence: true, inclusion: { in: %w[hard soft] }
+  validates :bounce_category, inclusion: { 
+    in: %w[user_not_found spam_block mailbox_full authentication rate_limit temporary connection unknown],
+    allow_nil: true
+  }
+  validates :smtp_code, length: { maximum: 10 }, allow_nil: true
+  validates :smtp_message, length: { maximum: 1000 }, allow_nil: true
   validates :first_bounced_at, presence: true
   validates :last_bounced_at, presence: true
 
@@ -11,6 +17,11 @@ class BouncedEmail < ApplicationRecord
   scope :global, -> { where(campaign_id: nil) }
   scope :by_campaign, ->(campaign_id) { where(campaign_id: campaign_id) }
   scope :recent, -> { order(last_bounced_at: :desc) }
+  scope :by_category, ->(category) { where(bounce_category: category) }
+  scope :recent_hard, -> { where(bounce_type: 'hard').order(last_bounced_at: :desc) }
+  scope :with_campaign_id, -> { where.not(campaign_id: nil) }
+  scope :without_campaign_id, -> { where(campaign_id: nil) }
+  scope :last_bounced_since, ->(time) { where('last_bounced_at >= ?', time) }
 
   # Проверка: заблокирован ли email?
   def self.blocked?(email:, campaign_id: nil)

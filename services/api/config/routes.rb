@@ -41,6 +41,9 @@ Rails.application.routes.draw do
 
       # Webhooks (from Postal)
       post 'webhook', to: 'webhooks#postal'
+
+      # Bounce status check
+      get 'bounce_status/check', to: 'bounce_status#check'
     end
   end
 
