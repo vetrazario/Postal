@@ -11,13 +11,19 @@ module Api
           sidekiq: check_sidekiq,
           bounce_tables: check_bounce_tables
         }
-        healthy = checks.values.all? { |c| c[:status] == 'ok' }
+        
+        # Критические проверки (без них API не может работать)
+        critical_checks = [:database, :redis, :sidekiq, :bounce_tables]
+        critical_healthy = critical_checks.all? { |key| checks[key][:status] == 'ok' }
+        
+        # Postal не критичен - может быть недоступен временно
+        all_healthy = checks.values.all? { |c| c[:status] == 'ok' }
 
         render json: {
-          status: healthy ? 'healthy' : 'degraded',
+          status: critical_healthy ? (all_healthy ? 'healthy' : 'degraded') : 'unhealthy',
           timestamp: Time.current.iso8601,
           checks: checks
-        }, status: healthy ? :ok : :service_unavailable
+        }, status: critical_healthy ? :ok : :service_unavailable
       end
 
       private
