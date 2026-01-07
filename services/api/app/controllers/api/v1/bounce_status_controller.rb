@@ -17,16 +17,26 @@ module Api
 
         campaign_id = params[:campaign_id]
         
-        is_bounced = BouncedEmail.blocked?(email: email, campaign_id: campaign_id)
-        is_unsubscribed = Unsubscribe.blocked?(email: email, campaign_id: campaign_id)
-        
-        render json: {
-          email: mask_email(email),
-          is_bounced: is_bounced,
-          is_unsubscribed: is_unsubscribed,
-          campaign_id: campaign_id,
-          blocked: is_bounced || is_unsubscribed
-        }
+        begin
+          is_bounced = BouncedEmail.blocked?(email: email, campaign_id: campaign_id)
+          is_unsubscribed = Unsubscribe.blocked?(email: email, campaign_id: campaign_id)
+          
+          render json: {
+            email: mask_email(email),
+            is_bounced: is_bounced,
+            is_unsubscribed: is_unsubscribed,
+            campaign_id: campaign_id,
+            blocked: is_bounced || is_unsubscribed
+          }
+        rescue => e
+          Rails.logger.error "BounceStatusController error: #{e.message}\n#{e.backtrace.join("\n")}"
+          render json: {
+            error: {
+              code: 'internal_error',
+              message: 'An internal error occurred'
+            }
+          }, status: :internal_server_error
+        end
       end
 
       private
