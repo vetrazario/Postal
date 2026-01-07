@@ -67,21 +67,33 @@ module Api
 
       def check_bounce_tables
         # Проверка что таблицы bounce существуют
-        # Используем прямой SQL запрос для надежности
         connection = ActiveRecord::Base.connection
         
-        bounced_exists = begin
-          connection.table_exists?('bounced_emails')
-        rescue => e
-          Rails.logger.warn "Could not check bounced_emails table: #{e.message}"
-          false
-        end
+        bounced_exists = false
+        unsubscribes_exists = false
         
-        unsubscribes_exists = begin
-          connection.table_exists?('unsubscribes')
+        begin
+          # Используем table_exists? с логированием для диагностики
+          bounced_exists = connection.table_exists?('bounced_emails')
+          Rails.logger.debug "bounced_emails table_exists?: #{bounced_exists.inspect}"
+          
+          unsubscribes_exists = connection.table_exists?('unsubscribes')
+          Rails.logger.debug "unsubscribes table_exists?: #{unsubscribes_exists.inspect}"
+          
+          # Если table_exists? не работает, пробуем через SQL
+          unless bounced_exists
+            result = connection.execute("SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'bounced_emails')")
+            bounced_exists = result.first.values.first == true || result.first.values.first == 't'
+            Rails.logger.debug "bounced_emails SQL check: #{bounced_exists.inspect}"
+          end
+          
+          unless unsubscribes_exists
+            result = connection.execute("SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'unsubscribes')")
+            unsubscribes_exists = result.first.values.first == true || result.first.values.first == 't'
+            Rails.logger.debug "unsubscribes SQL check: #{unsubscribes_exists.inspect}"
+          end
         rescue => e
-          Rails.logger.warn "Could not check unsubscribes table: #{e.message}"
-          false
+          Rails.logger.error "check_bounce_tables error: #{e.message}\n#{e.backtrace.join("\n")}"
         end
         
         if bounced_exists && unsubscribes_exists
@@ -89,9 +101,6 @@ module Api
         else
           { status: 'error', message: "Bounce tables missing (bounced: #{bounced_exists}, unsub: #{unsubscribes_exists})" }
         end
-      rescue StandardError => e
-        Rails.logger.error "check_bounce_tables error: #{e.message}\n#{e.backtrace.join("\n")}"
-        { status: 'error', message: e.message }
       end
     end
   end
