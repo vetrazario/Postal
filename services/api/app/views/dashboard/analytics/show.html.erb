@@ -1,105 +1,629 @@
-<div class="space-y-8" x-data="analyticsData()">
+<div class="space-y-8" x-data="analyticsPage()">
   <div>
-    <h1 class="text-3xl font-bold text-gray-900">Analytics Dashboard</h1>
-    <p class="mt-2 text-sm text-gray-700">Email performance metrics and insights</p>
+    <h1 class="text-3xl font-bold text-gray-900">Analytics</h1>
+    <p class="mt-2 text-sm text-gray-700">Email performance metrics and AI-powered insights</p>
   </div>
 
-  <!-- Overview Stats -->
-  <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-    <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
-      <dt class="truncate text-sm font-medium text-gray-500">Total Sent</dt>
-      <dd class="mt-1 text-3xl font-semibold tracking-tight text-gray-900"><%= number_with_delimiter(@overview_stats[:total_sent]) %></dd>
-    </div>
-    <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
-      <dt class="truncate text-sm font-medium text-gray-500">Delivery Rate</dt>
-      <dd class="mt-1 text-3xl font-semibold tracking-tight text-green-600">
-        <% if @overview_stats[:total_sent] > 0 %>
-          <%= ((@overview_stats[:total_delivered].to_f / @overview_stats[:total_sent]) * 100).round(1) %>%
-        <% else %>
-          0%
-        <% end %>
-      </dd>
-    </div>
-    <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
-      <dt class="truncate text-sm font-medium text-gray-500">Open Rate</dt>
-      <dd class="mt-1 text-3xl font-semibold tracking-tight text-blue-600">
-        <% if @overview_stats[:total_delivered] > 0 %>
-          <%= ((@overview_stats[:unique_opens].to_f / @overview_stats[:total_delivered]) * 100).round(1) %>%
-        <% else %>
-          0%
-        <% end %>
-      </dd>
-    </div>
-    <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
-      <dt class="truncate text-sm font-medium text-gray-500">Click Rate</dt>
-      <dd class="mt-1 text-3xl font-semibold tracking-tight text-purple-600">
-        <% if @overview_stats[:total_delivered] > 0 %>
-          <%= ((@overview_stats[:total_clicks].to_f / @overview_stats[:total_delivered]) * 100).round(1) %>%
-        <% else %>
-          0%
-        <% end %>
-      </dd>
-    </div>
-    <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
-      <dt class="truncate text-sm font-medium text-gray-500">Bounce Rate</dt>
-      <dd class="mt-1 text-3xl font-semibold tracking-tight text-red-600">
-        <% if @overview_stats[:total_sent] > 0 %>
-          <%= ((@overview_stats[:total_bounced].to_f / @overview_stats[:total_sent]) * 100).round(1) %>%
-        <% else %>
-          0%
-        <% end %>
-      </dd>
-    </div>
-    <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
-      <dt class="truncate text-sm font-medium text-gray-500">Total Campaigns</dt>
-      <dd class="mt-1 text-3xl font-semibold tracking-tight text-gray-900"><%= @overview_stats[:total_campaigns] %></dd>
-    </div>
-  </div>
-
-  <!-- Daily Performance Chart -->
-  <div class="rounded-lg bg-white p-6 shadow">
-    <h3 class="text-lg font-medium text-gray-900 mb-4">Daily Performance (Last 30 Days)</h3>
-    <canvas id="dailyChart" width="400" height="100"></canvas>
-  </div>
-
-  <!-- Top Campaigns -->
-  <div class="rounded-lg bg-white shadow">
-    <div class="px-4 py-5 sm:p-6">
-      <h3 class="text-lg font-medium text-gray-900">Top Campaigns</h3>
-      <div class="mt-4">
-        <table class="min-w-full divide-y divide-gray-300">
-          <thead>
-            <tr>
-              <th class="py-3 text-left text-sm font-semibold text-gray-900">Campaign ID</th>
-              <th class="px-3 py-3 text-left text-sm font-semibold text-gray-900">Emails Sent</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-gray-200">
-            <% @campaign_stats.each do |stat| %>
-              <tr>
-                <td class="whitespace-nowrap py-4 text-sm font-medium text-gray-900"><%= stat[:campaign_id] %></td>
-                <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500"><%= number_with_delimiter(stat[:count]) %></td>
-              </tr>
+  <!-- Campaign Selector -->
+  <% if @campaigns.any? %>
+    <div class="rounded-lg bg-white p-6 shadow">
+      <h3 class="text-lg font-medium text-gray-900 mb-4">Выберите кампанию</h3>
+      <%= form_tag dashboard_analytics_path, method: :get, class: "flex gap-4 items-end" do %>
+        <div class="flex-1">
+          <label class="block text-sm font-medium text-gray-700 mb-1">Кампания</label>
+          <select name="campaign_id" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" onchange="this.form.submit()">
+            <option value="">-- Все кампании --</option>
+            <% @campaigns.each do |campaign| %>
+              <option value="<%= campaign.campaign_id %>" <%= 'selected' if @selected_campaign == campaign.campaign_id %>>
+                <%= campaign.campaign_id %> (<%= campaign.total_sent %> писем, <%= campaign.ended_at&.strftime('%d.%m.%Y') %>)
+              </option>
             <% end %>
-          </tbody>
-        </table>
+          </select>
+        </div>
+      <% end %>
+
+      <!-- Campaign Stats (if selected) -->
+      <% if @campaign_stats && @selected_campaign %>
+        <div class="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div class="bg-gray-50 rounded-lg p-4">
+            <dt class="text-sm font-medium text-gray-500">Отправлено</dt>
+            <dd class="mt-1 text-2xl font-semibold text-gray-900"><%= @campaign_stats[:total_sent] %></dd>
+          </div>
+          <div class="bg-green-50 rounded-lg p-4">
+            <dt class="text-sm font-medium text-gray-500">Доставлено</dt>
+            <dd class="mt-1 text-2xl font-semibold text-green-700"><%= @campaign_stats[:delivered] %></dd>
+            <dd class="text-sm text-green-600"><%= @campaign_stats[:delivery_rate] %>%</dd>
+          </div>
+          <div class="bg-blue-50 rounded-lg p-4">
+            <dt class="text-sm font-medium text-gray-500">Открытий</dt>
+            <dd class="mt-1 text-2xl font-semibold text-blue-700"><%= @campaign_stats[:opens] %></dd>
+            <dd class="text-sm text-blue-600"><%= @campaign_stats[:open_rate] %>%</dd>
+          </div>
+          <div class="bg-purple-50 rounded-lg p-4">
+            <dt class="text-sm font-medium text-gray-500">Кликов</dt>
+            <dd class="mt-1 text-2xl font-semibold text-purple-700"><%= @campaign_stats[:clicks] %></dd>
+            <dd class="text-sm text-purple-600"><%= @campaign_stats[:click_rate] %>%</dd>
+          </div>
+        </div>
+
+        <!-- Export Buttons for Campaign -->
+        <div class="mt-4 flex flex-wrap gap-2">
+          <%= link_to "📥 Export Opens", export_opens_dashboard_analytics_path(campaign_id: @selected_campaign), 
+              class: "rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500" %>
+          <%= link_to "📥 Export Clicks", export_clicks_dashboard_analytics_path(campaign_id: @selected_campaign), 
+              class: "rounded-md bg-purple-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-purple-500" %>
+          <%= link_to "📥 Export Unsubscribes", export_unsubscribes_dashboard_analytics_path(campaign_id: @selected_campaign), 
+              class: "rounded-md bg-orange-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-orange-500" %>
+          <%= link_to "📥 Export Bounces", export_bounces_dashboard_analytics_path(campaign_id: @selected_campaign), 
+              class: "rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500" %>
+        </div>
+      <% end %>
+    </div>
+  <% end %>
+
+  <!-- Main Tabs -->
+  <div class="border-b border-gray-200">
+    <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+      <button @click="activeTab = 'dashboard'" 
+              :class="activeTab === 'dashboard' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'"
+              class="whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium">
+        Дашборд
+      </button>
+      <button @click="activeTab = 'ai-tools'" 
+              :class="activeTab === 'ai-tools' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'"
+              class="whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium">
+        AI Аналитика
+      </button>
+    </nav>
+  </div>
+
+  <!-- Tab Content: Dashboard -->
+  <div x-show="activeTab === 'dashboard'" x-transition>
+    <!-- Overview Stats (if no campaign selected) -->
+    <% unless @selected_campaign %>
+      <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 mb-8">
+        <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
+          <dt class="truncate text-sm font-medium text-gray-500">Total Sent</dt>
+          <dd class="mt-1 text-3xl font-semibold tracking-tight text-gray-900"><%= number_with_delimiter(@overview_stats[:total_sent]) %></dd>
+        </div>
+        <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
+          <dt class="truncate text-sm font-medium text-gray-500">Delivery Rate</dt>
+          <dd class="mt-1 text-3xl font-semibold tracking-tight text-green-600">
+            <% if @overview_stats[:total_sent] > 0 %>
+              <%= ((@overview_stats[:total_delivered].to_f / @overview_stats[:total_sent]) * 100).round(1) %>%
+            <% else %>
+              0%
+            <% end %>
+          </dd>
+        </div>
+        <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
+          <dt class="truncate text-sm font-medium text-gray-500">Open Rate</dt>
+          <dd class="mt-1 text-3xl font-semibold tracking-tight text-blue-600">
+            <% if @overview_stats[:total_delivered] > 0 %>
+              <%= ((@overview_stats[:unique_opens].to_f / @overview_stats[:total_delivered]) * 100).round(1) %>%
+            <% else %>
+              0%
+            <% end %>
+          </dd>
+        </div>
+        <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
+          <dt class="truncate text-sm font-medium text-gray-500">Click Rate</dt>
+          <dd class="mt-1 text-3xl font-semibold tracking-tight text-purple-600">
+            <% if @overview_stats[:total_delivered] > 0 %>
+              <%= ((@overview_stats[:total_clicks].to_f / @overview_stats[:total_delivered]) * 100).round(1) %>%
+            <% else %>
+              0%
+            <% end %>
+          </dd>
+        </div>
+        <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
+          <dt class="truncate text-sm font-medium text-gray-500">Bounce Rate</dt>
+          <dd class="mt-1 text-3xl font-semibold tracking-tight text-red-600">
+            <% if @overview_stats[:total_sent] > 0 %>
+              <%= ((@overview_stats[:total_bounced].to_f / @overview_stats[:total_sent]) * 100).round(1) %>%
+            <% else %>
+              0%
+            <% end %>
+          </dd>
+        </div>
+        <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
+          <dt class="truncate text-sm font-medium text-gray-500">Total Campaigns</dt>
+          <dd class="mt-1 text-3xl font-semibold tracking-tight text-gray-900"><%= @overview_stats[:total_campaigns] %></dd>
+        </div>
+      </div>
+    <% end %>
+
+    <!-- Chart Sub-tabs -->
+    <div class="mb-4 flex gap-2 border-b border-gray-200">
+      <button @click="chartType = 'timeline'" 
+              :class="chartType === 'timeline' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'"
+              class="border-b-2 py-2 px-4 text-sm font-medium">
+        Timeline
+      </button>
+      <button @click="chartType = 'hourly'" 
+              :class="chartType === 'hourly' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'"
+              class="border-b-2 py-2 px-4 text-sm font-medium">
+        Часы
+      </button>
+      <button @click="chartType = 'daily'" 
+              :class="chartType === 'daily' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'"
+              class="border-b-2 py-2 px-4 text-sm font-medium">
+        Дни
+      </button>
+      <button @click="chartType = 'comparison'" 
+              :class="chartType === 'comparison' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'"
+              class="border-b-2 py-2 px-4 text-sm font-medium">
+        Сравнение
+      </button>
+    </div>
+
+    <!-- Chart Container -->
+    <div class="rounded-lg bg-white p-6 shadow">
+      <h3 class="text-lg font-medium text-gray-900 mb-4" x-text="chartType === 'timeline' ? 'Timeline Performance' : chartType === 'hourly' ? 'Hourly Performance' : chartType === 'daily' ? 'Daily Performance (Last 30 Days)' : 'Campaign Comparison'"></h3>
+      <canvas id="mainChart" width="400" height="100"></canvas>
+    </div>
+
+    <!-- Top Campaigns (if no campaign selected) -->
+    <% unless @selected_campaign %>
+      <div class="rounded-lg bg-white shadow">
+        <div class="px-4 py-5 sm:p-6">
+          <h3 class="text-lg font-medium text-gray-900">Top Campaigns</h3>
+          <div class="mt-4">
+            <table class="min-w-full divide-y divide-gray-300">
+              <thead>
+                <tr>
+                  <th class="py-3 text-left text-sm font-semibold text-gray-900">Campaign ID</th>
+                  <th class="px-3 py-3 text-left text-sm font-semibold text-gray-900">Emails Sent</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-200">
+                <% if @campaign_stats && @campaign_stats.is_a?(Array) %>
+                  <% @campaign_stats.each do |stat| %>
+                    <tr>
+                      <td class="whitespace-nowrap py-4 text-sm font-medium text-gray-900"><%= stat[:campaign_id] %></td>
+                      <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500"><%= number_with_delimiter(stat[:count]) %></td>
+                    </tr>
+                  <% end %>
+                <% end %>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    <% end %>
+  </div>
+
+  <!-- Tab Content: AI Tools -->
+  <div x-show="activeTab === 'ai-tools'" x-transition>
+    <!-- AI Settings Status -->
+    <div class="rounded-lg <%= @ai_settings.enabled? ? 'bg-green-50' : 'bg-yellow-50' %> p-4 mb-6">
+      <div class="flex items-center justify-between">
+        <div>
+          <h3 class="text-sm font-medium <%= @ai_settings.enabled? ? 'text-green-800' : 'text-yellow-800' %>">
+            AI Analytics <%= @ai_settings.enabled? ? 'Enabled' : 'Disabled' %>
+          </h3>
+          <p class="mt-1 text-sm <%= @ai_settings.enabled? ? 'text-green-700' : 'text-yellow-700' %>">
+            <% if @ai_settings.enabled? %>
+              Model: <%= @ai_settings.ai_model %> | Total Cost: $<%= @total_cost %>
+            <% else %>
+              Configure AI settings to enable analytics features
+            <% end %>
+          </p>
+        </div>
+        <%= link_to "Settings", dashboard_settings_path, class: "rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm hover:bg-gray-50" %>
       </div>
     </div>
+
+    <% if @ai_settings.enabled? %>
+      <!-- AI Analysis Actions -->
+      <div class="grid grid-cols-1 gap-6 sm:grid-cols-3 mb-6">
+        <div class="rounded-lg bg-white p-6 shadow flex flex-col">
+          <h3 class="text-lg font-medium text-gray-900">🔍 Анализ отказов</h3>
+          <p class="mt-2 text-sm text-gray-500">AI-анализ причин баунсов и рекомендации</p>
+          <form action="<%= analyze_bounces_dashboard_analytics_path %>" method="post" class="mt-4 mt-auto">
+            <%= hidden_field_tag :authenticity_token, form_authenticity_token %>
+            <button type="submit" class="w-full rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">Запустить анализ</button>
+          </form>
+        </div>
+
+        <div class="rounded-lg bg-white p-6 shadow flex flex-col">
+          <h3 class="text-lg font-medium text-gray-900">⏱️ Оптимизация времени</h3>
+          <p class="mt-2 text-sm text-gray-500">Лучшее время для максимальной вовлеченности</p>
+          <form action="<%= optimize_timing_dashboard_analytics_path %>" method="post" class="mt-4 mt-auto">
+            <%= hidden_field_tag :authenticity_token, form_authenticity_token %>
+            <input type="text" name="campaign_id" value="<%= @selected_campaign %>" placeholder="Campaign ID" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm mb-2" required>
+            <button type="submit" class="w-full rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">Оптимизировать</button>
+          </form>
+        </div>
+
+        <div class="rounded-lg bg-white p-6 shadow flex flex-col">
+          <h3 class="text-lg font-medium text-gray-900">🔍 Сравнение кампаний</h3>
+          <p class="mt-2 text-sm text-gray-500">Сравнить эффективность нескольких кампаний</p>
+          <form action="<%= compare_campaigns_dashboard_analytics_path %>" method="post" class="mt-4 mt-auto">
+            <%= hidden_field_tag :authenticity_token, form_authenticity_token %>
+            <input type="text" name="campaign_ids[]" placeholder="Campaign ID 1" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm mb-2" required>
+            <input type="text" name="campaign_ids[]" placeholder="Campaign ID 2" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm mb-2" required>
+            <button type="submit" class="w-full rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">Сравнить</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- AI Analysis for Selected Campaign -->
+      <% if @selected_campaign && @campaign_stats %>
+        <div class="rounded-lg bg-white p-6 shadow mb-6">
+          <h3 class="text-lg font-medium text-gray-900 mb-4">AI Анализ кампании: <%= @selected_campaign %></h3>
+          <%= form_tag analyze_campaign_dashboard_analytics_path, method: :post, class: "inline" do %>
+            <%= hidden_field_tag :campaign_id, @selected_campaign %>
+            <button type="submit" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">
+              🤖 AI Анализ кампании
+            </button>
+          <% end %>
+
+          <% if @campaign_stats[:bounced] > 0 %>
+            <%= form_tag analyze_bounces_dashboard_analytics_path, method: :post, class: "inline ml-2" do %>
+              <%= hidden_field_tag :campaign_id, @selected_campaign %>
+              <button type="submit" class="rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500">
+                🔍 Анализ отказов
+              </button>
+            <% end %>
+          <% end %>
+        </div>
+      <% end %>
+
+      <!-- Recent Analyses -->
+      <div class="rounded-lg bg-white shadow">
+        <div class="px-4 py-5 sm:p-6">
+          <h3 class="text-lg font-medium text-gray-900">📜 История анализов</h3>
+          <div class="mt-4 space-y-4">
+            <% if @recent_analyses.empty? %>
+              <p class="py-4 text-center text-sm text-gray-500">No analyses yet. Run your first analysis above.</p>
+            <% else %>
+              <% @recent_analyses.each do |analysis| %>
+                <div class="border border-gray-200 rounded-lg overflow-hidden">
+                  <!-- Analysis Header -->
+                  <div class="bg-gray-50 px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-gray-100"
+                       @click="expandedAnalysis = expandedAnalysis === <%= analysis.id %> ? null : <%= analysis.id %>">
+                    <div class="flex items-center space-x-3">
+                      <!-- Status Badge -->
+                      <% case analysis.status %>
+                      <% when 'completed' %>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          Completed
+                        </span>
+                      <% when 'processing' %>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                          <svg class="animate-spin -ml-1 mr-1.5 h-3 w-3 text-yellow-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Processing
+                        </span>
+                      <% when 'failed' %>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                          Failed
+                        </span>
+                      <% end %>
+
+                      <div>
+                        <h4 class="text-sm font-medium text-gray-900"><%= analysis.type_display_name %></h4>
+                        <p class="text-xs text-gray-500">
+                          <%= analysis.created_at.strftime('%b %d, %Y at %H:%M') %>
+                          <% if analysis.total_tokens.to_i > 0 %>
+                            | <%= analysis.total_tokens %> tokens
+                            | $<%= analysis.estimated_cost %>
+                          <% end %>
+                        </p>
+                      </div>
+                    </div>
+
+                    <svg class="h-5 w-5 text-gray-400 transition-transform"
+                         :class="{ 'rotate-180': expandedAnalysis === <%= analysis.id %> }"
+                         xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                    </svg>
+                  </div>
+
+                  <!-- Analysis Content (Expandable) -->
+                  <div x-show="expandedAnalysis === <%= analysis.id %>"
+                       x-transition:enter="transition ease-out duration-200"
+                       x-transition:enter-start="opacity-0"
+                       x-transition:enter-end="opacity-100"
+                       class="px-4 py-4 border-t border-gray-200">
+
+                    <% if analysis.status == 'completed' && analysis.analysis_result.present? %>
+                      <% 
+                        # Parse result if it's a string (JSON)
+                        raw_result = analysis.analysis_result
+                        result = if raw_result.is_a?(String)
+                          begin
+                            parsed = JSON.parse(raw_result)
+                            # Handle case when AI returns wrapped JSON like {"json": {...}}
+                            if parsed.is_a?(Hash) && parsed.keys.length == 1 && parsed['json']
+                              parsed['json']
+                            elsif parsed.is_a?(Hash) && parsed.keys.length == 1 && parsed[:json]
+                              parsed[:json]
+                            else
+                              parsed
+                            end
+                          rescue JSON::ParserError
+                            { 'error' => 'Invalid JSON format', 'raw' => raw_result }
+                          end
+                        else
+                          raw_result.is_a?(Hash) ? raw_result.with_indifferent_access : {}
+                        end
+                        
+                        # Если result - это все еще строка (JSON), попробуем еще раз
+                        if result.is_a?(String) && result.strip.start_with?('{')
+                          begin
+                            result = JSON.parse(result)
+                            result = result.with_indifferent_access if result.is_a?(Hash)
+                          rescue
+                          end
+                        end
+                        
+                        # Если summary содержит Hash или Array вместо строки - это ошибка парсинга
+                        if result.is_a?(Hash) && result['summary'].present? && !result['summary'].is_a?(String)
+                          summary_obj = result['summary']
+                          if summary_obj.is_a?(Hash) && summary_obj['summary']
+                            result['summary'] = summary_obj['summary']
+                          elsif summary_obj.is_a?(Hash)
+                            result = summary_obj
+                          end
+                        end
+                      %>
+
+                      <!-- Effectiveness Score (for campaign analysis) -->
+                      <% if result['effectiveness_score'].present? %>
+                        <div class="mb-4">
+                          <h5 class="text-sm font-semibold text-gray-900 mb-2">Оценка эффективности</h5>
+                          <% score = result['effectiveness_score'].to_i %>
+                          <% score_class = score >= 7 ? 'text-green-600' : score >= 4 ? 'text-yellow-600' : 'text-red-600' %>
+                          <% score_bg = score >= 7 ? 'bg-green-50' : score >= 4 ? 'bg-yellow-50' : 'bg-red-50' %>
+                          <div class="<%= score_bg %> p-4 rounded-md">
+                            <div class="flex items-center gap-4">
+                              <span class="text-4xl font-bold <%= score_class %>"><%= score %></span>
+                              <span class="text-sm text-gray-600">из 10</span>
+                            </div>
+                          </div>
+                        </div>
+                      <% end %>
+
+                      <!-- Summary -->
+                      <% if result.is_a?(Hash) && result['summary'].present? %>
+                        <% 
+                          summary_text = result['summary']
+                          if summary_text.is_a?(String) && (summary_text.strip.start_with?('{') || summary_text.strip.start_with?('```'))
+                            clean_summary = summary_text.gsub(/^```(?:json)?\n?/, '').gsub(/\n?```$/, '').strip
+                            if clean_summary.start_with?('{')
+                              begin
+                                parsed = JSON.parse(clean_summary)
+                                summary_text = parsed['summary'] || summary_text
+                              rescue JSON::ParserError
+                              end
+                            end
+                          end
+                        %>
+                        <% if summary_text.is_a?(String) %>
+                          <div class="mb-4">
+                            <h5 class="text-sm font-semibold text-gray-900 mb-2">Резюме</h5>
+                            <p class="text-sm text-gray-700 bg-blue-50 p-3 rounded-md whitespace-pre-wrap"><%= summary_text %></p>
+                          </div>
+                        <% end %>
+                      <% end %>
+
+                      <!-- Delivery Issues -->
+                      <% if result['delivery_issues'].present? %>
+                        <div class="mb-4">
+                          <h5 class="text-sm font-semibold text-gray-900 mb-2">Проблемы с доставкой</h5>
+                          <% issues = result['delivery_issues'] %>
+                          <% if issues.is_a?(Array) %>
+                            <ul class="list-disc list-inside text-sm text-red-700 space-y-1 bg-red-50 p-3 rounded-md">
+                              <% issues.each do |issue| %>
+                                <li><%= issue.is_a?(Hash) ? (issue['description'] || issue['text'] || issue.to_s) : issue.to_s %></li>
+                              <% end %>
+                            </ul>
+                          <% else %>
+                            <p class="text-sm text-red-700 bg-red-50 p-3 rounded-md whitespace-pre-wrap"><%= issues.to_s %></p>
+                          <% end %>
+                        </div>
+                      <% end %>
+
+                      <!-- Patterns -->
+                      <% if result['patterns'].present? && result['patterns'].any? %>
+                        <div class="mb-4">
+                          <h5 class="text-sm font-semibold text-gray-900 mb-2">Identified Patterns</h5>
+                          <ul class="list-disc list-inside text-sm text-gray-700 space-y-1 bg-gray-50 p-3 rounded-md">
+                            <% result['patterns'].each do |pattern| %>
+                              <li><%= pattern.is_a?(Hash) ? (pattern['description'] || pattern['text'] || pattern.to_s) : pattern.to_s %></li>
+                            <% end %>
+                          </ul>
+                        </div>
+                      <% end %>
+
+                      <!-- Red Flags -->
+                      <% if result['red_flags'].present? && result['red_flags'].any? %>
+                        <div class="mb-4">
+                          <h5 class="text-sm font-semibold text-gray-900 mb-2">Red Flags</h5>
+                          <ul class="list-disc list-inside text-sm text-red-700 space-y-1 bg-red-50 p-3 rounded-md">
+                            <% result['red_flags'].each do |flag| %>
+                              <li><%= flag.is_a?(Hash) ? (flag['description'] || flag['text'] || flag.to_s) : flag.to_s %></li>
+                            <% end %>
+                          </ul>
+                        </div>
+                      <% end %>
+
+                      <!-- Best/Worst Hours -->
+                      <% if result['best_hours'].present? || result['best_send_times'].present? %>
+                        <% 
+                          best_hours = result['best_hours'] || result['best_send_times']
+                          if best_hours.is_a?(String)
+                            best_hours = best_hours.split(',').map(&:strip)
+                          end
+                        %>
+                        <div class="mb-4 grid grid-cols-2 gap-4">
+                          <div>
+                            <h5 class="text-sm font-semibold text-gray-900 mb-2">Лучшее время отправки</h5>
+                            <div class="bg-green-50 p-3 rounded-md">
+                              <% Array(best_hours).each do |hour| %>
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-200 text-green-800 mr-1 mb-1">
+                                  <%= hour.is_a?(Hash) ? "#{hour['hour']}:00" : hour.to_s %>
+                                </span>
+                              <% end %>
+                            </div>
+                          </div>
+                          <% if result['worst_hours'].present? %>
+                            <% 
+                              worst_hours = result['worst_hours']
+                              if worst_hours.is_a?(String)
+                                worst_hours = worst_hours.split(',').map(&:strip)
+                              end
+                            %>
+                            <div>
+                              <h5 class="text-sm font-semibold text-gray-900 mb-2">Худшее время отправки</h5>
+                              <div class="bg-red-50 p-3 rounded-md">
+                                <% Array(worst_hours).each do |hour| %>
+                                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-200 text-red-800 mr-1 mb-1">
+                                    <%= hour.is_a?(Hash) ? "#{hour['hour']}:00" : hour.to_s %>
+                                  </span>
+                                <% end %>
+                              </div>
+                            </div>
+                          <% end %>
+                        </div>
+                      <% end %>
+
+                      <!-- Best/Worst Campaign -->
+                      <% if result['best_campaign'].present? || result['worst_campaign'].present? %>
+                        <div class="mb-4 grid grid-cols-2 gap-4">
+                          <% if result['best_campaign'].present? %>
+                            <div class="bg-green-50 p-3 rounded-md">
+                              <h5 class="text-sm font-semibold text-green-800 mb-1">Best Performing</h5>
+                              <p class="text-sm text-green-700">
+                                <%= result['best_campaign'].is_a?(Hash) ? result['best_campaign']['id'] || result['best_campaign']['campaign_id'] : result['best_campaign'] %>
+                              </p>
+                            </div>
+                          <% end %>
+                          <% if result['worst_campaign'].present? %>
+                            <div class="bg-red-50 p-3 rounded-md">
+                              <h5 class="text-sm font-semibold text-red-800 mb-1">Needs Improvement</h5>
+                              <p class="text-sm text-red-700">
+                                <%= result['worst_campaign'].is_a?(Hash) ? result['worst_campaign']['id'] || result['worst_campaign']['campaign_id'] : result['worst_campaign'] %>
+                              </p>
+                            </div>
+                          <% end %>
+                        </div>
+                      <% end %>
+
+                      <!-- Success Factors -->
+                      <% if result['success_factors'].present? && result['success_factors'].any? %>
+                        <div class="mb-4">
+                          <h5 class="text-sm font-semibold text-gray-900 mb-2">Success Factors</h5>
+                          <ul class="list-disc list-inside text-sm text-gray-700 space-y-1 bg-green-50 p-3 rounded-md">
+                            <% result['success_factors'].each do |factor| %>
+                              <li><%= factor.is_a?(Hash) ? (factor['description'] || factor['text'] || factor.to_s) : factor.to_s %></li>
+                            <% end %>
+                          </ul>
+                        </div>
+                      <% end %>
+
+                      <!-- Recommendations -->
+                      <% if result['recommendations'].present? && result['recommendations'].any? %>
+                        <div class="mb-4">
+                          <h5 class="text-sm font-semibold text-gray-900 mb-2">Recommendations</h5>
+                          <ul class="list-decimal list-inside text-sm text-gray-700 space-y-2 bg-indigo-50 p-3 rounded-md">
+                            <% result['recommendations'].each do |rec| %>
+                              <li><%= rec.is_a?(Hash) ? (rec['description'] || rec['text'] || rec.to_s) : rec.to_s %></li>
+                            <% end %>
+                          </ul>
+                        </div>
+                      <% end %>
+
+                      <!-- Next Steps -->
+                      <% if result['next_steps'].present? && result['next_steps'].any? %>
+                        <div class="mb-4">
+                          <h5 class="text-sm font-semibold text-gray-900 mb-2">Next Steps</h5>
+                          <ol class="list-decimal list-inside text-sm text-gray-700 space-y-1 bg-yellow-50 p-3 rounded-md">
+                            <% result['next_steps'].each do |step| %>
+                              <li><%= step.is_a?(Hash) ? (step['description'] || step['text'] || step.to_s) : step.to_s %></li>
+                            <% end %>
+                          </ol>
+                        </div>
+                      <% end %>
+
+                    <% elsif analysis.status == 'processing' %>
+                      <div class="flex items-center justify-center py-8">
+                        <svg class="animate-spin h-8 w-8 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span class="ml-3 text-sm text-gray-600">Analysis in progress... Please refresh in a moment.</span>
+                      </div>
+
+                    <% elsif analysis.status == 'failed' %>
+                      <div class="bg-red-50 p-4 rounded-md">
+                        <p class="text-sm text-red-700">
+                          <strong>Error:</strong> <%= analysis.analysis_result.is_a?(Hash) && analysis.analysis_result['error'] ? analysis.analysis_result['error'] : 'Analysis failed. Please try again.' %>
+                        </p>
+                      </div>
+                    <% end %>
+                  </div>
+                </div>
+              <% end %>
+            <% end %>
+          </div>
+        </div>
+      </div>
+    <% else %>
+      <div class="rounded-lg bg-gray-50 p-12 text-center">
+        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+        </svg>
+        <h3 class="mt-2 text-sm font-semibold text-gray-900">AI Analytics Not Configured</h3>
+        <p class="mt-1 text-sm text-gray-500">Enable AI analytics in settings to start analyzing your email performance</p>
+        <div class="mt-6">
+          <%= link_to dashboard_settings_path, class: "inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500" do %>
+            Configure AI Settings
+          <% end %>
+        </div>
+      </div>
+    <% end %>
   </div>
 </div>
 
 <script>
-function analyticsData() {
+function analyticsPage() {
   return {
+    activeTab: 'dashboard',
+    expandedAnalysis: null,
+    chartType: 'daily',
     init() {
       this.loadDailyChart();
+      // Watch for chart type changes
+      this.$watch('chartType', (value) => {
+        if (this.activeTab === 'dashboard') {
+          if (value === 'daily' || value === 'timeline') {
+            this.loadDailyChart();
+          } else if (value === 'hourly') {
+            this.loadHourlyChart();
+          } else if (value === 'comparison') {
+            this.loadCampaignsChart();
+          }
+        }
+      });
     },
     async loadDailyChart() {
       const response = await fetch('<%= daily_dashboard_analytics_path %>');
       const data = await response.json();
       
-      const ctx = document.getElementById('dailyChart').getContext('2d');
-      new Chart(ctx, {
+      const ctx = document.getElementById('mainChart');
+      if (!ctx) return;
+      
+      const chartContext = ctx.getContext('2d');
+      if (window.mainChartInstance) {
+        window.mainChartInstance.destroy();
+      }
+      
+      window.mainChartInstance = new Chart(chartContext, {
         type: 'line',
         data: {
           labels: data.map(d => d.label),
@@ -113,6 +637,16 @@ function analyticsData() {
             data: data.map(d => d.delivered),
             borderColor: 'rgb(34, 197, 94)',
             backgroundColor: 'rgba(34, 197, 94, 0.1)',
+          }, {
+            label: 'Opened',
+            data: data.map(d => d.opened),
+            borderColor: 'rgb(59, 130, 246)',
+            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+          }, {
+            label: 'Clicked',
+            data: data.map(d => d.clicked),
+            borderColor: 'rgb(168, 85, 247)',
+            backgroundColor: 'rgba(168, 85, 247, 0.1)',
           }]
         },
         options: {
@@ -121,6 +655,96 @@ function analyticsData() {
           scales: {
             y: {
               beginAtZero: true
+            }
+          }
+        }
+      });
+    },
+    async loadHourlyChart() {
+      const date = new Date().toISOString().split('T')[0];
+      const response = await fetch(`<%= hourly_dashboard_analytics_path %>?date=${date}`);
+      const data = await response.json();
+      
+      const ctx = document.getElementById('mainChart');
+      if (!ctx) return;
+      
+      const chartContext = ctx.getContext('2d');
+      if (window.mainChartInstance) {
+        window.mainChartInstance.destroy();
+      }
+      
+      window.mainChartInstance = new Chart(chartContext, {
+        type: 'line',
+        data: {
+          labels: data.map(d => d.label),
+          datasets: [{
+            label: 'Sent',
+            data: data.map(d => d.sent),
+            borderColor: 'rgb(99, 102, 241)',
+            backgroundColor: 'rgba(99, 102, 241, 0.1)',
+          }, {
+            label: 'Delivered',
+            data: data.map(d => d.delivered),
+            borderColor: 'rgb(34, 197, 94)',
+            backgroundColor: 'rgba(34, 197, 94, 0.1)',
+          }, {
+            label: 'Opened',
+            data: data.map(d => d.opened),
+            borderColor: 'rgb(59, 130, 246)',
+            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+          }, {
+            label: 'Clicked',
+            data: data.map(d => d.clicked),
+            borderColor: 'rgb(168, 85, 247)',
+            backgroundColor: 'rgba(168, 85, 247, 0.1)',
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          scales: {
+            y: {
+              beginAtZero: true
+            }
+          }
+        }
+      });
+    },
+    async loadCampaignsChart() {
+      const response = await fetch('<%= campaigns_dashboard_analytics_path %>');
+      const data = await response.json();
+      
+      const ctx = document.getElementById('mainChart');
+      if (!ctx) return;
+      
+      const chartContext = ctx.getContext('2d');
+      if (window.mainChartInstance) {
+        window.mainChartInstance.destroy();
+      }
+      
+      window.mainChartInstance = new Chart(chartContext, {
+        type: 'bar',
+        data: {
+          labels: data.map(d => d.campaign_id || 'Unknown'),
+          datasets: [{
+            label: 'Open Rate %',
+            data: data.map(d => d.open_rate),
+            borderColor: 'rgb(59, 130, 246)',
+            backgroundColor: 'rgba(59, 130, 246, 0.5)',
+          }, {
+            label: 'Click Rate %',
+            data: data.map(d => d.click_rate),
+            borderColor: 'rgb(168, 85, 247)',
+            backgroundColor: 'rgba(168, 85, 247, 0.5)',
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          scales: {
+            y: {
+              beginAtZero: true,
+              max: 100
             }
           }
         }
