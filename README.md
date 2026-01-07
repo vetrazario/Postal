@@ -32,7 +32,13 @@ email-sender-infrastructure/
 │   ├── API.md                     # Спецификация REST API
 │   ├── DEPLOYMENT.md              # Локальная установка и Production развёртывание
 │   ├── SECURITY.md                # Безопасность
-│   └── TROUBLESHOOTING.md         # Решение проблем
+│   ├── TROUBLESHOOTING.md         # Решение проблем
+│   └── BOUNCE_HANDLING.md         # Обработка bounce и отказов
+│
+├── CHANGELOG.md                   # История изменений и исправлений
+├── SETUP_GUIDE.md                 # Руководство по установке
+├── QUICK_START.md                 # Быстрый старт
+└── TESTING_GUIDE.md               # Руководство по тестированию
 │
 ├── services/                      # Сервисы (код)
 │   ├── api/                       # Rails API
@@ -54,10 +60,15 @@ email-sender-infrastructure/
 
 ## Быстрый старт
 
-1. Прочитай `docs/ARCHITECTURE.md` — понять систему
-2. Прочитай `docs/DEPLOYMENT.md` — локальная установка
-3. Прочитай `docs/API.md` — REST API спецификация
-4. Начинай с `services/api/` — основной код
+1. Прочитай `QUICK_START.md` — быстрый старт
+2. Прочитай `docs/ARCHITECTURE.md` — понять систему
+3. Прочитай `docs/DEPLOYMENT.md` — локальная установка
+4. Прочитай `docs/API.md` — REST API спецификация
+5. Начинай с `services/api/` — основной код
+
+## История изменений
+
+См. `CHANGELOG.md` для истории всех изменений, исправлений и новых функций.
 
 ## Запуск системы
 
