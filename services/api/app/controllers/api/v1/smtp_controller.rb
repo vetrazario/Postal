@@ -10,8 +10,8 @@ module Api
       # POST /api/v1/smtp/receive
       # Receives parsed email from SMTP Relay
       def receive
-        # Log minimal info (no sensitive data)
-        Rails.logger.info "SMTP receive: from=#{params.dig(:envelope, :from)}"
+        # Log minimal info (no sensitive data - envelope filtered by filter_parameters)
+        Rails.logger.info "SMTP receive: envelope present"
 
         # Validate required fields
         unless valid_smtp_payload?
