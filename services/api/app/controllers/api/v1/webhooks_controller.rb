@@ -175,39 +175,67 @@ class Api::V1::WebhooksController < Api::V1::ApplicationController
 
   def verify_postal_signature
     raw_body = read_raw_body
-    signature = request.headers['X-Postal-Signature'].to_s
+    signature_header = request.headers['X-Postal-Signature'].to_s
 
     # Skip verification if disabled via ENV (for testing only)
     if ENV['SKIP_POSTAL_WEBHOOK_VERIFICATION'] == 'true'
-      Rails.logger.warn "Webhook signature verification SKIPPED (testing mode)"
+      Rails.logger.warn "Webhook signature verification SKIPPED (testing mode) from #{request.remote_ip}"
       request.body.rewind if request.body.respond_to?(:rewind)
       return
     end
 
-    if signature.blank?
+    # Log verification attempt
+    Rails.logger.info "Webhook verification attempt from #{request.remote_ip}"
+    Rails.logger.debug "Signature header present: #{signature_header.present?}, Body length: #{raw_body&.length}"
+
+    # Validate request body
+    unless raw_body.is_a?(String) && raw_body.present?
+      Rails.logger.error "Invalid request body from #{request.remote_ip} - body is nil or empty"
+      return head(:unauthorized)
+    end
+
+    if signature_header.blank?
       Rails.logger.warn "Missing webhook signature from #{request.remote_ip}"
       return head(:unauthorized)
     end
 
     public_key = load_public_key
     unless public_key
-      Rails.logger.error "Postal public key not configured - rejecting webhook"
+      Rails.logger.error "Postal public key not configured - rejecting webhook from #{request.remote_ip}"
       return head(:unauthorized)
     end
 
     # Postal uses RSA-SHA256 for webhook signatures
+    # Format: "sha256=<base64_signature>" or just "<base64_signature>"
     begin
-      decoded_signature = Base64.decode64(signature)
+      # Extract signature from header (remove "sha256=" prefix if present)
+      signature_base64 = signature_header.sub(/^sha256=/, '')
+      decoded_signature = Base64.decode64(signature_base64)
+      
+      # Validate signature length (RSA-2048 produces 256-byte signatures, RSA-4096 produces 512-byte)
+      # Allow range 128-512 bytes to support different key sizes
+      if decoded_signature.length < 128 || decoded_signature.length > 512
+        Rails.logger.warn "Invalid signature length: #{decoded_signature.length} bytes from #{request.remote_ip} (expected 128-512 bytes for RSA)"
+        return head(:unauthorized)
+      end
+      
+      Rails.logger.debug "Decoded signature length: #{decoded_signature.length} bytes"
+      
       # Try SHA256 first (Postal's default), fallback to SHA1
       verified = public_key.verify(OpenSSL::Digest::SHA256.new, decoded_signature, raw_body) ||
                  public_key.verify(OpenSSL::Digest::SHA1.new, decoded_signature, raw_body)
 
       unless verified
-        Rails.logger.warn "Invalid webhook signature from #{request.remote_ip}"
+        Rails.logger.warn "Invalid webhook signature from #{request.remote_ip} - signature verification failed"
         return head(:unauthorized)
       end
+      
+      Rails.logger.info "Webhook signature verified successfully from #{request.remote_ip}"
     rescue OpenSSL::PKey::RSAError, ArgumentError => e
-      Rails.logger.error "Signature verification error: #{e.class.name}"
+      Rails.logger.error "Signature verification error from #{request.remote_ip}: #{e.class.name} - #{e.message}"
+      return head(:unauthorized)
+    rescue => e
+      Rails.logger.error "Unexpected error during signature verification from #{request.remote_ip}: #{e.class.name} - #{e.message}"
       return head(:unauthorized)
     end
 
@@ -224,12 +252,35 @@ class Api::V1::WebhooksController < Api::V1::ApplicationController
 
   def load_public_key
     file_path = ENV.fetch('POSTAL_WEBHOOK_PUBLIC_KEY_FILE', nil)
-    return nil if file_path.blank? || !File.exist?(file_path)
+    
+    if file_path.blank?
+      Rails.logger.error "POSTAL_WEBHOOK_PUBLIC_KEY_FILE not configured"
+      return nil
+    end
+    
+    unless File.exist?(file_path)
+      Rails.logger.error "Postal public key file not found: #{file_path}"
+      return nil
+    end
 
     pem = File.read(file_path)
-    OpenSSL::PKey.read(pem)
-  rescue OpenSSL::PKey::PKeyError, Errno::ENOENT => e
-    Rails.logger.error "Invalid POSTAL_WEBHOOK_PUBLIC_KEY_FILE: #{e.message}"
+    
+    if pem.blank?
+      Rails.logger.error "Postal public key file is empty: #{file_path}"
+      return nil
+    end
+    
+    key = OpenSSL::PKey.read(pem)
+    Rails.logger.info "Postal public key loaded successfully from #{file_path}"
+    key
+  rescue OpenSSL::PKey::PKeyError => e
+    Rails.logger.error "Invalid Postal public key format in #{file_path}: #{e.class.name} - #{e.message}"
+    nil
+  rescue Errno::ENOENT => e
+    Rails.logger.error "Postal public key file not found: #{file_path} - #{e.message}"
+    nil
+  rescue => e
+    Rails.logger.error "Error loading Postal public key from #{file_path}: #{e.class.name} - #{e.message}"
     nil
   end
 
