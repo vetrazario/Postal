@@ -208,22 +208,30 @@ class Api::V1::WebhooksController < Api::V1::ApplicationController
     # Postal uses RSA-SHA256 for webhook signatures
     # Format: "sha256=<base64_signature>" or just "<base64_signature>"
     begin
-      # Extract signature from header (remove "sha256=" prefix if present)
-      signature_base64 = signature_header.sub(/^sha256=/, '')
+      # Extract and validate signature format
+      if signature_header.start_with?('sha256=')
+        signature_base64 = signature_header[7..]  # Remove "sha256=" prefix (7 chars)
+      elsif signature_header.match?(/^[A-Za-z0-9+\/=]+$/)  # Pure base64 (no prefix)
+        signature_base64 = signature_header
+      else
+        Rails.logger.warn "Invalid signature format from #{request.remote_ip} (expected 'sha256=...' or base64)"
+        return head(:unauthorized)
+      end
+      
       decoded_signature = Base64.decode64(signature_base64)
       
-      # Validate signature length (RSA-2048 produces 256-byte signatures, RSA-4096 produces 512-byte)
-      # Allow range 128-512 bytes to support different key sizes
-      if decoded_signature.length < 128 || decoded_signature.length > 512
-        Rails.logger.warn "Invalid signature length: #{decoded_signature.length} bytes from #{request.remote_ip} (expected 128-512 bytes for RSA)"
+      # RSA signatures have fixed length based on key size
+      # RSA-2048 = 256 bytes (standard), RSA-4096 = 512 bytes
+      # Postal uses RSA-2048, so we expect exactly 256 bytes
+      unless decoded_signature.length == 256
+        Rails.logger.warn "Invalid signature length: #{decoded_signature.length} bytes from #{request.remote_ip} (expected exactly 256 bytes for RSA-2048)"
         return head(:unauthorized)
       end
       
       Rails.logger.debug "Decoded signature length: #{decoded_signature.length} bytes"
       
-      # Try SHA256 first (Postal's default), fallback to SHA1
-      verified = public_key.verify(OpenSSL::Digest::SHA256.new, decoded_signature, raw_body) ||
-                 public_key.verify(OpenSSL::Digest::SHA1.new, decoded_signature, raw_body)
+      # Postal uses ONLY RSA-SHA256 for webhook signatures (SHA1 is cryptographically broken)
+      verified = public_key.verify(OpenSSL::Digest::SHA256.new, decoded_signature, raw_body)
 
       unless verified
         Rails.logger.warn "Invalid webhook signature from #{request.remote_ip} - signature verification failed"
@@ -243,11 +251,22 @@ class Api::V1::WebhooksController < Api::V1::ApplicationController
   end
 
   def read_raw_body
-    return request.env['RAW_POST_DATA'] if request.env['RAW_POST_DATA'].present?
-    return request.raw_post if request.raw_post.present?
-
+    # Use request.raw_post which caches the body and doesn't interfere with params parsing
+    # This is safe to call before params are parsed
+    body = request.raw_post
+    return body if body.present?
+    
+    # Fallback for older Rails versions
+    if request.env['RAW_POST_DATA'].present?
+      return request.env['RAW_POST_DATA']
+    end
+    
+    # Last resort - read body directly (may break params parsing!)
+    # Only use if absolutely necessary
     request.body.rewind if request.body.respond_to?(:rewind)
-    request.body.read
+    body = request.body.read
+    request.body.rewind if request.body.respond_to?(:rewind) # Rewind for params parsing
+    body
   end
 
   def load_public_key
