@@ -28,13 +28,20 @@ class WebhookEndpoint < ApplicationRecord
     start_time = Time.current
 
     begin
-      response = HTTP.timeout(timeout)
-                     .headers(build_headers)
-                     .post(url, json: {
-                       event_type: event_type,
-                       timestamp: Time.current.iso8601,
-                       data: data
-                     })
+      body = {
+        event_type: event_type,
+        timestamp: Time.current.iso8601,
+        data: data
+      }
+
+      # Use HTTParty instead of HTTP gem (HTTParty is already in Gemfile)
+      response = HTTParty.post(
+        url,
+        headers: build_headers,
+        body: body.to_json,
+        timeout: timeout,
+        verify: true  # Verify SSL certificates
+      )
 
       duration = ((Time.current - start_time) * 1000).round(2)
 
@@ -53,7 +60,7 @@ class WebhookEndpoint < ApplicationRecord
 
       response.code.between?(200, 299)
 
-    rescue => e
+    rescue HTTParty::Error, Net::OpenTimeout, Net::ReadTimeout, SocketError => e
       duration = ((Time.current - start_time) * 1000).round(2)
 
       log_delivery(

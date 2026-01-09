@@ -56,7 +56,8 @@ class SystemConfig < ApplicationRecord
   def self.instance
     first_or_create!(id: 1) do |config|
       # Load from ENV on first creation
-      config.domain = ENV.fetch('DOMAIN', '')
+      # Provide default fallback value if ENV is not set (must be valid domain for validation)
+      config.domain = ENV.fetch('DOMAIN', 'localhost')
       config.allowed_sender_domains = ENV.fetch('ALLOWED_SENDER_DOMAINS', '')
       config.cors_origins = ENV.fetch('CORS_ORIGINS', '')
 
@@ -72,6 +73,28 @@ class SystemConfig < ApplicationRecord
       config.sidekiq_concurrency = ENV.fetch('SIDEKIQ_CONCURRENCY', 5).to_i
       config.webhook_secret = ENV['WEBHOOK_SECRET']
     end
+  rescue ActiveRecord::RecordInvalid => e
+    # If validation fails on first create, return existing record or create with defaults
+    Rails.logger.error "SystemConfig validation failed: #{e.message}"
+    existing = find_by(id: 1)
+    return existing if existing
+
+    # Create with safe defaults if no existing record
+    create!(
+      id: 1,
+      domain: ENV.fetch('DOMAIN', 'localhost'),
+      allowed_sender_domains: ENV.fetch('ALLOWED_SENDER_DOMAINS', ''),
+      cors_origins: ENV.fetch('CORS_ORIGINS', ''),
+      ams_callback_url: ENV.fetch('AMS_CALLBACK_URL', ''),
+      ams_api_key: ENV['AMS_API_KEY'],
+      ams_api_url: ENV['AMS_API_URL'],
+      postal_api_url: ENV.fetch('POSTAL_API_URL', 'http://postal:5000'),
+      postal_api_key: ENV['POSTAL_API_KEY'],
+      postal_signing_key: ENV['POSTAL_SIGNING_KEY'],
+      daily_limit: ENV.fetch('DAILY_LIMIT', 50000).to_i,
+      sidekiq_concurrency: ENV.fetch('SIDEKIQ_CONCURRENCY', 5).to_i,
+      webhook_secret: ENV['WEBHOOK_SECRET']
+    )
   end
 
   # Test AMS connection
