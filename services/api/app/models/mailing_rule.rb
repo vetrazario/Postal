@@ -33,9 +33,9 @@ class MailingRule < ApplicationRecord
     errors = DeliveryError.by_campaign(campaign_id).in_window(window)
 
     # Подсчёт статистики
+    # Считаем все письма в окне (включая queued/processing для корректного расчета bounce_rate)
     total_sent = EmailLog.where(campaign_id: campaign_id)
                          .where('created_at > ?', window.minutes.ago)
-                         .where(status: %w[sent delivered bounced failed])
                          .count
 
     total_bounced = errors.count
