@@ -301,6 +301,8 @@ module Dashboard
       end
     end
 
+    public
+
     def history
       page = (params[:page] || 1).to_i
       per_page = 20
