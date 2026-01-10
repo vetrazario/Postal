@@ -23,7 +23,7 @@
       <% end %>
 
       <!-- Campaign Stats (if selected) -->
-      <% if @campaign_stats && @selected_campaign %>
+      <% if @campaign_stats && @selected_campaign.present? %>
         <div class="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
           <div class="bg-gray-50 rounded-lg p-4">
             <dt class="text-sm font-medium text-gray-500">Отправлено</dt>
@@ -48,13 +48,13 @@
 
         <!-- Export Buttons for Campaign -->
         <div class="mt-4 flex flex-wrap gap-2">
-          <%= link_to "📥 Export Opens", export_opens_dashboard_analytics_path(campaign_id: @selected_campaign), 
+          <%= link_to "📥 Export Opens", export_opens_dashboard_analytics_path(campaign_id: @selected_campaign.to_s),
               class: "rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500" %>
-          <%= link_to "📥 Export Clicks", export_clicks_dashboard_analytics_path(campaign_id: @selected_campaign), 
+          <%= link_to "📥 Export Clicks", export_clicks_dashboard_analytics_path(campaign_id: @selected_campaign.to_s),
               class: "rounded-md bg-purple-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-purple-500" %>
-          <%= link_to "📥 Export Unsubscribes", export_unsubscribes_dashboard_analytics_path(campaign_id: @selected_campaign), 
+          <%= link_to "📥 Export Unsubscribes", export_unsubscribes_dashboard_analytics_path(campaign_id: @selected_campaign.to_s),
               class: "rounded-md bg-orange-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-orange-500" %>
-          <%= link_to "📥 Export Bounces", export_bounces_dashboard_analytics_path(campaign_id: @selected_campaign), 
+          <%= link_to "📥 Export Bounces", export_bounces_dashboard_analytics_path(campaign_id: @selected_campaign.to_s),
               class: "rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500" %>
         </div>
       <% end %>
