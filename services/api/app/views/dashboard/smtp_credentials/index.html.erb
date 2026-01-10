@@ -83,7 +83,7 @@
                         <span class="text-gray-300">|</span>
                         <%= link_to 'Edit', edit_dashboard_smtp_credential_path(credential), class: "text-indigo-600 hover:text-indigo-900" %>
                         <span class="text-gray-300">|</span>
-                        <%= button_to 'Delete', dashboard_smtp_credential_path(credential), method: :delete, data: { confirm: 'Are you sure?' }, class: "text-red-600 hover:text-red-900" %>
+                        <%= button_to 'Delete', dashboard_smtp_credential_path(credential), method: :delete, data: { turbo_confirm: 'Are you sure?' }, class: "text-red-600 hover:text-red-900" %>
                       </div>
                     </td>
                   </tr>

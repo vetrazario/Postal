@@ -71,9 +71,7 @@
                         <span class="text-gray-300">|</span>
                         <%= link_to 'Edit', edit_dashboard_template_path(template), class: "text-indigo-600 hover:text-indigo-900" %>
                         <span class="text-gray-300">|</span>
-                        <%= button_to 'Delete', dashboard_template_path(template), method: :delete, data: { confirm: 'Are you sure?' }, class: "text-red-600 hover:text-red-900" do %>
-                          Delete
-                        <% end %>
+                        <%= button_to 'Delete', dashboard_template_path(template), method: :delete, data: { turbo_confirm: 'Are you sure?' }, class: "text-red-600 hover:text-red-900" %>
                       </div>
                     </td>
                   </tr>

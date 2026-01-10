@@ -47,7 +47,7 @@
               <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium">
                 <%= link_to "View", dashboard_webhook_path(webhook), class: "text-indigo-600 hover:text-indigo-900 mr-2" %>
                 <%= link_to "Edit", edit_dashboard_webhook_path(webhook), class: "text-indigo-600 hover:text-indigo-900 mr-2" %>
-                <%= button_to "Delete", dashboard_webhook_path(webhook), method: :delete, data: { confirm: 'Are you sure?' }, class: "text-red-600 hover:text-red-900" do %>Delete<% end %>
+                <%= button_to "Delete", dashboard_webhook_path(webhook), method: :delete, data: { turbo_confirm: 'Are you sure?' }, class: "text-red-600 hover:text-red-900" %>
               </td>
             </tr>
           <% end %>

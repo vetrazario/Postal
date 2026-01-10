@@ -10,7 +10,7 @@
       <%= link_to edit_dashboard_template_path(@template), class: "rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50" do %>
         Edit
       <% end %>
-      <%= button_to dashboard_template_path(@template), method: :delete, data: { confirm: 'Are you sure?' }, class: "rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500" do %>
+      <%= button_to dashboard_template_path(@template), method: :delete, data: { turbo_confirm: 'Are you sure?' }, class: "rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500" do %>
         Delete
       <% end %>
     </div>
