@@ -51,7 +51,7 @@
                     <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                       <%= button_to toggle_active_dashboard_api_key_path(key), method: :patch, class: "text-indigo-600 hover:text-indigo-900 mr-2" do %><%= key.active? ? 'Deactivate' : 'Activate' %><% end %>
                       <%= link_to 'Edit', edit_dashboard_api_key_path(key), class: "text-indigo-600 hover:text-indigo-900 mr-2" %>
-                      <%= button_to 'Delete', dashboard_api_key_path(key), method: :delete, data: { confirm: 'Are you sure?' }, class: "text-red-600 hover:text-red-900" do %>Delete<% end %>
+                      <%= button_to 'Delete', dashboard_api_key_path(key), method: :delete, data: { turbo_confirm: 'Are you sure?' }, class: "text-red-600 hover:text-red-900" %>
                     </td>
                   </tr>
                 <% end %>
