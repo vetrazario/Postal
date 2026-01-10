@@ -7,7 +7,7 @@ module Dashboard
       @total_cost = @ai_settings.total_estimated_cost
 
       # Get campaigns for dropdown (unique campaign_ids with stats)
-      @campaigns = EmailLog.where.not(campaign_id: [nil, ''])
+      @campaigns = EmailLog.where.not(campaign_id: [nil, '', 'unknown'])
                            .group(:campaign_id)
                            .select(
                              'campaign_id',
