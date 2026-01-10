@@ -91,18 +91,18 @@ Rails.application.routes.draw do
 
     # Analytics (unified with AI Analytics)
     resource :analytics, only: [:show] do
-      get :hourly, on: :member
-      get :daily, on: :member
-      get :campaigns, on: :member
-      post :analyze_campaign, on: :member
-      post :analyze_bounces, on: :member
-      post :optimize_timing, on: :member
-      post :compare_campaigns, on: :member
-      get :history, on: :member
-      get :export_opens, on: :member
-      get :export_clicks, on: :member
-      get :export_unsubscribes, on: :member
-      get :export_bounces, on: :member
+      get :hourly
+      get :daily
+      get :campaigns
+      post :analyze_campaign
+      post :analyze_bounces
+      post :optimize_timing
+      post :compare_campaigns
+      get :history
+      get :export_opens
+      get :export_clicks
+      get :export_unsubscribes
+      get :export_bounces
     end
 
     # Settings
