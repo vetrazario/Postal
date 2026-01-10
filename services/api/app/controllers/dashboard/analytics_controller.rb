@@ -177,6 +177,8 @@ module Dashboard
       end
     end
 
+    public
+
     # AI Analytics methods
     def analyze_bounces
       ai_settings = AiSetting.instance
