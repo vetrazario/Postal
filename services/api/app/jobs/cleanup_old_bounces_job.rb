@@ -25,7 +25,7 @@ class CleanupOldBouncesJob < ApplicationJob
       deleted_errors: deleted_errors,
       cutoff_date: cutoff_date
     }
-  rescue => e
+  rescue StandardError => e
     Rails.logger.error "CleanupOldBouncesJob error: #{e.message}"
     Rails.logger.error e.backtrace.join("\n")
     raise

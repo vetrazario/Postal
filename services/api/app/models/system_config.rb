@@ -262,7 +262,7 @@ class SystemConfig < ApplicationRecord
     Rails.logger.info "✅ Synced configuration to #{env_path}"
 
     true
-  rescue => e
+  rescue StandardError => e
     Rails.logger.error "❌ Failed to sync to .env: #{e.message}"
     false
   end

@@ -72,7 +72,7 @@ module Dashboard
       begin
         @webhook.send_webhook('test', test_data)
         redirect_to dashboard_webhook_path(@webhook), notice: 'Test webhook sent successfully'
-      rescue => e
+      rescue StandardError => e
         redirect_to dashboard_webhook_path(@webhook), alert: "Test failed: #{e.message}"
       end
     end

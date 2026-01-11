@@ -35,7 +35,7 @@ module Dashboard
           }, status: :created
         }
       end
-    rescue => e
+    rescue StandardError => e
       respond_to do |format|
         format.html {
           @api_key = ApiKey.new(api_key_params)

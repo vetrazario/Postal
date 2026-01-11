@@ -93,7 +93,7 @@ class CheckMailingThresholdsJob < ApplicationJob
       ).deliver_later
       
       Rails.logger.info "Threshold alert email sent to #{rule.notification_email} for campaign #{campaign_id}"
-    rescue => e
+    rescue StandardError => e
       Rails.logger.error "Failed to send threshold alert email: #{e.message}"
     end
 
@@ -111,7 +111,7 @@ class CheckMailingThresholdsJob < ApplicationJob
         )
         
         Rails.logger.info "Threshold alert sent to AMS for campaign #{campaign_id}"
-      rescue => e
+      rescue StandardError => e
         Rails.logger.error "Failed to send threshold alert to AMS: #{e.message}"
       end
     end

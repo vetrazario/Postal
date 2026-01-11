@@ -87,7 +87,7 @@ module Api
           queued_at: Time.current.iso8601
         }, status: :accepted
 
-      rescue => e
+      rescue StandardError => e
         Rails.logger.error "SMTP receive error: #{e.class.name}"
 
         render json: {
@@ -134,7 +134,7 @@ module Api
         key = Rails.application.secret_key_base[0, 32]
         crypt = ActiveSupport::MessageEncryptor.new(key)
         crypt.encrypt_and_sign(email)
-      rescue => e
+      rescue StandardError => e
         Rails.logger.error "Email encryption failed: #{e.class.name}"
         # Return masked version as fallback (never store plaintext)
         mask_email(email)

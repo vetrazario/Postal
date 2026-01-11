@@ -40,7 +40,7 @@ class MonitorBounceCategoriesJob < ApplicationJob
     end
     
     Rails.logger.info "MonitorBounceCategoriesJob: Campaign #{campaign_id} - #{alerts.length} alerts"
-  rescue => e
+  rescue StandardError => e
     Rails.logger.error "MonitorBounceCategoriesJob error: #{e.message}"
     Rails.logger.error e.backtrace.join("\n")
   end
@@ -78,7 +78,7 @@ class MonitorBounceCategoriesJob < ApplicationJob
         ).deliver_later
         
         Rails.logger.info "Bounce category alert email sent to #{rule.notification_email} for campaign #{campaign_id}"
-      rescue => e
+      rescue StandardError => e
         Rails.logger.error "Failed to send bounce category alert email: #{e.message}"
       end
     end
@@ -105,7 +105,7 @@ class MonitorBounceCategoriesJob < ApplicationJob
         )
         
         Rails.logger.info "Bounce category alert sent to AMS for campaign #{campaign_id}"
-      rescue => e
+      rescue StandardError => e
         Rails.logger.error "Failed to send bounce category alert to AMS: #{e.message}"
       end
     end

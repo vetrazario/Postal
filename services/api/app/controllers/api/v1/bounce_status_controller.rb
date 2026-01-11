@@ -28,7 +28,7 @@ module Api
             campaign_id: campaign_id,
             blocked: is_bounced || is_unsubscribed
           }
-        rescue => e
+        rescue StandardError => e
           Rails.logger.error "BounceStatusController error: #{e.message}\n#{e.backtrace.join("\n")}"
           render json: {
             error: {
