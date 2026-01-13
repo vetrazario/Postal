@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'fileutils'
+
 module Dashboard
   class MailingRulesController < BaseController
     def show
@@ -69,6 +71,12 @@ module Dashboard
 
       unless uploaded_file
         redirect_to dashboard_mailing_rules_path, alert: 'No file selected'
+        return
+      end
+
+      # Check file size (max 1MB for config file)
+      if uploaded_file.size > 1.megabyte
+        redirect_to dashboard_mailing_rules_path, alert: 'File too large. Maximum size is 1MB.'
         return
       end
 

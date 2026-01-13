@@ -65,7 +65,7 @@ class ErrorClassifier
 
     def load_config
       config_path = Rails.root.join('config', 'bounce_patterns.yml')
-      YAML.load_file(config_path)
+      YAML.safe_load(File.read(config_path))
     rescue StandardError => e
       Rails.logger.error "Failed to load bounce patterns: #{e.message}"
       # Fallback to defaults if file not found
