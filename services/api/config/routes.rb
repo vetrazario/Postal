@@ -116,6 +116,9 @@ Rails.application.routes.draw do
     # Mailing Rules
     resource :mailing_rules, only: [:show, :update] do
       post :test_ams_connection
+      get :download_bounce_patterns
+      post :upload_bounce_patterns
+      post :reset_bounce_patterns
     end
 
     # Error Monitor
