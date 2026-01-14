@@ -35,7 +35,7 @@ class WebhookSender
       status: response.code,
       body: response.parsed_response
     }
-  rescue => e
+  rescue StandardError => e
     Rails.logger.error "Webhook error: #{e.message}"
     {
       success: false,

@@ -31,7 +31,7 @@ module Dashboard
           }, status: :created
         }
       end
-    rescue => e
+    rescue StandardError => e
       respond_to do |format|
         format.html {
           @smtp_credential = SmtpCredential.new(smtp_credential_params)

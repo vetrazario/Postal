@@ -10,7 +10,7 @@ class AnalyzeBouncesJob < ApplicationJob
     Rails.logger.info "Bounce analysis completed: #{result.inspect}"
 
     result
-  rescue => e
+  rescue StandardError => e
     Rails.logger.error "Bounce analysis failed: #{e.message}"
     Rails.logger.error e.backtrace.join("\n")
     raise

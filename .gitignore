@@ -36,3 +36,4 @@ config/signing.key
 postal_public.key
 *.pem
 
+backups_*/

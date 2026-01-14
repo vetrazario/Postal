@@ -10,7 +10,7 @@ class CompareCampaignsJob < ApplicationJob
     Rails.logger.info "Campaign comparison completed for campaigns #{campaign_ids.join(', ')}: #{result.inspect}"
 
     result
-  rescue => e
+  rescue StandardError => e
     Rails.logger.error "Campaign comparison failed for campaigns #{campaign_ids.join(', ')}: #{e.message}"
     Rails.logger.error e.backtrace.join("\n")
     raise

@@ -4,7 +4,7 @@ class PostalClient
     @api_key = api_key
   end
 
-  def send_message(to:, from:, subject:, html_body:, headers: {}, tag: nil, campaign_id: nil)
+  def send_message(to:, from:, subject:, html_body:, headers: {}, tag: nil, campaign_id: nil, track_clicks: true, track_opens: true)
     domain = SystemConfig.get(:domain) || 'localhost'
     message_headers = build_headers(from, to, subject, domain, campaign_id).merge(headers)
 
@@ -28,7 +28,9 @@ class PostalClient
         plain_body: html_to_text(html_body),
         headers: message_headers,
         tag: tag,
-        bounce: true
+        bounce: true,
+        track_clicks: track_clicks,
+        track_opens: track_opens
       }.to_json
     )
 

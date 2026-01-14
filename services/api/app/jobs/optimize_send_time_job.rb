@@ -10,7 +10,7 @@ class OptimizeSendTimeJob < ApplicationJob
     Rails.logger.info "Send time optimization completed for campaign #{campaign_id}: #{result.inspect}"
 
     result
-  rescue => e
+  rescue StandardError => e
     Rails.logger.error "Send time optimization failed for campaign #{campaign_id}: #{e.message}"
     Rails.logger.error e.backtrace.join("\n")
     raise

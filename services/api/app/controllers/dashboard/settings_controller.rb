@@ -141,6 +141,14 @@ module Dashboard
     end
 
     def restart_docker_service(service)
+    # БЕЗОПАСНОСТЬ: Функция отключена - требовался Docker socket
+    # Для рестарта используйте: docker compose restart <service>
+    Rails.logger.warn "restart_docker_service called but disabled for security"
+    return {
+      service: service,
+      success: false,
+      error: "Function disabled: Docker socket removed for security. Use 'docker compose restart' manually."
+    }
       # Whitelist of allowed services (defense in depth)
       allowed_services = %w[api sidekiq postal]
       unless allowed_services.include?(service)
@@ -177,7 +185,7 @@ module Dashboard
         success: success,
         message: success ? 'Restarted successfully' : output
       }
-    rescue => e
+    rescue StandardError => e
       Rails.logger.error "Restart error: #{e.class}: #{e.message}"
       {
         service: service,

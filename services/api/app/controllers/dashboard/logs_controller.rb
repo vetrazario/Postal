@@ -104,7 +104,7 @@ module Dashboard
                 filename: "email_logs_#{Time.current.strftime('%Y%m%d_%H%M%S')}.csv",
                 type: 'text/csv',
                 disposition: 'attachment'
-    rescue => e
+    rescue StandardError => e
       Rails.logger.error "Export logs error: #{e.message}\n#{e.backtrace.join("\n")}"
       head :internal_server_error
     end
@@ -113,7 +113,7 @@ module Dashboard
       # Проверка существования таблицы с обработкой ошибок
       table_exists = begin
         Unsubscribe.table_exists?
-      rescue => e
+      rescue StandardError => e
         Rails.logger.warn "Could not check if unsubscribes table exists: #{e.message}"
         false
       end
@@ -156,7 +156,7 @@ module Dashboard
                 filename: "unsubscribes_#{Time.current.strftime('%Y%m%d_%H%M%S')}.csv",
                 type: 'text/csv',
                 disposition: 'attachment'
-    rescue => e
+    rescue StandardError => e
       Rails.logger.error "Export unsubscribes error: #{e.message}\n#{e.backtrace.join("\n")}"
       # Возвращаем пустой CSV вместо ошибки
       csv_data = CSV.generate(headers: true) do |csv|
@@ -172,7 +172,7 @@ module Dashboard
       # Проверка существования таблицы с обработкой ошибок
       table_exists = begin
         BouncedEmail.table_exists?
-      rescue => e
+      rescue StandardError => e
         Rails.logger.warn "Could not check if bounced_emails table exists: #{e.message}"
         false
       end
@@ -221,7 +221,7 @@ module Dashboard
                 filename: "bounces_#{Time.current.strftime('%Y%m%d_%H%M%S')}.csv",
                 type: 'text/csv',
                 disposition: 'attachment'
-    rescue => e
+    rescue StandardError => e
       Rails.logger.error "Export bounces error: #{e.message}\n#{e.backtrace.join("\n")}"
       # Возвращаем пустой CSV вместо ошибки
       csv_data = CSV.generate(headers: true) do |csv|

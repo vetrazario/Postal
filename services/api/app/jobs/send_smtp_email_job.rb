@@ -49,7 +49,10 @@ class SendSmtpEmailJob < ApplicationJob
       subject: message[:subject],
       html_body: html_content,
       headers: build_custom_headers(message),
-      tag: 'smtp-relay'
+      tag: 'smtp-relay',
+      campaign_id: email_log.campaign_id,
+      track_clicks: true,
+      track_opens: true
     }
 
     # Send to Postal
@@ -89,7 +92,7 @@ class SendSmtpEmailJob < ApplicationJob
       send_webhook_to_ams(email_log, 'failed', response)
     end
 
-  rescue => e
+  rescue StandardError => e
     Rails.logger.error "SendSmtpEmailJob error: #{e.message}"
 
     # Update email log with error (no backtrace for security)
@@ -100,7 +103,7 @@ class SendSmtpEmailJob < ApplicationJob
         status: 'failed',
         status_details: { error: e.class.name, message: e.message.truncate(200) }
       )
-    rescue => update_error
+    rescue StandardError => update_error
       Rails.logger.error "Failed to update email log: #{update_error.message}"
     end
 
@@ -152,7 +155,7 @@ class SendSmtpEmailJob < ApplicationJob
 
       endpoint.send_webhook(event_type, webhook_data)
     end
-  rescue => e
+  rescue StandardError => e
     Rails.logger.error "Webhook send error: #{e.message}"
     # Don't fail the job if webhook fails
   end

@@ -39,7 +39,7 @@ class UpdateCampaignStatsJob < ApplicationJob
     end
     
     Rails.logger.info "Updated stats for campaign #{campaign_id}: #{event_type}"
-  rescue => e
+  rescue StandardError => e
     Rails.logger.error "UpdateCampaignStatsJob error: #{e.message}\n#{e.backtrace.join("\n")}"
   end
 end

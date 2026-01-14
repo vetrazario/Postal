@@ -36,6 +36,14 @@ module Api
         # Create EmailLog record
         # Extract campaign_id from headers (various formats supported)
         headers = message['headers'] || {}
+
+        # DEBUG: Log headers to diagnose campaign_id issue
+        Rails.logger.info "=== DEBUG: Headers received ==="
+        Rails.logger.info "Headers class: #{headers.class}"
+        Rails.logger.info "Headers keys: #{headers.keys.inspect}"
+        Rails.logger.info "x-id-mail value: #{headers['x-id-mail'].inspect}"
+        Rails.logger.info "All headers: #{headers.inspect}"
+
         campaign_id = headers['x-id-mail'] ||
                       headers['X-ID-mail'] ||
                       headers['X-Id-Mail'] ||
@@ -43,7 +51,9 @@ module Api
                       headers['X-Campaign-ID'] ||
                       headers['x-mailing-id'] ||
                       headers['X-Mailing-ID']
-        
+
+        Rails.logger.info "Extracted campaign_id: #{campaign_id.inspect}"
+
         email_log = EmailLog.create!(
           message_id: message_id,
           external_message_id: message['headers']&.dig('message-id'),
@@ -87,7 +97,7 @@ module Api
           queued_at: Time.current.iso8601
         }, status: :accepted
 
-      rescue => e
+      rescue StandardError => e
         Rails.logger.error "SMTP receive error: #{e.class.name}"
 
         render json: {
@@ -134,7 +144,7 @@ module Api
         key = Rails.application.secret_key_base[0, 32]
         crypt = ActiveSupport::MessageEncryptor.new(key)
         crypt.encrypt_and_sign(email)
-      rescue => e
+      rescue StandardError => e
         Rails.logger.error "Email encryption failed: #{e.class.name}"
         # Return masked version as fallback (never store plaintext)
         mask_email(email)

@@ -92,7 +92,7 @@ module Api
             unsubscribes_exists = result.first.values.first == true || result.first.values.first == 't'
             Rails.logger.debug "unsubscribes SQL check: #{unsubscribes_exists.inspect}"
           end
-        rescue => e
+        rescue StandardError => e
           Rails.logger.error "check_bounce_tables error: #{e.message}\n#{e.backtrace.join("\n")}"
         end
         

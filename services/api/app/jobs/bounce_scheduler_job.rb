@@ -11,7 +11,7 @@ class BounceSchedulerJob < ApplicationJob
     
     # Перезапустить планировщик (выполнять раз в день)
     BounceSchedulerJob.set(wait: 1.day).perform_later
-  rescue => e
+  rescue StandardError => e
     Rails.logger.error "BounceSchedulerJob error: #{e.message}"
     Rails.logger.error e.backtrace.join("\n")
     

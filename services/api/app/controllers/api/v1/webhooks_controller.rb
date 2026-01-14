@@ -242,7 +242,7 @@ class Api::V1::WebhooksController < Api::V1::ApplicationController
     rescue OpenSSL::PKey::RSAError, ArgumentError => e
       Rails.logger.error "Signature verification error from #{request.remote_ip}: #{e.class.name} - #{e.message}"
       return head(:unauthorized)
-    rescue => e
+    rescue StandardError => e
       Rails.logger.error "Unexpected error during signature verification from #{request.remote_ip}: #{e.class.name} - #{e.message}"
       return head(:unauthorized)
     end
@@ -298,7 +298,7 @@ class Api::V1::WebhooksController < Api::V1::ApplicationController
   rescue Errno::ENOENT => e
     Rails.logger.error "Postal public key file not found: #{file_path} - #{e.message}"
     nil
-  rescue => e
+  rescue StandardError => e
     Rails.logger.error "Error loading Postal public key from #{file_path}: #{e.class.name} - #{e.message}"
     nil
   end

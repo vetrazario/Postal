@@ -10,10 +10,11 @@ class CheckMailingThresholdsJob < ApplicationJob
     return unless rule&.active?
 
     violations = rule.thresholds_exceeded?(campaign_id)
-    
+
     # Проверить критические bounce категории за последние 5 минут
+    stop_categories = ErrorClassifier.stop_mailing_categories
     critical_bounce_exists = DeliveryError.where(campaign_id: campaign_id)
-                                         .where(category: ErrorClassifier::STOP_MAILING_CATEGORIES)
+                                         .where(category: stop_categories)
                                          .where('created_at > ?', 5.minutes.ago)
                                          .exists?
     
@@ -93,7 +94,7 @@ class CheckMailingThresholdsJob < ApplicationJob
       ).deliver_later
       
       Rails.logger.info "Threshold alert email sent to #{rule.notification_email} for campaign #{campaign_id}"
-    rescue => e
+    rescue StandardError => e
       Rails.logger.error "Failed to send threshold alert email: #{e.message}"
     end
 
@@ -111,7 +112,7 @@ class CheckMailingThresholdsJob < ApplicationJob
         )
         
         Rails.logger.info "Threshold alert sent to AMS for campaign #{campaign_id}"
-      rescue => e
+      rescue StandardError => e
         Rails.logger.error "Failed to send threshold alert to AMS: #{e.message}"
       end
     end
