@@ -88,6 +88,19 @@ create_with_openssl() {
     chmod 600 "$HTPASSWD_FILE"
 }
 
+# Загрузка переменных окружения
+load_env() {
+    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    local project_dir="$(dirname "$script_dir")"
+
+    if [ -f "$project_dir/.env" ]; then
+        log_info "Загрузка переменных из .env..."
+        set -a
+        source "$project_dir/.env"
+        set +a
+    fi
+}
+
 # Основная функция
 main() {
     echo ""
@@ -95,27 +108,30 @@ main() {
     echo "  Создание .htpasswd файла"
     echo "=========================================="
     echo ""
-    
+
     check_dependencies
-    
-    # Получение параметров
-    local username="${1:-}"
-    local password="${2:-}"
-    
+    load_env
+
+    # Получение параметров (приоритет: аргументы > переменные окружения > интерактивный ввод)
+    local username="${1:-${DASHBOARD_USERNAME:-}}"
+    local password="${2:-${DASHBOARD_PASSWORD:-}}"
+
     if [ -z "$username" ]; then
         read -p "Введите имя пользователя [admin]: " username
         username=${username:-admin}
     fi
-    
+
     if [ -z "$password" ]; then
         read -sp "Введите пароль (или нажмите Enter для автогенерации): " password
         echo ""
-        
+
         if [ -z "$password" ]; then
             password=$(generate_password)
             log_info "Сгенерирован пароль: $password"
             log_warning "Сохраните этот пароль! Он больше не будет показан."
         fi
+    else
+        log_info "Используется пароль из переменной окружения"
     fi
     
     # Создание директории если нужно

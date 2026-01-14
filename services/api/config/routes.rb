@@ -1,20 +1,10 @@
 require 'sidekiq/web'
+require_relative '../lib/sidekiq_web_auth'
 
 # Sidekiq Web UI authentication
-# Монтируем только если заданы учетные данные
-if ENV['SIDEKIQ_WEB_USERNAME'].present? && ENV['SIDEKIQ_WEB_PASSWORD'].present?
-  Sidekiq::Web.use(Rack::Auth::Basic) do |username, password|
-    expected_username = ENV.fetch('SIDEKIQ_WEB_USERNAME')
-    expected_password = ENV.fetch('SIDEKIQ_WEB_PASSWORD')
-    
-    ActiveSupport::SecurityUtils.secure_compare(
-      ::Digest::SHA256.hexdigest(username.to_s),
-      ::Digest::SHA256.hexdigest(expected_username)
-    ) & ActiveSupport::SecurityUtils.secure_compare(
-      ::Digest::SHA256.hexdigest(password.to_s),
-      ::Digest::SHA256.hexdigest(expected_password)
-    )
-  end
+# Uses SidekiqWebAuth to check credentials from SystemConfig (database) or ENV
+Sidekiq::Web.use(Rack::Auth::Basic, 'Sidekiq') do |username, password|
+  SidekiqWebAuth.authenticate(username, password)
 end
 
 Rails.application.routes.draw do
@@ -42,8 +32,12 @@ Rails.application.routes.draw do
       # Webhooks (from Postal)
       post 'webhook', to: 'webhooks#postal'
 
-      # Bounce status check
-      get 'bounce_status/check', to: 'bounce_status#check'
+      # Internal endpoints (for service communication)
+      namespace :internal do
+        get 'smtp_relay_config', to: 'config#smtp_relay'
+        post 'smtp_auth', to: 'config#smtp_auth'
+        post 'tracking_event', to: 'tracking#event'
+      end
     end
   end
 
@@ -63,6 +57,7 @@ Rails.application.routes.draw do
       member do
         patch :toggle_active
         post :test_connection
+        post :regenerate_password
       end
     end
 
@@ -84,25 +79,22 @@ Rails.application.routes.draw do
     resources :logs, only: [:index, :show] do
       collection do
         get :export
-        get :export_unsubscribes
-        get :export_bounces
       end
     end
 
-    # Analytics (unified with AI Analytics)
+    # Analytics
     resource :analytics, only: [:show] do
       get :hourly
       get :daily
       get :campaigns
-      post :analyze_campaign
+    end
+
+    # AI Analytics
+    resource :ai_analytics, only: [:show] do
       post :analyze_bounces
       post :optimize_timing
       post :compare_campaigns
       get :history
-      get :export_opens
-      get :export_clicks
-      get :export_unsubscribes
-      get :export_bounces
     end
 
     # Settings
@@ -110,15 +102,14 @@ Rails.application.routes.draw do
       patch :update_system_config, on: :collection
       post :test_ams_connection, on: :collection
       post :test_postal_connection, on: :collection
+      post :test_smtp_relay_connection, on: :collection
+      post :generate_smtp_credentials, on: :collection
       post :apply_changes, on: :collection
     end
 
     # Mailing Rules
     resource :mailing_rules, only: [:show, :update] do
       post :test_ams_connection
-      get :download_bounce_patterns
-      post :upload_bounce_patterns
-      post :reset_bounce_patterns
     end
 
     # Error Monitor
@@ -129,9 +120,8 @@ Rails.application.routes.draw do
     end
   end
 
-  # Sidekiq Web UI (монтируем только если заданы учетные данные)
-  if defined?(Sidekiq::Web) && ENV['SIDEKIQ_WEB_USERNAME'].present? && ENV['SIDEKIQ_WEB_PASSWORD'].present?
-    mount Sidekiq::Web => '/sidekiq'
-  end
+  # Sidekiq Web UI
+  # Authentication is handled by SidekiqWebAuth middleware (reads from SystemConfig or ENV)
+  mount Sidekiq::Web => '/sidekiq' if defined?(Sidekiq::Web)
 end
 

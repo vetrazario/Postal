@@ -4,21 +4,19 @@ class PostalClient
     @api_key = api_key
   end
 
-  def send_message(to:, from:, subject:, html_body:, headers: {}, tag: nil, campaign_id: nil, track_clicks: true, track_opens: true)
+  def send_message(to:, from:, subject:, html_body:, headers: {}, tag: nil)
     domain = SystemConfig.get(:domain) || 'localhost'
-    message_headers = build_headers(from, to, subject, domain, campaign_id).merge(headers)
+    message_headers = build_headers(from, to, subject, domain).merge(headers)
 
-    # Log the request details for debugging
-    Rails.logger.info "PostalClient: Sending to #{@api_url}/api/v1/send/message with Host: #{domain}"
+    # Log request (without sensitive data)
+    Rails.logger.info "PostalClient: Sending to #{@api_url}/api/v1/send/message, recipient: #{mask_email(to)}"
 
-    response = HTTParty.post(
-      "#{@api_url}/api/v1/send/message",
+    request_options = {
       headers: {
         'Host' => domain,
         'X-Server-API-Key' => @api_key,
         'Content-Type' => 'application/json'
       },
-      debug_output: Rails.logger,
       body: {
         to: [to],
         from: from,
@@ -28,25 +26,34 @@ class PostalClient
         plain_body: html_to_text(html_body),
         headers: message_headers,
         tag: tag,
-        bounce: true,
-        track_clicks: track_clicks,
-        track_opens: track_opens
-      }.to_json
-    )
+        bounce: true
+      }.to_json,
+      timeout: 30
+    }
 
+    # Debug output disabled in production to prevent credential leaks
+    # In development, enable with DEBUG_HTTP=true (credentials will still be visible!)
+    if Rails.env.development? && ENV['DEBUG_HTTP'] == 'true'
+      request_options[:debug_output] = $stderr
+    end
+
+    response = HTTParty.post("#{@api_url}/api/v1/send/message", request_options)
     parse_response(response, to)
   rescue StandardError => e
+    Rails.logger.error "PostalClient error: #{e.class} - #{e.message}"
     { success: false, error: e.message }
+  end
+
+  # Mask email for safe logging
+  def mask_email(email)
+    return email unless email&.include?('@')
+    local, domain = email.split('@')
+    "#{local[0]}***@#{domain}"
   end
 
   private
 
-  def build_headers(from, to, subject, domain, campaign_id = nil)
-    # Build unsubscribe URL with encoded parameters
-    encoded_email = Base64.urlsafe_encode64(to)
-    encoded_cid = campaign_id ? Base64.urlsafe_encode64(campaign_id) : ''
-    unsubscribe_url = "https://#{domain}/unsubscribe?eid=#{encoded_email}&cid=#{encoded_cid}"
-
+  def build_headers(from, to, subject, domain)
     {
       'From' => from,
       'To' => to,
@@ -55,8 +62,7 @@ class PostalClient
       'Date' => Time.current.rfc2822,
       'Return-Path' => "bounce@#{domain}",
       'Reply-To' => "reply@#{domain}",
-      'List-Unsubscribe' => "<#{unsubscribe_url}>, <mailto:unsubscribe@#{domain}>",
-      'List-Unsubscribe-Post' => 'List-Unsubscribe=One-Click'
+      'List-Unsubscribe' => "<mailto:unsubscribe@#{domain}>"
     }
   end
 

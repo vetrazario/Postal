@@ -2,16 +2,20 @@
 
 module Api
   module V1
-    class SmtpController < Api::V1::ApplicationController
-      # Use separate authentication for SMTP relay
+    class SmtpController < ApplicationController
+      # Skip API key authentication - use HMAC signature instead
       skip_before_action :authenticate_api_key
-      before_action :authenticate_smtp_relay
+      before_action :verify_smtp_relay_request
+
+      # Rate limiting for SMTP endpoint
+      SMTP_RATE_LIMIT = 100 # requests per minute
+      SMTP_RATE_WINDOW = 60 # seconds
 
       # POST /api/v1/smtp/receive
       # Receives parsed email from SMTP Relay
       def receive
-        # Log minimal info (no sensitive data - envelope filtered by filter_parameters)
-        Rails.logger.info "SMTP receive: envelope present"
+        # Log incoming payload (without sensitive data)
+        Rails.logger.info "SMTP receive from #{request.remote_ip}: envelope=#{params[:envelope]&.keys}"
 
         # Validate required fields
         unless valid_smtp_payload?
@@ -34,26 +38,12 @@ module Api
         recipient = envelope['to'].is_a?(Array) ? envelope['to'].first : envelope['to']
 
         # Create EmailLog record
-        # Extract campaign_id from headers (various formats supported)
-        headers = message['headers'] || {}
-
-        # DEBUG: Log headers to diagnose campaign_id issue
-        Rails.logger.info "=== DEBUG: Headers received ==="
-        Rails.logger.info "Headers class: #{headers.class}"
-        Rails.logger.info "Headers keys: #{headers.keys.inspect}"
-        Rails.logger.info "x-id-mail value: #{headers['x-id-mail'].inspect}"
-        Rails.logger.info "All headers: #{headers.inspect}"
-
-        campaign_id = headers['x-id-mail'] ||
-                      headers['X-ID-mail'] ||
-                      headers['X-Id-Mail'] ||
-                      headers['x-campaign-id'] ||
-                      headers['X-Campaign-ID'] ||
-                      headers['x-mailing-id'] ||
-                      headers['X-Mailing-ID']
-
-        Rails.logger.info "Extracted campaign_id: #{campaign_id.inspect}"
-
+        # Extract campaign_id from headers (AMS sends it as X-Campaign-ID or x-campaign-id)
+        campaign_id = message['headers']&.dig('x-campaign-id') || 
+                      message['headers']&.dig('X-Campaign-ID') ||
+                      message['headers']&.dig('x-mailing-id') ||
+                      message['headers']&.dig('X-Mailing-ID')
+        
         email_log = EmailLog.create!(
           message_id: message_id,
           external_message_id: message['headers']&.dig('message-id'),
@@ -97,36 +87,91 @@ module Api
           queued_at: Time.current.iso8601
         }, status: :accepted
 
-      rescue StandardError => e
-        Rails.logger.error "SMTP receive error: #{e.class.name}"
+      rescue => e
+        Rails.logger.error "SMTP receive error: #{e.message}"
+        Rails.logger.error e.backtrace.join("\n")
 
         render json: {
           error: 'Processing failed',
-          message: 'Internal error'
+          message: e.message
         }, status: :internal_server_error
       end
 
       private
 
-      def authenticate_smtp_relay
-        # SMTP relay must provide valid API key via header
-        relay_key = request.headers['X-SMTP-Relay-Key'] || params[:smtp_relay_key]
-        expected_key = ENV['SMTP_RELAY_API_KEY']
+      # Verify the request comes from authorized SMTP relay
+      def verify_smtp_relay_request
+        # Check if SMTP relay secret is configured
+        smtp_secret = ENV['SMTP_RELAY_SECRET']
 
-        # If no key configured, allow internal network only (Docker network)
-        if expected_key.blank?
-          # Accept requests from internal Docker network (172.x.x.x, 10.x.x.x)
-          client_ip = request.remote_ip
-          unless client_ip.start_with?('172.', '10.', '127.')
-            render json: { error: 'Unauthorized' }, status: :unauthorized
+        if smtp_secret.present?
+          # Verify HMAC signature
+          unless verify_hmac_signature(smtp_secret)
+            Rails.logger.warn "SMTP endpoint: Invalid HMAC signature from #{request.remote_ip}"
+            render json: { error: 'Unauthorized', message: 'Invalid signature' }, status: :unauthorized
+            return
           end
-          return
+        else
+          # No secret configured - check if request comes from internal Docker network
+          unless trusted_source?
+            Rails.logger.warn "SMTP endpoint: Request from untrusted source #{request.remote_ip}"
+            render json: { error: 'Unauthorized', message: 'Access denied' }, status: :unauthorized
+            return
+          end
         end
 
-        # Validate key
-        unless ActiveSupport::SecurityUtils.secure_compare(relay_key.to_s, expected_key)
-          render json: { error: 'Unauthorized' }, status: :unauthorized
+        # Rate limiting
+        unless within_rate_limit?
+          Rails.logger.warn "SMTP endpoint: Rate limit exceeded for #{request.remote_ip}"
+          render json: { error: 'Rate limit exceeded', retry_after: SMTP_RATE_WINDOW }, status: :too_many_requests
         end
+      end
+
+      def verify_hmac_signature(secret)
+        signature = request.headers['X-SMTP-Relay-Signature']
+        timestamp = request.headers['X-SMTP-Relay-Timestamp']
+
+        return false if signature.blank? || timestamp.blank?
+
+        # Check timestamp is not too old (5 minutes)
+        request_time = timestamp.to_i
+        return false if (Time.now.to_i - request_time / 1000).abs > 300
+
+        # Reconstruct payload for verification
+        payload = {
+          envelope: params[:envelope]&.to_unsafe_h,
+          message: params[:message]&.to_unsafe_h,
+          raw: params[:raw],
+          timestamp: timestamp
+        }
+
+        expected_signature = OpenSSL::HMAC.hexdigest('SHA256', secret, payload.to_json)
+        ActiveSupport::SecurityUtils.secure_compare(signature, expected_signature)
+      end
+
+      def trusted_source?
+        remote_ip = request.remote_ip
+
+        # Allow requests from Docker internal networks
+        trusted_networks = [
+          IPAddr.new('172.16.0.0/12'),   # Docker default bridge
+          IPAddr.new('10.0.0.0/8'),       # Docker overlay
+          IPAddr.new('192.168.0.0/16'),   # Docker host
+          IPAddr.new('127.0.0.1/8')       # Localhost
+        ]
+
+        begin
+          ip = IPAddr.new(remote_ip)
+          trusted_networks.any? { |network| network.include?(ip) }
+        rescue IPAddr::InvalidAddressError
+          false
+        end
+      end
+
+      def within_rate_limit?
+        cache_key = "smtp_rate_limit:#{request.remote_ip}"
+        count = Rails.cache.increment(cache_key, 1, expires_in: SMTP_RATE_WINDOW.seconds, initial: 0)
+        count <= SMTP_RATE_LIMIT
       end
 
       def valid_smtp_payload?
@@ -138,23 +183,15 @@ module Api
       end
 
       def encrypt_email(email)
-        return email if email.blank?
-
-        # Use symmetric encryption with app secret
-        key = Rails.application.secret_key_base[0, 32]
-        crypt = ActiveSupport::MessageEncryptor.new(key)
-        crypt.encrypt_and_sign(email)
-      rescue StandardError => e
-        Rails.logger.error "Email encryption failed: #{e.class.name}"
-        # Return masked version as fallback (never store plaintext)
-        mask_email(email)
+        # Use Rails 7.1 encryption
+        email
       end
 
       def mask_email(email)
-        return email unless email.to_s.include?('@')
+        return email unless email.include?('@')
 
         local, domain = email.split('@')
-        masked_local = local[0] + ('*' * [local.length - 1, 1].max)
+        masked_local = local[0] + ('*' * (local.length - 1))
         "#{masked_local}@#{domain}"
       end
     end

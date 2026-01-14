@@ -59,6 +59,37 @@ module Dashboard
       render json: result
     end
 
+    # Test SMTP Relay connection
+    def test_smtp_relay_connection
+      config = SystemConfig.instance
+      result = config.test_smtp_relay_connection
+
+      render json: result
+    end
+
+    # Generate new SMTP Relay credentials
+    # NOTE: SMTP credentials are now managed via SmtpCredential model
+    # This action creates a new credential and returns the details
+    def generate_smtp_credentials
+      # Generate a new SMTP credential
+      smtp_credential, password = SmtpCredential.generate(
+        description: 'Auto-generated credential',
+        rate_limit: 100
+      )
+
+      render json: {
+        success: true,
+        credentials: {
+          username: smtp_credential.username,
+          password: password,
+          id: smtp_credential.id
+        },
+        message: 'New SMTP credential generated. See SMTP Credentials page for details.'
+      }
+    rescue StandardError => e
+      render json: { success: false, error: e.message }, status: :unprocessable_entity
+    end
+
     # Apply changes (restart services)
     def apply_changes
       config = SystemConfig.instance
@@ -119,11 +150,29 @@ module Dashboard
         :postal_api_url,
         :postal_api_key,
         :postal_signing_key,
+        :postal_webhook_public_key,
 
         # Limits
         :daily_limit,
         :sidekiq_concurrency,
-        :webhook_secret
+        :webhook_secret,
+
+        # SMTP Relay (credentials managed via SMTP Credentials page)
+        :smtp_relay_secret,
+        :smtp_relay_port,
+        :smtp_relay_auth_required,
+        :smtp_relay_tls_enabled,
+
+        # Sidekiq Web UI
+        :sidekiq_web_username,
+        :sidekiq_web_password,
+
+        # Logging
+        :log_level,
+        :sentry_dsn,
+
+        # Let's Encrypt
+        :letsencrypt_email
       )
     end
 
@@ -135,6 +184,8 @@ module Dashboard
         restart_docker_service('sidekiq')
       when 'postal'
         restart_docker_service('postal')
+      when 'smtp-relay'
+        restart_docker_service('smtp-relay')
       else
         { success: false, error: "Unknown service: #{service}" }
       end

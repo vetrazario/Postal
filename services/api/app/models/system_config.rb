@@ -5,13 +5,19 @@ class SystemConfig < ApplicationRecord
   encrypts :ams_api_key_encrypted, deterministic: false
   encrypts :postal_api_key_encrypted, deterministic: false
   encrypts :postal_signing_key_encrypted, deterministic: false
+  encrypts :postal_webhook_public_key_encrypted, deterministic: false
   encrypts :webhook_secret_encrypted, deterministic: false
+  encrypts :smtp_relay_secret_encrypted, deterministic: false
+  encrypts :sidekiq_web_password_encrypted, deterministic: false
 
   # Virtual attributes for convenience (without _encrypted suffix)
   alias_attribute :ams_api_key, :ams_api_key_encrypted
   alias_attribute :postal_api_key, :postal_api_key_encrypted
   alias_attribute :postal_signing_key, :postal_signing_key_encrypted
+  alias_attribute :postal_webhook_public_key, :postal_webhook_public_key_encrypted
   alias_attribute :webhook_secret, :webhook_secret_encrypted
+  alias_attribute :smtp_relay_secret, :smtp_relay_secret_encrypted
+  alias_attribute :sidekiq_web_password, :sidekiq_web_password_encrypted
 
   # Validations
   validates :domain, presence: true,
@@ -68,10 +74,28 @@ class SystemConfig < ApplicationRecord
       config.postal_api_url = ENV.fetch('POSTAL_API_URL', 'http://postal:5000')
       config.postal_api_key = ENV['POSTAL_API_KEY']
       config.postal_signing_key = ENV['POSTAL_SIGNING_KEY']
+      config.postal_webhook_public_key = ENV['POSTAL_WEBHOOK_PUBLIC_KEY']
 
       config.daily_limit = ENV.fetch('DAILY_LIMIT', 50000).to_i
       config.sidekiq_concurrency = ENV.fetch('SIDEKIQ_CONCURRENCY', 5).to_i
       config.webhook_secret = ENV['WEBHOOK_SECRET']
+
+      # SMTP Relay settings (credentials managed via SmtpCredential model)
+      config.smtp_relay_secret = ENV['SMTP_RELAY_SECRET']
+      config.smtp_relay_port = ENV.fetch('SMTP_RELAY_PORT', 2587).to_i
+      config.smtp_relay_auth_required = ENV.fetch('SMTP_AUTH_REQUIRED', 'true') == 'true'
+      config.smtp_relay_tls_enabled = ENV.fetch('SMTP_RELAY_TLS', 'true') == 'true'
+
+      # Sidekiq Web UI
+      config.sidekiq_web_username = ENV.fetch('SIDEKIQ_WEB_USERNAME', 'admin')
+      config.sidekiq_web_password = ENV['SIDEKIQ_WEB_PASSWORD']
+
+      # Logging
+      config.log_level = ENV.fetch('LOG_LEVEL', 'info')
+      config.sentry_dsn = ENV['SENTRY_DSN']
+
+      # Let's Encrypt
+      config.letsencrypt_email = ENV['LETSENCRYPT_EMAIL']
     end
   rescue ActiveRecord::RecordInvalid => e
     # If validation fails on first create, return existing record or create with defaults
@@ -194,10 +218,28 @@ class SystemConfig < ApplicationRecord
     postal_api_url: ['api', 'sidekiq'],
     postal_api_key: ['api', 'sidekiq'],
     postal_signing_key: ['api'],
+    postal_webhook_public_key: ['api'],
 
     daily_limit: ['api'],
     sidekiq_concurrency: ['sidekiq'],
-    webhook_secret: ['api']
+    webhook_secret: ['api'],
+
+    # SMTP Relay settings (credentials managed via SmtpCredential)
+    smtp_relay_secret: ['smtp-relay', 'api'],
+    smtp_relay_port: ['smtp-relay'],
+    smtp_relay_auth_required: ['smtp-relay'],
+    smtp_relay_tls_enabled: ['smtp-relay'],
+
+    # Sidekiq Web UI
+    sidekiq_web_username: ['api'],
+    sidekiq_web_password: ['api'],
+
+    # Logging
+    log_level: ['api', 'sidekiq'],
+    sentry_dsn: ['api', 'sidekiq'],
+
+    # Let's Encrypt
+    letsencrypt_email: []
   }.freeze
 
   # After save - determine which services require restart
@@ -250,6 +292,7 @@ class SystemConfig < ApplicationRecord
     env_content << "POSTAL_API_URL=#{postal_api_url}"
     env_content << "POSTAL_API_KEY=#{postal_api_key}" if postal_api_key.present?
     env_content << "POSTAL_SIGNING_KEY=#{postal_signing_key}" if postal_signing_key.present?
+    env_content << "POSTAL_WEBHOOK_PUBLIC_KEY=#{postal_webhook_public_key.to_s.gsub("\n", '\\n')}" if postal_webhook_public_key.present?
     env_content << ""
 
     # Limits
@@ -257,6 +300,31 @@ class SystemConfig < ApplicationRecord
     env_content << "DAILY_LIMIT=#{daily_limit}"
     env_content << "SIDEKIQ_CONCURRENCY=#{sidekiq_concurrency}"
     env_content << "WEBHOOK_SECRET=#{webhook_secret}" if webhook_secret.present?
+    env_content << ""
+
+    # SMTP Relay (credentials managed via SmtpCredential model in Dashboard)
+    env_content << "# SMTP Relay"
+    env_content << "SMTP_RELAY_SECRET=#{smtp_relay_secret}" if smtp_relay_secret.present?
+    env_content << "SMTP_RELAY_PORT=#{smtp_relay_port}"
+    env_content << "SMTP_AUTH_REQUIRED=#{smtp_relay_auth_required}"
+    env_content << "SMTP_RELAY_TLS=#{smtp_relay_tls_enabled}"
+    env_content << ""
+
+    # Sidekiq Web UI
+    env_content << "# Sidekiq Web UI"
+    env_content << "SIDEKIQ_WEB_USERNAME=#{sidekiq_web_username}" if sidekiq_web_username.present?
+    env_content << "SIDEKIQ_WEB_PASSWORD=#{sidekiq_web_password}" if sidekiq_web_password.present?
+    env_content << ""
+
+    # Logging
+    env_content << "# Logging"
+    env_content << "LOG_LEVEL=#{log_level}" if log_level.present?
+    env_content << "SENTRY_DSN=#{sentry_dsn}" if sentry_dsn.present?
+    env_content << ""
+
+    # Let's Encrypt
+    env_content << "# Let's Encrypt"
+    env_content << "LETSENCRYPT_EMAIL=#{letsencrypt_email}" if letsencrypt_email.present?
 
     File.write(env_path, env_content.join("\n"))
     Rails.logger.info "✅ Synced configuration to #{env_path}"
@@ -265,6 +333,48 @@ class SystemConfig < ApplicationRecord
   rescue StandardError => e
     Rails.logger.error "❌ Failed to sync to .env: #{e.message}"
     false
+  end
+
+  # Test SMTP Relay connection (check if service is reachable)
+  def test_smtp_relay_connection
+    require 'socket'
+    require 'timeout'
+
+    smtp_host = 'smtp-relay'
+    smtp_port_to_test = smtp_relay_port || 2587
+
+    begin
+      Timeout.timeout(5) do
+        socket = TCPSocket.new(smtp_host, smtp_port_to_test)
+        banner = socket.gets
+        socket.close
+
+        if banner&.start_with?('220')
+          { success: true, message: "SMTP Relay is running", banner: banner.strip }
+        else
+          { success: false, error: "Unexpected response: #{banner&.strip}" }
+        end
+      end
+    rescue Timeout::Error
+      { success: false, error: 'Connection timeout - SMTP Relay not responding' }
+    rescue Errno::ECONNREFUSED
+      { success: false, error: 'Connection refused - SMTP Relay not running' }
+    rescue SocketError => e
+      { success: false, error: "DNS error: #{e.message}" }
+    rescue StandardError => e
+      { success: false, error: "#{e.class}: #{e.message}" }
+    end
+  end
+
+  # Get SMTP Relay config as hash (for API endpoint)
+  def smtp_relay_config
+    {
+      secret: smtp_relay_secret,
+      port: smtp_relay_port,
+      auth_required: smtp_relay_auth_required,
+      tls_enabled: smtp_relay_tls_enabled,
+      domain: domain
+    }
   end
 
   # Get configuration value (for use in code)

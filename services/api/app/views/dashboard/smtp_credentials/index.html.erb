@@ -81,6 +81,8 @@
                       <div class="flex items-center justify-end gap-2">
                         <%= button_to credential.active? ? 'Deactivate' : 'Activate', toggle_active_dashboard_smtp_credential_path(credential), method: :patch, class: "text-indigo-600 hover:text-indigo-900" %>
                         <span class="text-gray-300">|</span>
+                        <%= button_to 'New Password', regenerate_password_dashboard_smtp_credential_path(credential), method: :post, data: { confirm: 'Generate new password? Old password will stop working immediately.' }, class: "text-orange-600 hover:text-orange-900" %>
+                        <span class="text-gray-300">|</span>
                         <%= link_to 'Edit', edit_dashboard_smtp_credential_path(credential), class: "text-indigo-600 hover:text-indigo-900" %>
                         <span class="text-gray-300">|</span>
                         <%= button_to 'Delete', dashboard_smtp_credential_path(credential), method: :delete, data: { turbo_confirm: 'Are you sure?' }, class: "text-red-600 hover:text-red-900" %>
@@ -97,7 +99,7 @@
   </div>
 
   <!-- Info box -->
-  <div class="rounded-md bg-blue-50 p-4">
+  <div class="rounded-md bg-blue-50 p-4 mb-4">
     <div class="flex">
       <div class="flex-shrink-0">
         <svg class="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
@@ -106,10 +108,26 @@
       </div>
       <div class="ml-3 flex-1 md:flex md:justify-between">
         <p class="text-sm text-blue-700">
-          SMTP credentials are used to authenticate AMS Enterprise when sending emails through port 587.
-          Configure these credentials in your AMS SMTP settings.
+          SMTP credentials are used to authenticate AMS Enterprise when sending emails through SMTP Relay.
+          Generate a credential here and configure it in your AMS SMTP settings.
         </p>
       </div>
     </div>
+  </div>
+
+  <!-- AMS Configuration Guide -->
+  <div class="rounded-md bg-green-50 p-4 border border-green-200">
+    <h3 class="text-sm font-semibold text-green-900 mb-2">AMS Enterprise SMTP Configuration</h3>
+    <p class="text-sm text-green-800 mb-3">Use these settings in AMS Enterprise:</p>
+    <div class="bg-white rounded p-3 text-sm font-mono space-y-1">
+      <div><span class="text-gray-500">SMTP Server:</span> <strong><%= SystemConfig.get(:domain) || 'your-domain.com' %></strong></div>
+      <div><span class="text-gray-500">SMTP Port:</span> <strong>2587</strong></div>
+      <div><span class="text-gray-500">Security:</span> <strong>STARTTLS</strong></div>
+      <div><span class="text-gray-500">Username:</span> <strong>[Use username from credential above]</strong></div>
+      <div><span class="text-gray-500">Password:</span> <strong>[Use password shown when creating credential]</strong></div>
+    </div>
+    <p class="text-xs text-green-700 mt-2">
+      Note: Password is only shown once when creating the credential. Use "New Password" button to regenerate if lost.
+    </p>
   </div>
 </div>

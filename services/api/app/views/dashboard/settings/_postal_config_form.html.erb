@@ -101,6 +101,25 @@
             </p>
           </div>
 
+          <!-- Postal Webhook Public Key -->
+          <div>
+            <%= form.label :postal_webhook_public_key, "Postal Webhook Public Key", class: "block text-sm font-medium text-gray-900" %>
+            <div class="mt-2">
+              <%= form.text_area :postal_webhook_public_key,
+                  value: @system_config.postal_webhook_public_key,
+                  placeholder: "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A...\n-----END PUBLIC KEY-----",
+                  rows: 6,
+                  autocomplete: "off",
+                  class: "block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm font-mono" %>
+            </div>
+            <p class="mt-2 text-sm text-gray-500">
+              Public key from Postal for verifying incoming webhook signatures (PEM format)
+            </p>
+            <div class="mt-2 text-xs bg-yellow-50 text-yellow-800 p-2 rounded">
+              <strong>Important:</strong> Get this key from Postal admin panel. Include the BEGIN/END lines.
+            </div>
+          </div>
+
         </div>
       </div>
     </div>

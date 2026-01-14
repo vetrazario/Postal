@@ -1,35 +1,37 @@
 # ===========================================
 # POSTAL MAIL SERVER
-# Configuration File (Production)
+# Configuration File
 # ===========================================
 
 general:
   use_ip_pools: false
 
 web:
-  host: linenarrow.com
+  host: ${DOMAIN}
   protocol: https
 
 main_db:
   host: mariadb
   port: 3306
   username: postal
-  password: 3d13ad32d93c33da6e3c9cc09e3525bca7f51c1a3a5fc908b6bcad451cf4567c
+  password: ${MARIADB_PASSWORD}
   database: postal
   pool_size: 5
+  socket: false
 
 message_db:
   host: mariadb
   port: 3306
   username: postal
-  password: 3d13ad32d93c33da6e3c9cc09e3525bca7f51c1a3a5fc908b6bcad451cf4567c
+  password: ${MARIADB_PASSWORD}
   prefix: postal
+  socket: false
 
 rabbitmq:
   host: rabbitmq
   port: 5672
   username: postal
-  password: 81b076b7a0216de1633a5dfbb7c41689
+  password: ${RABBITMQ_PASSWORD}
   vhost: postal
 
 smtp_server:
@@ -41,11 +43,11 @@ smtp_server:
 
 dns:
   mx_records:
-    - linenarrow.com
-  smtp_server_hostname: linenarrow.com
-  return_path: rp.linenarrow.com
-  route_domain: routes.linenarrow.com
-  track_domain: linenarrow.com
+    - ${DOMAIN}
+  smtp_server_hostname: ${DOMAIN}
+  return_path: rp.${DOMAIN}
+  route_domain: routes.${DOMAIN}
+  track_domain: ${DOMAIN}
   dkim_identifier: postal
   check_ptr: false
 
@@ -54,13 +56,13 @@ logging:
   log_level: info
 
 rails:
-  secret_key: 45fa5bf127ca8a633b091761a6f7ac5b8a13b783c02deb2b4246a31c3c67989f
+  secret_key: ${SECRET_KEY_BASE}
   environment: production
 
 smtp_client:
   open_timeout: 30
   read_timeout: 60
-  helo_hostname: linenarrow.com
+  helo_hostname: ${DOMAIN}
 
 web_server:
   bind_address: 0.0.0.0

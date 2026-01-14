@@ -17,9 +17,21 @@ const fs = require('fs');
 // Load environment variables
 require('dotenv').config({ path: path.join(__dirname, '../../.env') });
 
+const crypto = require('crypto');
+
 const PORT = process.env.SMTP_RELAY_PORT || 587;
 const API_URL = process.env.API_URL || 'http://api:3000';
 const DOMAIN = process.env.DOMAIN || 'localhost';
+
+// Authentication settings
+const SMTP_AUTH_REQUIRED = process.env.SMTP_AUTH_REQUIRED !== 'false';
+const SMTP_RELAY_SECRET = process.env.SMTP_RELAY_SECRET || '';
+// Credentials are now validated via API against SmtpCredential model (managed in Dashboard)
+
+// Rate limiting
+const connectionAttempts = new Map();
+const MAX_AUTH_FAILURES = 5;
+const AUTH_BLOCK_DURATION = 300000; // 5 minutes
 
 // TLS certificate paths
 const TLS_CERT = process.env.TLS_CERT_PATH || `/etc/letsencrypt/live/${DOMAIN}/fullchain.pem`;
@@ -50,7 +62,67 @@ console.log('Port:', PORT);
 console.log('API URL:', API_URL);
 console.log('Domain:', DOMAIN);
 console.log('TLS:', tlsEnabled ? 'ENABLED' : 'DISABLED');
+console.log('Auth Required:', SMTP_AUTH_REQUIRED ? 'YES' : 'NO');
+console.log('Auth Mode: API (credentials managed via Dashboard)');
+console.log('HMAC Secret:', SMTP_RELAY_SECRET ? 'CONFIGURED' : 'NOT SET (WARNING!)');
 console.log('='.repeat(60));
+
+// Async function to authenticate against API
+async function authenticateViaAPI(username, password) {
+  try {
+    const response = await axios.post(`${API_URL}/api/v1/internal/smtp_auth`, {
+      username: username,
+      password: password
+    }, {
+      timeout: 5000
+    });
+
+    if (response.data.success) {
+      return {
+        success: true,
+        username: response.data.username,
+        rateLimit: response.data.rate_limit
+      };
+    }
+    return { success: false, error: response.data.error || 'Authentication failed' };
+  } catch (error) {
+    if (error.response && error.response.status === 401) {
+      return { success: false, error: 'Invalid credentials' };
+    }
+    console.error('API auth error:', error.message);
+    return { success: false, error: 'Authentication service unavailable' };
+  }
+}
+
+// Helper functions
+function isBlocked(ip) {
+  const attempts = connectionAttempts.get(ip);
+  if (!attempts) return false;
+  if (attempts.failures >= MAX_AUTH_FAILURES) {
+    if (Date.now() - attempts.lastFailure < AUTH_BLOCK_DURATION) {
+      return true;
+    }
+    // Reset after block duration
+    connectionAttempts.delete(ip);
+  }
+  return false;
+}
+
+function recordAuthFailure(ip) {
+  const attempts = connectionAttempts.get(ip) || { failures: 0, lastFailure: 0 };
+  attempts.failures++;
+  attempts.lastFailure = Date.now();
+  connectionAttempts.set(ip, attempts);
+  console.log(`Auth failure for ${ip}: ${attempts.failures}/${MAX_AUTH_FAILURES}`);
+}
+
+function resetAuthFailures(ip) {
+  connectionAttempts.delete(ip);
+}
+
+function generateHmacSignature(payload, secret) {
+  return crypto.createHmac('sha256', secret).update(JSON.stringify(payload)).digest('hex');
+}
 
 // Create SMTP server options
 const serverOptions = {
@@ -69,20 +141,55 @@ const serverOptions = {
     disabledCommands: ['STARTTLS']
   }),
 
-  // Disable authentication for now (can be added later)
-  authOptional: true,
+  // Authentication configuration
+  authOptional: !SMTP_AUTH_REQUIRED,
+  authMethods: ['PLAIN', 'LOGIN'],
 
   // Handle incoming connections
   onConnect(session, callback) {
-    console.log(`[${session.id}] New connection from ${session.remoteAddress}`);
+    const ip = session.remoteAddress;
+    console.log(`[${session.id}] New connection from ${ip}`);
+
+    // Check if IP is blocked due to too many auth failures
+    if (isBlocked(ip)) {
+      console.log(`[${session.id}] Connection rejected - IP blocked: ${ip}`);
+      return callback(new Error('Too many authentication failures. Try again later.'));
+    }
+
     return callback(); // Accept connection
   },
 
-  // Handle authentication (optional)
-  onAuth(auth, session, callback) {
-    console.log(`[${session.id}] Auth attempt: ${auth.username}`);
-    // For now, accept all auth attempts
-    return callback(null, { user: auth.username });
+  // Handle authentication (async via API)
+  async onAuth(auth, session, callback) {
+    const ip = session.remoteAddress;
+    console.log(`[${session.id}] Auth attempt: ${auth.username} from ${ip}`);
+
+    // Check if IP is blocked
+    if (isBlocked(ip)) {
+      return callback(new Error('Too many authentication failures'));
+    }
+
+    // Validate credentials via API (against SmtpCredential model in Dashboard)
+    try {
+      const result = await authenticateViaAPI(auth.username, auth.password);
+
+      if (result.success) {
+        console.log(`[${session.id}] Auth successful for ${auth.username} (rate_limit: ${result.rateLimit})`);
+        resetAuthFailures(ip);
+        return callback(null, {
+          user: result.username,
+          rateLimit: result.rateLimit
+        });
+      }
+
+      console.log(`[${session.id}] Auth failed for ${auth.username}: ${result.error}`);
+      recordAuthFailure(ip);
+      return callback(new Error(result.error || 'Invalid username or password'));
+    } catch (error) {
+      console.error(`[${session.id}] Auth error:`, error.message);
+      recordAuthFailure(ip);
+      return callback(new Error('Authentication failed'));
+    }
   },
 
   // Handle MAIL FROM
@@ -141,14 +248,7 @@ const server = new SMTPServer(serverOptions);
 // Forward email to Rails API
 async function forwardToAPI(session, parsed, raw) {
   try {
-    // Convert headers Map to plain object
-    const headersObj = {};
-    if (parsed.headers && parsed.headers instanceof Map) {
-      parsed.headers.forEach((value, key) => {
-        headersObj[key.toLowerCase()] = value;
-      });
-    }
-
+    const timestamp = Date.now().toString();
     const payload = {
       envelope: {
         from: session.envelope.mailFrom?.address,
@@ -161,26 +261,37 @@ async function forwardToAPI(session, parsed, raw) {
         subject: parsed.subject,
         text: parsed.text,
         html: parsed.html,
-        headers: headersObj
+        headers: parsed.headers
       },
-      raw: raw.toString('base64')
+      raw: raw.toString('base64'),
+      timestamp: timestamp
     };
 
-    // Log headers for debugging
-    if (headersObj['x-id-mail']) {
-      console.log(`  X-ID-mail: ${headersObj['x-id-mail']}`);
+    // Build request headers
+    const headers = {
+      'Content-Type': 'application/json',
+      'X-SMTP-Relay-Timestamp': timestamp
+    };
+
+    // Add HMAC signature if secret is configured
+    if (SMTP_RELAY_SECRET) {
+      const signature = generateHmacSignature(payload, SMTP_RELAY_SECRET);
+      headers['X-SMTP-Relay-Signature'] = signature;
+      console.log(`[${session.id}] Request signed with HMAC`);
     }
 
     const response = await axios.post(`${API_URL}/api/v1/smtp/receive`, payload, {
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers: headers,
       timeout: 30000
     });
 
     console.log(`API response:`, response.status, response.data);
   } catch (error) {
     console.error('Failed to forward to API:', error.message);
+    if (error.response) {
+      console.error('Response status:', error.response.status);
+      console.error('Response data:', error.response.data);
+    }
     throw error;
   }
 }
