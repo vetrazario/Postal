@@ -35,6 +35,11 @@ class ErrorClassifier
       @config = nil
     end
 
+    # Get list of categories that should stop mailing
+    def stop_mailing_categories
+      config['stop_mailing_categories'] || []
+    end
+
     private
 
     def extract_text(payload, key)
