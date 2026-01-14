@@ -2,7 +2,7 @@
 
 module Api
   module V1
-    class BounceStatusController < ApplicationController
+    class BounceStatusController < Api::V1::ApplicationController
       skip_before_action :authenticate_api_key
 
       # GET /api/v1/bounce_status/check?email=test@example.com&campaign_id=123

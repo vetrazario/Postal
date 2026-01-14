@@ -2,7 +2,7 @@
 
 module Api
   module V1
-    class SmtpController < ApplicationController
+    class SmtpController < Api::V1::ApplicationController
       # Use separate authentication for SMTP relay
       skip_before_action :authenticate_api_key
       before_action :authenticate_smtp_relay

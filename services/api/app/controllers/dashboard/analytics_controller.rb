@@ -7,7 +7,7 @@ module Dashboard
       @total_cost = @ai_settings.total_estimated_cost
 
       # Get campaigns for dropdown (unique campaign_ids with stats)
-      @campaigns = EmailLog.where.not(campaign_id: [nil, ''])
+      @campaigns = EmailLog.where.not(campaign_id: [nil, '', 'unknown'])
                            .group(:campaign_id)
                            .select(
                              'campaign_id',
@@ -177,6 +177,8 @@ module Dashboard
       end
     end
 
+    public
+
     # AI Analytics methods
     def analyze_bounces
       ai_settings = AiSetting.instance
@@ -300,6 +302,8 @@ module Dashboard
         redirect_to dashboard_analytics_path(campaign_id: campaign_id)
       end
     end
+
+    public
 
     def history
       page = (params[:page] || 1).to_i

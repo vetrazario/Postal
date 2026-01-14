@@ -16,6 +16,10 @@ class EmailLog < ApplicationRecord
 
   encrypts :recipient, deterministic: true
 
+  def self.find_by_external_message_id(external_message_id)
+    find_by(external_message_id: external_message_id)
+  end
+
   def self.mask_email(email)
     return email if email.blank?
 
