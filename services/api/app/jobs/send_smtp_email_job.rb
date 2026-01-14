@@ -49,7 +49,8 @@ class SendSmtpEmailJob < ApplicationJob
       subject: message[:subject],
       html_body: html_content,
       headers: build_custom_headers(message),
-      tag: 'smtp-relay'
+      tag: 'smtp-relay',
+      campaign_id: email_log.campaign_id
     }
 
     # Send to Postal
