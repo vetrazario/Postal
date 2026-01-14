@@ -8,8 +8,29 @@ class PostalClient
     domain = SystemConfig.get(:domain) || 'localhost'
     message_headers = build_headers(from, to, subject, domain, campaign_id).merge(headers)
 
+    # Build request body
+    request_body = {
+      to: [to],
+      from: from,
+      sender: from,
+      subject: subject,
+      html_body: html_body,
+      plain_body: html_to_text(html_body),
+      headers: message_headers,
+      tag: tag,
+      bounce: true,
+      track_clicks: track_clicks,
+      track_opens: track_opens
+    }
+
     # Log the request details for debugging
-    Rails.logger.info "PostalClient: Sending to #{@api_url}/api/v1/send/message with Host: #{domain}"
+    Rails.logger.info "PostalClient: Sending to #{@api_url}/api/v1/send/message"
+    Rails.logger.info "  Domain: #{domain}"
+    Rails.logger.info "  Recipient: #{to}"
+    Rails.logger.info "  track_clicks: #{track_clicks.inspect}"
+    Rails.logger.info "  track_opens: #{track_opens.inspect}"
+    Rails.logger.info "  campaign_id: #{campaign_id.inspect}"
+    Rails.logger.info "  Request body: #{request_body.to_json}"
 
     response = HTTParty.post(
       "#{@api_url}/api/v1/send/message",
@@ -18,20 +39,7 @@ class PostalClient
         'X-Server-API-Key' => @api_key,
         'Content-Type' => 'application/json'
       },
-      debug_output: Rails.logger,
-      body: {
-        to: [to],
-        from: from,
-        sender: from,
-        subject: subject,
-        html_body: html_body,
-        plain_body: html_to_text(html_body),
-        headers: message_headers,
-        tag: tag,
-        bounce: true,
-        track_clicks: track_clicks,
-        track_opens: track_opens
-      }.to_json
+      body: request_body.to_json
     )
 
     parse_response(response, to)
