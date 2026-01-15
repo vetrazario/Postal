@@ -88,10 +88,10 @@ class TrackingController < ApplicationController
     # Format 1: /go/slug-TOKEN (new readable format)
     if params[:slug].present?
       parts = params[:slug].split('-')
-      # Token is everything after last dash (might be partial - 8 chars)
+      # Token is everything after last dash (16 chars for collision resistance)
       partial_token = parts.last
 
-      if partial_token.present? && partial_token.length >= 8
+      if partial_token.present? && partial_token.length >= 16
         # Find full token by partial match (with SQL escaping for LIKE)
         sanitized_token = EmailClick.sanitize_sql_like(partial_token)
         click = EmailClick.where("token LIKE ?", "#{sanitized_token}%").first
@@ -111,15 +111,26 @@ class TrackingController < ApplicationController
   def bot_request?
     ua = request.user_agent.to_s.downcase
 
-    # Common bot patterns
+    # Common bot patterns with word boundaries to avoid false positives
+    # (e.g., "Bottle" won't match, "Robot Framework" won't match, "Checkpoint" won't match)
     bot_patterns = [
-      'bot', 'crawl', 'spider', 'slurp', 'mediapartners',
-      'facebookexternalhit', 'twitterbot', 'whatsapp',
-      'googlebot', 'bingbot', 'yandexbot',
-      'preview', 'scanner', 'check'
+      /\bbot\b/,         # Standalone "bot" word
+      /bot[\/\-_]/,      # "bot/" or "bot-" (e.g., "googlebot/", "yandexbot-")
+      /crawl/,           # Matches "crawler", "webcrawler", etc.
+      /spider/,          # Web spiders
+      /\bslurp/,         # Yahoo Slurp
+      /mediapartners/,   # Google Mediapartners
+      /facebookexternalhit/,
+      /twitterbot/,
+      /whatsapp/,
+      /googlebot/,
+      /bingbot/,
+      /yandexbot/,
+      /\bscanner\b/,     # Security scanners
+      /\bpreview\b.*\bbot/  # Link preview bots
     ]
 
-    bot_patterns.any? { |pattern| ua.include?(pattern) }
+    bot_patterns.any? { |pattern| ua.match?(pattern) }
   end
 
   # Send 1x1 transparent GIF

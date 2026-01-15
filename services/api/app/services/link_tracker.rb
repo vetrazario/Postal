@@ -151,8 +151,9 @@ class LinkTracker
     # Use branded domain if configured, otherwise main domain
     tracking_host = options[:branded_domain] || domain
 
-    # Create readable URL: /go/youtube-video-TOKEN instead of /t/c/TOKEN
-    "https://#{tracking_host}/go/#{slug}-#{token[0..7]}"
+    # Create readable URL with 16-char token to prevent collisions
+    # Full token is 43 chars, using 16 gives 64^16 combinations (collision-resistant)
+    "https://#{tracking_host}/go/#{slug}-#{token[0..15]}"
   end
 
   # Generate human-readable slug from URL
