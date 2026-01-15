@@ -24,16 +24,20 @@ class TrackingController < ApplicationController
       end
 
       # Update click info (only first click from real user)
-      if click_record.ip_address.blank?
-        click_record.update!(
-          ip_address: request.remote_ip,
-          user_agent: request.user_agent,
-          clicked_at: Time.current
-        )
+      # Use atomic UPDATE to prevent race condition
+      rows_updated = EmailClick.where(
+        id: click_record.id,
+        ip_address: nil  # Only update if still null (race condition prevention)
+      ).update_all(
+        ip_address: request.remote_ip,
+        user_agent: request.user_agent,
+        clicked_at: Time.current,
+        updated_at: Time.current
+      )
 
-        # Update campaign stats
+      # Only increment stats if we actually updated (were first)
+      if rows_updated > 0
         update_campaign_stats(click_record.campaign_id, :clicks)
-
         Rails.logger.info "Click tracked: #{click_record.id}, URL: #{click_record.url}, IP: #{request.remote_ip}"
       end
 
@@ -61,16 +65,20 @@ class TrackingController < ApplicationController
 
     if open_record
       # Update open info (only first open from real user)
-      if open_record.ip_address.blank?
-        open_record.update!(
-          ip_address: request.remote_ip,
-          user_agent: request.user_agent,
-          opened_at: Time.current
-        )
+      # Use atomic UPDATE to prevent race condition
+      rows_updated = EmailOpen.where(
+        id: open_record.id,
+        ip_address: nil  # Only update if still null (race condition prevention)
+      ).update_all(
+        ip_address: request.remote_ip,
+        user_agent: request.user_agent,
+        opened_at: Time.current,
+        updated_at: Time.current
+      )
 
-        # Update campaign stats
+      # Only increment stats if we actually updated (were first)
+      if rows_updated > 0
         update_campaign_stats(open_record.campaign_id, :opens)
-
         Rails.logger.info "Open tracked: #{open_record.id}, IP: #{request.remote_ip}"
       end
     else

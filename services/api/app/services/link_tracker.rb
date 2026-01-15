@@ -26,7 +26,11 @@ class LinkTracker
     doc.css('a[href]').each do |link|
       original_url = link['href']
       next if original_url.blank?
-      next if original_url.start_with?('#', 'mailto:', 'tel:') # Skip anchors, mailto, tel
+
+      # Skip anchors, mailto, tel, and DANGEROUS schemes (XSS prevention)
+      # Use downcase to prevent case-variation bypass (e.g., "JAVASCRIPT:" or "JaVaScRiPt:")
+      url_lower = original_url.downcase
+      next if url_lower.start_with?('#', 'mailto:', 'tel:', 'javascript:', 'data:', 'vbscript:', 'file:', 'about:')
       next if own_domain_link?(original_url) # Skip own domain links
 
       # Limit number of tracked links if configured
@@ -177,6 +181,7 @@ class LinkTracker
       .gsub(/-+/, '-')
       .gsub(/^-|-$/, '')
       .slice(0, 30)
+      .gsub(/^-|-$/, '')  # Remove trailing dash again after slice (edge case)
 
     slug.presence || 'link'
   rescue URI::InvalidURIError
