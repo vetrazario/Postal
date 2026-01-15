@@ -18,6 +18,12 @@ if ENV['SIDEKIQ_WEB_USERNAME'].present? && ENV['SIDEKIQ_WEB_PASSWORD'].present?
 end
 
 Rails.application.routes.draw do
+  # Tracking endpoints (public, no auth)
+  get '/t/c/:token', to: 'tracking#click', as: 'track_click'
+  get '/t/o/:token', to: 'tracking#open', as: 'track_open'
+  get '/unsubscribe', to: 'unsubscribes#show', as: 'unsubscribe_page'
+  post '/unsubscribe', to: 'unsubscribes#create', as: 'unsubscribe_submit'
+
   namespace :api do
     namespace :v1 do
       # Health check (no auth)

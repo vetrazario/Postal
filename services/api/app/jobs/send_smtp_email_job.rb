@@ -43,16 +43,18 @@ class SendSmtpEmailJob < ApplicationJob
                      "<pre>#{message[:text]}</pre>"
                    end
 
+    # Apply our own tracking (replace links + add pixel)
+    tracker = LinkTracker.new(email_log: email_log)
+    html_with_tracking = tracker.process_html(html_content, track_clicks: true, track_opens: true)
+
     postal_payload = {
       to: envelope[:to].is_a?(Array) ? envelope[:to].first : envelope[:to],
       from: envelope[:from],
       subject: message[:subject],
-      html_body: html_content,
+      html_body: html_with_tracking,
       headers: build_custom_headers(message),
       tag: 'smtp-relay',
-      campaign_id: email_log.campaign_id,
-      track_clicks: true,
-      track_opens: true
+      campaign_id: email_log.campaign_id
     }
 
     # Send to Postal

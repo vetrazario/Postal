@@ -4,11 +4,11 @@ class PostalClient
     @api_key = api_key
   end
 
-  def send_message(to:, from:, subject:, html_body:, headers: {}, tag: nil, campaign_id: nil, track_clicks: true, track_opens: true)
+  def send_message(to:, from:, subject:, html_body:, headers: {}, tag: nil, campaign_id: nil)
     domain = SystemConfig.get(:domain) || 'localhost'
     message_headers = build_headers(from, to, subject, domain, campaign_id).merge(headers)
 
-    # Build request body
+    # Build request body (no Postal tracking - we do our own)
     request_body = {
       to: [to],
       from: from,
@@ -18,19 +18,14 @@ class PostalClient
       plain_body: html_to_text(html_body),
       headers: message_headers,
       tag: tag,
-      bounce: true,
-      track_clicks: track_clicks,
-      track_opens: track_opens
+      bounce: true
     }
 
     # Log the request details for debugging
     Rails.logger.info "PostalClient: Sending to #{@api_url}/api/v1/send/message"
     Rails.logger.info "  Domain: #{domain}"
     Rails.logger.info "  Recipient: #{to}"
-    Rails.logger.info "  track_clicks: #{track_clicks.inspect}"
-    Rails.logger.info "  track_opens: #{track_opens.inspect}"
     Rails.logger.info "  campaign_id: #{campaign_id.inspect}"
-    Rails.logger.info "  Request body: #{request_body.to_json}"
 
     response = HTTParty.post(
       "#{@api_url}/api/v1/send/message",
