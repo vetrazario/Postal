@@ -48,7 +48,8 @@ class TrackingController < ApplicationController
 
   # Handle open tracking: GET /t/o/:token.gif
   def open
-    token = params[:token]
+    # Remove .gif extension if present (Rails routing captures it)
+    token = params[:token]&.gsub(/\.gif$/, '')
 
     # Return pixel immediately for bots (no tracking)
     if bot_request?

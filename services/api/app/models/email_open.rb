@@ -9,7 +9,11 @@ class EmailOpen < ApplicationRecord
   scope :opened, -> { where.not(opened_at: nil) } # Только реально открытые
   scope :recent, -> { where.not(opened_at: nil).order(opened_at: :desc) }
   scope :since, ->(time) { where('opened_at >= ?', time) }
-  scope :unique_opens, -> { select('DISTINCT ON (email_log_id) *').order('email_log_id, opened_at') }
+  scope :unique_opens, -> {
+    where.not(opened_at: nil)
+      .select('DISTINCT ON (email_log_id) *')
+      .order('email_log_id, opened_at')
+  }
 
   # Generate unique token for tracking
   def self.generate_token

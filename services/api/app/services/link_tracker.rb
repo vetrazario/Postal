@@ -111,9 +111,14 @@ class LinkTracker
 
     begin
       uri = URI.parse(url)
+
+      # Relative URLs (no host) should be tracked
+      return false unless uri.host
+
       # Check if URL is from our domain or tracking domain
       return true if uri.host == domain
-      return true if uri.host == options[:branded_domain]
+      return true if options[:branded_domain].present? && uri.host == options[:branded_domain]
+
       false
     rescue URI::InvalidURIError
       false
