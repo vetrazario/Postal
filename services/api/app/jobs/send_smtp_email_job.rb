@@ -14,6 +14,16 @@ class SendSmtpEmailJob < ApplicationJob
 
     email_log = EmailLog.find(email_data[:email_log_id])
 
+    # Check throttling (warmup mode)
+    unless EmailThrottler.can_send_email?
+      email_log.update!(status: 'throttled', status_details: {
+        reason: 'daily_limit_reached',
+        quota: EmailThrottler.throttle_info
+      })
+      Rails.logger.warn "Email throttled: daily limit reached (#{EmailThrottler.emails_sent_today}/#{EmailThrottler.daily_limit})"
+      return
+    end
+
     # Check if email is blocked (unsubscribed or bounced)
     if Unsubscribe.blocked?(email: email_log.recipient, campaign_id: email_log.campaign_id)
       email_log.update!(status: 'failed', status_details: { reason: 'unsubscribed' })

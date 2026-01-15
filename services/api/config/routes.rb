@@ -133,6 +133,13 @@ Rails.application.routes.draw do
         get :stats
       end
     end
+
+    # Tracking Settings
+    resource :tracking_settings, only: [:show, :update] do
+      post :enable_warmup, on: :collection
+      post :disable_warmup, on: :collection
+      get :check_reputation, on: :collection
+    end
   end
 
   # Sidekiq Web UI (монтируем только если заданы учетные данные)
