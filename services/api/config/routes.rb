@@ -19,6 +19,7 @@ end
 
 Rails.application.routes.draw do
   # Tracking endpoints (public, no auth)
+  get '/go/:slug', to: 'tracking#click', as: 'track_click_readable'
   get '/t/c/:token', to: 'tracking#click', as: 'track_click'
   get '/t/o/:token', to: 'tracking#open', as: 'track_open'
   get '/unsubscribe', to: 'unsubscribes#show', as: 'unsubscribe_page'
