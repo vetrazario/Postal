@@ -18,12 +18,12 @@
 
 - [ ] Open Dashboard: https://linenarrow.com/dashboard/tracking_settings
 - [ ] Configure tracking:
-  - [ ] Click Tracking: **ON**
-  - [ ] Open Tracking: **OFF** (для cold emails)
-  - [ ] UTM Tracking: **ON**
-  - [ ] Max Tracked Links: **5**
+  - [ ] Click Tracking: **ON** (readable redirects)
+  - [ ] Open Tracking: **ON** (Gmail-optimized pixel)
+  - [ ] Max Tracked Links: **10** (track all links)
   - [ ] Privacy Footer: **ON**
   - [ ] Daily Send Limit: **500**
+  - [ ] Branded Domain: **go.linenarrow.com** (optional)
 
 ## Domain Reputation
 
@@ -49,11 +49,13 @@
 ## Testing
 
 - [ ] Send test campaign with link
-- [ ] Check received email - link should have UTM params
-- [ ] Click link - should redirect directly (no intermediate page)
+- [ ] Check received email - link format: `/go/youtube-video-abc12345`
+- [ ] Click link - should do fast 301 redirect to destination
 - [ ] Check Dashboard Analytics - click should be recorded
 - [ ] Verify no "tracking warning" in Gmail
 - [ ] Check privacy footer appears
+- [ ] Test bot detection - bot clicks shouldn't be tracked
+- [ ] Verify repeat clicks don't duplicate stats
 
 ## Warmup (for new domains only)
 

@@ -6,22 +6,22 @@
 
 ## ✅ Что реализовано:
 
-### 1. **UTM-Based Tracking** (без редиректов)
+### 1. **Redirect-Based Tracking** (с читаемыми URL)
 ```
-Вместо:  https://linenarrow.com/t/c/abc123 → redirect
-Теперь:  https://youtube.com?utm_source=email&utm_campaign=101&_t=abc123
+Было:    https://linenarrow.com/t/c/abc123xyz456
+Теперь:  https://linenarrow.com/go/youtube-watch-abc12345
 ```
-✅ Прямой переход (no redirect)
-✅ Gmail не блокирует
-✅ Выглядит легитимно
+✅ Читаемый URL (видно куда ведет)
+✅ Быстрый 301 редирект
+✅ Фильтрация ботов
+✅ Можно исправить сломанные ссылки
 
 ### 2. **Гибкие настройки tracking**
 ```ruby
 # В Dashboard → Tracking Settings
-enable_open_tracking: false       # OFF по умолчанию (Gmail shows warnings)
+enable_open_tracking: true        # ON (Gmail-optimized pixel)
 enable_click_tracking: true       # ON по умолчанию
-use_utm_tracking: true            # UTM вместо redirects
-max_tracked_links: 5              # Track только важные CTA
+max_tracked_links: 10             # Track все ссылки
 tracking_footer_enabled: true     # Privacy disclaimer
 tracking_domain: "go.linenarrow.com" # Branded domain (опционально)
 ```
@@ -97,12 +97,12 @@ https://linenarrow.com/dashboard/tracking_settings
 
 Рекомендуемые настройки:
 ```
-✅ Enable Click Tracking: YES
-❌ Enable Open Tracking: NO (для cold emails)
-✅ Use UTM Tracking: YES
-📊 Max Tracked Links: 5
+✅ Enable Click Tracking: YES (readable redirects)
+✅ Enable Open Tracking: YES (Gmail-optimized pixel)
+📊 Max Tracked Links: 10 (track all links)
 ✅ Tracking Footer: YES
 📧 Daily Send Limit: 500
+🎯 Branded Domain: go.linenarrow.com (optional)
 ```
 
 ### Step 5: Check Domain Reputation
@@ -159,16 +159,17 @@ docker compose exec api rails c
 
 **Ожидаемый результат:**
 ```html
-<a href="https://google.com?utm_source=email&utm_medium=campaign&utm_campaign=102&_t=abc123">Click here</a>
+<a href="https://linenarrow.com/go/google-abc12345">Click here</a>
 ```
 
 ### Test 2: Check Tracking
 
 1. Открой письмо в Gmail
 2. Наведи на ссылку
-3. Проверь URL содержит UTM параметры
-4. Кликни → должен быть прямой переход на google.com
+3. Проверь URL: `https://linenarrow.com/go/google-abc12345` (readable format)
+4. Кликни → должен быть быстрый 301 редирект на google.com
 5. Проверь Dashboard → Analytics → должен появиться клик
+6. Повторный клик не должен дублироваться (track только первый)
 
 ### Test 3: Domain Reputation
 
@@ -348,22 +349,24 @@ SystemConfig.set(:daily_send_limit, 1000)
 
 ### ✅ DO:
 
-1. **Use UTM tracking** (default)
-2. **Limit tracked links** (max 5)
+1. **Use readable redirects** (default - /go/youtube-video-abc123)
+2. **Track important links** (max 10, skip own domain)
 3. **Add privacy footer**
 4. **Monitor reputation daily**
 5. **Enable warmup for new domains**
 6. **Keep spam rate < 0.3%**
 7. **Test with real Gmail accounts**
+8. **Use branded domain** (go.linenarrow.com for better CTR)
 
 ### ❌ DON'T:
 
-1. **Enable open tracking for cold emails** (Gmail shows warnings)
-2. **Track all links** (track only CTAs)
+1. **Track pixel placement wrong** (use lazy loading + opacity 0)
+2. **Ignore bot clicks** (use built-in bot detection)
 3. **Use generic URL shorteners** (bit.ly = spam)
 4. **Send > 500 emails/day** (without warmup)
 5. **Ignore blacklist warnings**
 6. **Skip SPF/DKIM/DMARC setup**
+7. **Track repeated clicks** (only first click counts)
 
 ---
 
@@ -395,6 +398,7 @@ Issues or questions?
 
 ---
 
-**Last Updated:** 2026-01-14
+**Last Updated:** 2026-01-15
 **Status:** Production Ready ✅
 **Branch:** `claude/bounce-patterns-management-Awt4F`
+**Implementation:** Redirect-Based Tracking with Readable URLs
