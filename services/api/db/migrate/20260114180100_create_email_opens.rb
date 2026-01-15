@@ -6,7 +6,7 @@ class CreateEmailOpens < ActiveRecord::Migration[7.0]
       t.string :ip_address
       t.string :user_agent, limit: 1024
       t.string :token, null: false, index: { unique: true }
-      t.datetime :opened_at, null: false
+      t.datetime :opened_at # Nullable - заполняется при первом открытии
 
       t.timestamps
     end

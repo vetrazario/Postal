@@ -7,7 +7,7 @@ class CreateEmailClicks < ActiveRecord::Migration[7.0]
       t.string :ip_address
       t.string :user_agent, limit: 1024
       t.string :token, null: false, index: { unique: true }
-      t.datetime :clicked_at, null: false
+      t.datetime :clicked_at # Nullable - заполняется при первом клике
 
       t.timestamps
     end

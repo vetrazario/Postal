@@ -3,10 +3,11 @@ class EmailOpen < ApplicationRecord
 
   validates :campaign_id, presence: true
   validates :token, presence: true, uniqueness: true
-  validates :opened_at, presence: true
+  # opened_at is nullable - заполняется при первом открытии (не требуем presence)
 
   scope :for_campaign, ->(campaign_id) { where(campaign_id: campaign_id) }
-  scope :recent, -> { order(opened_at: :desc) }
+  scope :opened, -> { where.not(opened_at: nil) } # Только реально открытые
+  scope :recent, -> { where.not(opened_at: nil).order(opened_at: :desc) }
   scope :since, ->(time) { where('opened_at >= ?', time) }
   scope :unique_opens, -> { select('DISTINCT ON (email_log_id) *').order('email_log_id, opened_at') }
 

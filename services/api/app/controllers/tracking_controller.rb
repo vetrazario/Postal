@@ -90,9 +90,10 @@ class TrackingController < ApplicationController
       # Token is everything after last dash (might be partial - 8 chars)
       partial_token = parts.last
 
-      if partial_token.length >= 8
-        # Find full token by partial match
-        click = EmailClick.where("token LIKE ?", "#{partial_token}%").first
+      if partial_token.present? && partial_token.length >= 8
+        # Find full token by partial match (with SQL escaping for LIKE)
+        sanitized_token = EmailClick.sanitize_sql_like(partial_token)
+        click = EmailClick.where("token LIKE ?", "#{sanitized_token}%").first
         return click&.token
       end
     end

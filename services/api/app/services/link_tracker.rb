@@ -27,7 +27,7 @@ class LinkTracker
       original_url = link['href']
       next if original_url.blank?
       next if original_url.start_with?('#', 'mailto:', 'tel:') # Skip anchors, mailto, tel
-      next if original_url.start_with?('https://linenarrow.com') # Skip own domain
+      next if own_domain_link?(original_url) # Skip own domain links
 
       # Limit number of tracked links if configured
       break if tracked_count >= options[:max_tracked_links]
@@ -48,12 +48,12 @@ class LinkTracker
     tracking_host = options[:branded_domain] || domain
     pixel_url = "https://#{tracking_host}/t/o/#{token}.gif"
 
-    # Create tracking record (will be updated when opened)
+    # Create tracking record (opened_at будет установлен при загрузке пикселя)
     EmailOpen.create!(
       email_log: email_log,
       campaign_id: email_log.campaign_id || 'unknown',
-      token: token,
-      opened_at: Time.current
+      token: token
+      # opened_at: nil - заполнится в TrackingController при первом открытии
     )
 
     # Gmail-friendly pixel: lazy loading, minimal size, no display
@@ -105,6 +105,21 @@ class LinkTracker
 
   private
 
+  # Check if URL belongs to our own domain (skip tracking for internal links)
+  def own_domain_link?(url)
+    return false if url.blank?
+
+    begin
+      uri = URI.parse(url)
+      # Check if URL is from our domain or tracking domain
+      return true if uri.host == domain
+      return true if uri.host == options[:branded_domain]
+      false
+    rescue URI::InvalidURIError
+      false
+    end
+  end
+
   def load_system_defaults
     {
       track_clicks: SystemConfig.get(:enable_click_tracking) != false,
@@ -119,13 +134,13 @@ class LinkTracker
     token = EmailClick.generate_token
     slug = generate_readable_slug(original_url)
 
-    # Store click record
+    # Store click record (clicked_at будет установлен при первом клике)
     EmailClick.create!(
       email_log: email_log,
       campaign_id: email_log.campaign_id || 'unknown',
       url: original_url,
-      token: token,
-      clicked_at: Time.current
+      token: token
+      # clicked_at: nil - заполнится в TrackingController при первом клике
     )
 
     # Use branded domain if configured, otherwise main domain
