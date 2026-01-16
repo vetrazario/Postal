@@ -1,6 +1,7 @@
-class TrackingController < ApplicationController
+class TrackingController < ActionController::Base
   skip_before_action :verify_authenticity_token
-  skip_before_action :authenticate_user!, if: :devise_controller?
+
+  # Public endpoint - no authentication required
 
   # Handle click tracking: GET /go/:slug OR /t/c/:token
   def click
