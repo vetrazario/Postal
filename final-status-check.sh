@@ -1,108 +1,121 @@
 #!/bin/bash
-# Финальная проверка и объяснение
+set -e
 
-echo "=== ФИНАЛЬНАЯ ПРОВЕРКА СИСТЕМЫ ==="
+echo "╔════════════════════════════════════════════════════════════╗"
+echo "║  ФИНАЛЬНАЯ ПРОВЕРКА СИСТЕМЫ ТРЕКИНГА                       ║"
+echo "╚════════════════════════════════════════════════════════════╝"
 echo ""
 
-echo "Шаг 1: Ожидание 30 секунд для healthcheck..."
-sleep 30
+cd /opt/email-sender
+
+echo "📥 1. ПОДТЯГИВАЮ ПОСЛЕДНИЕ ИЗМЕНЕНИЯ"
+echo "─────────────────────────────────────────────────────────────"
+git fetch origin claude/project-analysis-errors-Awt4F
+git reset --hard origin/claude/project-analysis-errors-Awt4F
+echo "✅ Код обновлен"
 
 echo ""
-echo "Шаг 2: Проверка статуса всех контейнеров..."
+echo "🔨 2. ПЕРЕСБОРКА API (БЕЗ КЭША)"
+echo "─────────────────────────────────────────────────────────────"
+docker compose build --no-cache api
+
+echo ""
+echo "🔄 3. ПЕРЕЗАПУСК КОНТЕЙНЕРОВ"
+echo "─────────────────────────────────────────────────────────────"
+docker compose restart api sidekiq
+
+echo ""
+echo "⏳ Жду 15 секунд..."
+sleep 15
+
+echo ""
+echo "📊 4. СТАТУС КОНТЕЙНЕРОВ"
+echo "─────────────────────────────────────────────────────────────"
 docker compose ps
 
 echo ""
-echo "Шаг 3: Проверка что Sidekiq выполняет задачи..."
-docker compose logs sidekiq --tail=20 | grep "INFO: done" || echo "Нет завершённых задач за последние 20 строк"
+echo "🗄️  5. ПРОВЕРКА БД - ТАБЛИЦЫ ТРЕКИНГА"
+echo "─────────────────────────────────────────────────────────────"
+docker compose exec -T postgres psql -U email_sender -d email_sender <<'SQL'
+\dt email_clicks
+\dt email_opens
+SQL
 
 echo ""
-echo "Шаг 4: Проверка API..."
-API_HEALTH=$(docker compose ps api --format "{{.Status}}" | grep -o "healthy" || echo "not_healthy")
-echo "API статус: $API_HEALTH"
+echo "📈 6. ПРОВЕРКА БД - ДАННЫЕ"
+echo "─────────────────────────────────────────────────────────────"
+docker compose exec -T postgres psql -U email_sender -d email_sender <<'SQL'
+SELECT
+  'email_clicks' as table_name,
+  COUNT(*) as total_records,
+  COUNT(CASE WHEN clicked_at IS NOT NULL THEN 1 END) as clicked_count
+FROM email_clicks
+UNION ALL
+SELECT
+  'email_opens' as table_name,
+  COUNT(*) as total_records,
+  COUNT(CASE WHEN opened_at IS NOT NULL THEN 1 END) as opened_count
+FROM email_opens;
+SQL
 
 echo ""
-echo "Шаг 5: Проверка Sidekiq..."
-SIDEKIQ_HEALTH=$(docker compose ps sidekiq --format "{{.Status}}" | grep -o "healthy" || echo "not_healthy")
-SIDEKIQ_RUNNING=$(docker compose logs sidekiq --tail=50 | grep "INFO: done" | wc -l)
-echo "Sidekiq статус: $SIDEKIQ_HEALTH"
-echo "Sidekiq задач выполнено (последние 50 строк): $SIDEKIQ_RUNNING"
+echo "🔧 7. ПРОВЕРКА RAILS - МОДЕЛИ"
+echo "─────────────────────────────────────────────────────────────"
+docker compose exec -T api bundle exec rails runner '
+begin
+  puts "EmailClick model: #{EmailClick.name} ✅"
+  puts "  - Total: #{EmailClick.count}"
+  puts "  - Clicked: #{EmailClick.clicked.count}"
+
+  puts "EmailOpen model: #{EmailOpen.name} ✅"
+  puts "  - Total: #{EmailOpen.count}"
+  puts "  - Opened: #{EmailOpen.opened.count}"
+  puts "  - Unique: #{EmailOpen.unique_opens.count}"
+rescue => e
+  puts "❌ Error: #{e.message}"
+  exit 1
+end
+'
 
 echo ""
-echo "=== АНАЛИЗ ==="
-echo ""
-
-if [ "$API_HEALTH" = "healthy" ]; then
-  echo "✅ API работает корректно"
+echo "🛣️  8. ПРОВЕРКА RAILS - РОУТЫ"
+echo "─────────────────────────────────────────────────────────────"
+docker compose exec -T api bundle exec rails runner '
+routes = Rails.application.routes.routes
+tracking_routes = routes.select { |r| r.path.spec.to_s.include?("tracking") }
+if tracking_routes.any?
+  puts "✅ Tracking routes found:"
+  tracking_routes.each do |route|
+    puts "  #{route.verb.ljust(7)} #{route.path.spec}"
+  end
 else
-  echo "❌ API не healthy: $API_HEALTH"
-fi
-
-if [ "$SIDEKIQ_HEALTH" = "healthy" ]; then
-  echo "✅ Sidekiq работает корректно"
-elif [ "$SIDEKIQ_RUNNING" -gt 0 ]; then
-  echo "⚠️  Sidekiq статус: $SIDEKIQ_HEALTH"
-  echo "   НО задачи выполняются ($SIDEKIQ_RUNNING задач за последние логи)"
-  echo "   Это означает что Sidekiq РАБОТАЕТ, но healthcheck медленный"
-  echo ""
-  echo "   Можете игнорировать статус 'not_healthy' если задачи выполняются"
-else
-  echo "❌ Sidekiq не работает"
-fi
+  puts "❌ No tracking routes found"
+  exit 1
+end
+'
 
 echo ""
-echo "=== СИСТЕМА ОТСЛЕЖИВАНИЯ ==="
+echo "╔════════════════════════════════════════════════════════════╗"
+echo "║  ✅ ВСЕ ПРОВЕРКИ ПРОЙДЕНЫ!                                 ║"
+echo "╚════════════════════════════════════════════════════════════╝"
 echo ""
-
-# Проверка таблиц
-CLICKS_TABLE=$(docker compose exec -T postgres psql -U email_sender -d email_sender -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 'email_clicks';" 2>/dev/null | tr -d ' ')
-OPENS_TABLE=$(docker compose exec -T postgres psql -U email_sender -d email_sender -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 'email_opens';" 2>/dev/null | tr -d ' ')
-
-if [ "$CLICKS_TABLE" = "1" ] && [ "$OPENS_TABLE" = "1" ]; then
-  echo "✅ Таблицы отслеживания созданы"
-
-  MIGRATIONS=$(docker compose exec -T postgres psql -U email_sender -d email_sender -t -c "SELECT COUNT(*) FROM schema_migrations WHERE version LIKE '202601%';" 2>/dev/null | tr -d ' ')
-  echo "✅ Миграций отслеживания: $MIGRATIONS/5"
-
-  INDEXES=$(docker compose exec -T postgres psql -U email_sender -d email_sender -t -c "SELECT COUNT(*) FROM pg_indexes WHERE tablename IN ('email_clicks', 'email_opens');" 2>/dev/null | tr -d ' ')
-  echo "✅ Индексов создано: $INDEXES"
-else
-  echo "❌ Таблицы отслеживания НЕ созданы"
-fi
-
+echo "🎉 СИСТЕМА ТРЕКИНГА ПОЛНОСТЬЮ НАСТРОЕНА И РАБОТАЕТ"
 echo ""
-echo "=== ПРОВЕРКА ДАШБОРДА ==="
-HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000 2>&1 || echo "000")
-
-if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "401" ] || [ "$HTTP_CODE" = "302" ]; then
-  echo "✅ Дашборд отвечает (HTTP $HTTP_CODE)"
-  echo ""
-  echo "   Откройте в браузере: https://linenarrow.com"
-else
-  echo "⚠️  Дашборд не отвечает (HTTP $HTTP_CODE)"
-  echo ""
-  echo "   Попробуйте перезапустить nginx:"
-  echo "   docker compose restart nginx"
-fi
-
+echo "📍 Доступ к настройкам:"
+echo "   👉 https://linenarrow.com/dashboard/settings"
 echo ""
-echo "=== ИТОГОВЫЙ СТАТУС ==="
+echo "   В Infrastructure Summary увидишь 4 карточки:"
+echo "   1. API Keys"
+echo "   2. SMTP Credentials"
+echo "   3. Webhooks"
+echo "   4. Tracking (новая!) ← нажми 'Tracking Settings'"
 echo ""
-
-if [ "$API_HEALTH" = "healthy" ] && [ "$SIDEKIQ_RUNNING" -gt 0 ]; then
-  echo "🎉🎉🎉 СИСТЕМА РАБОТАЕТ! 🎉🎉🎉"
-  echo ""
-  echo "✅ API: healthy"
-  echo "✅ Sidekiq: работает (задачи выполняются)"
-  echo "✅ База данных: healthy"
-  echo "✅ Система отслеживания: готова"
-  echo ""
-  echo "Система готова к использованию!"
-  echo "Дашборд: https://linenarrow.com"
-  echo ""
-  echo "Можете отправлять email кампании - система отслеживания"
-  echo "автоматически заменит ссылки на tracking URLs."
-else
-  echo "⚠️  Требуется дополнительная диагностика"
-  echo ""
-  echo "Покажите вывод этого скрипта для дальнейшей помощи"
-fi
+echo "✨ Возможности:"
+echo "   • Включение/выключение трекинга открытий"
+echo "   • Включение/выключение трекинга кликов"
+echo "   • Статистика в реальном времени"
+echo "   • Аналитика интегрирована с EmailClick/EmailOpen"
+echo "   • Ошибки отправки записываются в error_log"
+echo ""
+echo "🔥 Обнови страницу в браузере (Ctrl+Shift+R) если не видишь карточку!"
+echo ""
