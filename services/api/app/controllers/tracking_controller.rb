@@ -16,7 +16,15 @@ class TrackingController < ApplicationController
     click_record = EmailClick.find_by(token: token)
 
     if click_record
-      # Skip bot clicks
+      # Validate URL FIRST (before any redirect, even for bots)
+      # This prevents SSRF and open redirect attacks via bot user-agents
+      unless safe_redirect_url?(click_record.url)
+        Rails.logger.warn "Unsafe redirect URL blocked: #{click_record.url}, Bot: #{bot_request?}, UA: #{request.user_agent}"
+        redirect_to root_url, status: :moved_permanently
+        return
+      end
+
+      # Skip bot clicks (redirect without tracking)
       if bot_request?
         Rails.logger.info "Bot click detected: #{click_record.id}, UA: #{request.user_agent}"
         redirect_to click_record.url, allow_other_host: true, status: :moved_permanently
@@ -41,14 +49,8 @@ class TrackingController < ApplicationController
         Rails.logger.info "Click tracked: #{click_record.id}, URL: #{click_record.url}, IP: #{request.remote_ip}"
       end
 
-      # Validate URL before redirect to prevent open redirect attacks
-      unless safe_redirect_url?(click_record.url)
-        Rails.logger.warn "Unsafe redirect URL blocked: #{click_record.url}"
-        redirect_to root_url, status: :moved_permanently
-        return
-      end
-
       # Fast redirect with caching (301 Permanent)
+      # URL already validated at the top of the method
       redirect_to click_record.url, allow_other_host: true, status: :moved_permanently
     else
       # Token not found - redirect to homepage
