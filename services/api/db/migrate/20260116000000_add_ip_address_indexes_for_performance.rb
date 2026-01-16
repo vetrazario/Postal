@@ -1,4 +1,6 @@
 class AddIpAddressIndexesForPerformance < ActiveRecord::Migration[7.0]
+  disable_ddl_transaction!
+
   def up
     # Add partial indexes for NULL ip_address checks
     # These optimize the race condition prevention queries:
