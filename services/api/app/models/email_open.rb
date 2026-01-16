@@ -3,6 +3,7 @@ class EmailOpen < ApplicationRecord
 
   validates :campaign_id, presence: true
   validates :token, presence: true, uniqueness: true
+  validates :user_agent, length: { maximum: 1024 }, allow_nil: true
   # opened_at is nullable - заполняется при первом открытии (не требуем presence)
 
   scope :for_campaign, ->(campaign_id) { where(campaign_id: campaign_id) }

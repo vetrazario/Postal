@@ -41,6 +41,13 @@ class TrackingController < ApplicationController
         Rails.logger.info "Click tracked: #{click_record.id}, URL: #{click_record.url}, IP: #{request.remote_ip}"
       end
 
+      # Validate URL before redirect to prevent open redirect attacks
+      unless safe_redirect_url?(click_record.url)
+        Rails.logger.warn "Unsafe redirect URL blocked: #{click_record.url}"
+        redirect_to root_url, status: :moved_permanently
+        return
+      end
+
       # Fast redirect with caching (301 Permanent)
       redirect_to click_record.url, allow_other_host: true, status: :moved_permanently
     else
@@ -170,5 +177,35 @@ class TrackingController < ApplicationController
     end
   rescue StandardError => e
     Rails.logger.error "Failed to update campaign stats: #{e.message}"
+  end
+
+  # Validate URL to prevent open redirect attacks
+  def safe_redirect_url?(url)
+    return false if url.blank?
+
+    begin
+      uri = URI.parse(url)
+
+      # Block dangerous schemes (defense in depth - already blocked in LinkTracker)
+      scheme_lower = uri.scheme.to_s.downcase
+      return false if ['javascript', 'data', 'vbscript', 'file', 'about'].include?(scheme_lower)
+
+      # Only allow http/https schemes
+      return false unless ['http', 'https'].include?(scheme_lower)
+
+      # Block protocol-relative URLs (//evil.com)
+      return false if url.start_with?('//')
+
+      # Require valid host
+      return false if uri.host.blank?
+
+      # Block URLs with @ (username in URL - often used for spoofing)
+      # Example: https://linenarrow.com@evil.com redirects to evil.com
+      return false if url.include?('@')
+
+      true
+    rescue URI::InvalidURIError
+      false
+    end
   end
 end
