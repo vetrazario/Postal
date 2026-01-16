@@ -201,9 +201,11 @@ class TrackingController < ApplicationController
       # Require valid host
       return false if uri.host.blank?
 
-      # Block URLs with @ (username in URL - often used for spoofing)
-      # Example: https://linenarrow.com@evil.com redirects to evil.com
-      return false if url.include?('@')
+      # Block URLs with userinfo (username/password before @)
+      # Example: https://user:pass@example.com or https://trusted.com@evil.com
+      # This prevents authentication credential leaks and URL spoofing
+      # Safe URLs like https://twitter.com/@username are NOT blocked (@ is in path, not userinfo)
+      return false if uri.userinfo.present?
 
       true
     rescue URI::InvalidURIError
