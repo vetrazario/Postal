@@ -52,16 +52,14 @@ module Dashboard
           sent: logs.where(status: 'sent').count,
           delivered: logs.where(status: 'delivered').count,
           bounced: logs.where(status: 'bounced').count,
-          opened: TrackingEvent.where(
+          opened: EmailOpen.where(
             email_log_id: logs.ids,
-            event_type: 'open',
             created_at: hour_start...hour_end
-          ).count,
-          clicked: TrackingEvent.where(
+          ).where.not(opened_at: nil).count,
+          clicked: EmailClick.where(
             email_log_id: logs.ids,
-            event_type: 'click',
             created_at: hour_start...hour_end
-          ).count
+          ).where.not(clicked_at: nil).count
         }
       end
 
@@ -86,14 +84,8 @@ module Dashboard
           delivered: logs.where(status: 'delivered').count,
           bounced: logs.where(status: 'bounced').count,
           failed: logs.where(status: 'failed').count,
-          opened: TrackingEvent.where(
-            email_log_id: logs.ids,
-            event_type: 'open'
-          ).count,
-          clicked: TrackingEvent.where(
-            email_log_id: logs.ids,
-            event_type: 'click'
-          ).count
+          opened: EmailOpen.where(email_log_id: logs.ids).where.not(opened_at: nil).count,
+          clicked: EmailClick.where(email_log_id: logs.ids).where.not(clicked_at: nil).count
         }
       end
 
@@ -115,10 +107,11 @@ module Dashboard
       campaigns_data = campaign_stats.map do |stat|
         email_log_ids = EmailLog.where(campaign_id: stat.campaign_id).pluck(:id)
 
-        opens = TrackingEvent.where(email_log_id: email_log_ids, event_type: 'open').count
-        clicks = TrackingEvent.where(email_log_id: email_log_ids, event_type: 'click').count
-        unique_opens = TrackingEvent.where(email_log_id: email_log_ids, event_type: 'open')
-                                     .select(:email_log_id).distinct.count
+        opens = EmailOpen.where(email_log_id: email_log_ids).where.not(opened_at: nil).count
+        clicks = EmailClick.where(email_log_id: email_log_ids).where.not(clicked_at: nil).count
+        unique_opens = EmailOpen.where(email_log_id: email_log_ids)
+                                .where.not(opened_at: nil)
+                                .select(:email_log_id).distinct.count
 
         {
           campaign_id: stat.campaign_id,
@@ -147,9 +140,9 @@ module Dashboard
         total_delivered: EmailLog.where(status: 'delivered').count,
         total_bounced: EmailLog.where(status: 'bounced').count,
         total_failed: EmailLog.where(status: 'failed').count,
-        total_opens: TrackingEvent.where(event_type: 'open').count,
-        total_clicks: TrackingEvent.where(event_type: 'click').count,
-        unique_opens: TrackingEvent.where(event_type: 'open').select(:email_log_id).distinct.count,
+        total_opens: EmailOpen.where.not(opened_at: nil).count,
+        total_clicks: EmailClick.where.not(clicked_at: nil).count,
+        unique_opens: EmailOpen.where.not(opened_at: nil).select(:email_log_id).distinct.count,
         unique_recipients: EmailLog.select(:recipient_masked).distinct.count,
         total_campaigns: EmailLog.select(:campaign_id).distinct.count
       }
@@ -349,18 +342,19 @@ module Dashboard
                         disposition: 'attachment'
       end
       
-      opens = TrackingEvent.where(email_log_id: email_log_ids, event_type: 'open')
-                           .includes(:email_log)
-                           .order(created_at: :desc)
-                           .limit(10_000)
-      
+      opens = EmailOpen.where(email_log_id: email_log_ids)
+                       .where.not(opened_at: nil)
+                       .includes(:email_log)
+                       .order(opened_at: :desc)
+                       .limit(10_000)
+
       csv_data = CSV.generate(headers: true) do |csv|
         csv << ['Email', 'Opened At', 'IP Address', 'User Agent']
         opens.each do |open|
           next unless open.email_log # Защита от nil
           csv << [
             open.email_log.recipient_masked || '',
-            open.created_at&.iso8601 || '',
+            open.opened_at&.iso8601 || '',
             open.ip_address || '',
             open.user_agent || ''
           ]
@@ -397,30 +391,20 @@ module Dashboard
                         disposition: 'attachment'
       end
       
-      clicks = TrackingEvent.where(email_log_id: email_log_ids, event_type: 'click')
-                            .includes(:email_log)
-                            .order(created_at: :desc)
-                            .limit(10_000)
-      
+      clicks = EmailClick.where(email_log_id: email_log_ids)
+                         .where.not(clicked_at: nil)
+                         .includes(:email_log)
+                         .order(clicked_at: :desc)
+                         .limit(10_000)
+
       csv_data = CSV.generate(headers: true) do |csv|
         csv << ['Email', 'URL', 'Clicked At', 'IP Address', 'User Agent']
         clicks.each do |click|
           next unless click.email_log # Защита от nil
-          url = if click.event_data.is_a?(Hash)
-                  click.event_data['url'] || click.event_data[:url] || 'N/A'
-                elsif click.event_data.present?
-                  begin
-                    JSON.parse(click.event_data.to_s)['url'] || 'N/A'
-                  rescue
-                    'N/A'
-                  end
-                else
-                  'N/A'
-                end
           csv << [
             click.email_log.recipient_masked || '',
-            url,
-            click.created_at&.iso8601 || '',
+            click.url || 'N/A',
+            click.clicked_at&.iso8601 || '',
             click.ip_address || '',
             click.user_agent || ''
           ]
@@ -564,8 +548,8 @@ module Dashboard
       bounced = logs.where(status: 'bounced').count
       failed = logs.where(status: 'failed').count
 
-      opens = TrackingEvent.where(email_log_id: logs.ids, event_type: 'open').count
-      clicks = TrackingEvent.where(email_log_id: logs.ids, event_type: 'click').count
+      opens = EmailOpen.where(email_log_id: logs.ids).where.not(opened_at: nil).count
+      clicks = EmailClick.where(email_log_id: logs.ids).where.not(clicked_at: nil).count
 
       {
         total_sent: logs.count,

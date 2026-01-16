@@ -98,6 +98,15 @@ class SendSmtpEmailJob < ApplicationJob
         status_details: { error: response[:error] }
       )
 
+      # Create delivery error record
+      DeliveryError.create!(
+        email: email_log.recipient,
+        campaign_id: email_log.campaign_id,
+        error_type: 'send_failed',
+        error_message: response[:error].to_s.truncate(500),
+        occurred_at: Time.current
+      )
+
       Rails.logger.error "SMTP email failed: #{response[:error]}"
 
       # Send failure webhook
@@ -114,6 +123,15 @@ class SendSmtpEmailJob < ApplicationJob
       email_log.update!(
         status: 'failed',
         status_details: { error: e.class.name, message: e.message.truncate(200) }
+      )
+
+      # Create delivery error record
+      DeliveryError.create!(
+        email: email_log.recipient,
+        campaign_id: email_log.campaign_id,
+        error_type: 'job_exception',
+        error_message: "#{e.class.name}: #{e.message}".truncate(500),
+        occurred_at: Time.current
       )
     rescue StandardError => update_error
       Rails.logger.error "Failed to update email log: #{update_error.message}"

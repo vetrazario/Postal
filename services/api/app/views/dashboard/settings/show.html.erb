@@ -14,7 +14,7 @@
         </span>
       </div>
 
-      <div class="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-3">
+      <div class="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-4">
         <!-- API Keys -->
         <div class="rounded-lg bg-gray-50 p-5 hover:bg-gray-100 transition-colors">
           <div class="flex items-center justify-between">
@@ -55,6 +55,21 @@
             </svg>
           </div>
           <%= link_to "Manage Webhooks", dashboard_webhooks_path, class: "mt-4 block w-full text-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-700 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50" %>
+        </div>
+
+        <!-- Tracking Settings -->
+        <div class="rounded-lg bg-gray-50 p-5 hover:bg-gray-100 transition-colors">
+          <div class="flex items-center justify-between">
+            <div>
+              <dt class="text-sm font-medium text-gray-500">Tracking</dt>
+              <dd class="mt-2 text-3xl font-semibold text-gray-900"><%= (EmailClick.clicked.count + EmailOpen.opened.count) rescue 0 %></dd>
+              <p class="mt-1 text-xs text-gray-500">Events tracked</p>
+            </div>
+            <svg class="h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
+            </svg>
+          </div>
+          <%= link_to "Tracking Settings", dashboard_tracking_settings_path, class: "mt-4 block w-full text-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-700 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50" %>
         </div>
       </div>
     </div>
