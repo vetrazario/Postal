@@ -19,7 +19,7 @@ ORDER BY table_name;
 
 echo ""
 echo "Шаг 3: Создание таблицы email_opens если не существует..."
-docker compose exec postgres psql -U email_sender -d email_sender <<'EOF'
+docker compose exec -T postgres psql -U email_sender -d email_sender <<'EOF'
 -- Создать таблицу email_opens если не существует
 CREATE TABLE IF NOT EXISTS email_opens (
   id BIGSERIAL PRIMARY KEY,
