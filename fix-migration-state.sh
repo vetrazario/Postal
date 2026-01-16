@@ -2,22 +2,33 @@
 # Script to fix migration state for email tracking tables
 # Run this on your server where Docker is available
 
-set -e
-
 echo "=== Checking Migration State ==="
 
+# First check container status
+echo "0. Checking container status..."
+docker compose ps
+
+echo ""
+echo "Waiting for containers to start (30 seconds)..."
+sleep 30
+
+echo ""
+echo "Current container status:"
+docker compose ps
+
 # Check which migrations have been applied
+echo ""
 echo "1. Checking applied migrations..."
-docker compose exec -T postgres psql -U postal -d postal -c "SELECT version FROM schema_migrations WHERE version LIKE '202601%' ORDER BY version;" || true
+docker compose exec -T postgres psql -h localhost -U email_sender -d email_sender -c "SELECT version FROM schema_migrations WHERE version LIKE '202601%' ORDER BY version;" || true
 
 # Check if tables exist
 echo ""
 echo "2. Checking if email_clicks table exists..."
-docker compose exec -T postgres psql -U postal -d postal -c "\d email_clicks" || echo "Table does not exist"
+docker compose exec -T postgres psql -h localhost -U email_sender -d email_sender -c "\d email_clicks" || echo "Table does not exist"
 
 echo ""
 echo "3. Checking if email_opens table exists..."
-docker compose exec -T postgres psql -U postal -d postal -c "\d email_opens" || echo "Table does not exist"
+docker compose exec -T postgres psql -h localhost -U email_sender -d email_sender -c "\d email_opens" || echo "Table does not exist"
 
 echo ""
 echo "=== Fixing Migration State ==="
@@ -58,13 +69,13 @@ docker compose exec -T api rails db:migrate RAILS_ENV=production
 echo ""
 echo "=== Verifying Migration State ==="
 echo "6. Checking final migration state..."
-docker compose exec -T postgres psql -U postal -d postal -c "SELECT version FROM schema_migrations WHERE version LIKE '202601%' ORDER BY version;"
+docker compose exec -T postgres psql -h localhost -U email_sender -d email_sender -c "SELECT version FROM schema_migrations WHERE version LIKE '202601%' ORDER BY version;"
 
 echo ""
 echo "7. Verifying tables exist..."
-docker compose exec -T postgres psql -U postal -d postal -c "\d email_clicks" | head -20
+docker compose exec -T postgres psql -h localhost -U email_sender -d email_sender -c "\d email_clicks" | head -20
 echo ""
-docker compose exec -T postgres psql -U postal -d postal -c "\d email_opens" | head -20
+docker compose exec -T postgres psql -h localhost -U email_sender -d email_sender -c "\d email_opens" | head -20
 
 echo ""
 echo "=== Restarting Containers ==="
