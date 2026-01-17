@@ -31,8 +31,8 @@ module Dashboard
         delivered: logs.where(status: 'delivered').count,
         bounced: logs.where(status: 'bounced').count,
         failed: logs.where(status: 'failed').count,
-        opened: TrackingEvent.where(email_log_id: logs.ids, event_type: 'open').count,
-        clicked: TrackingEvent.where(email_log_id: logs.ids, event_type: 'click').count
+        opened: EmailOpen.where(email_log_id: logs.ids).where.not(opened_at: nil).count,
+        clicked: EmailClick.where(email_log_id: logs.ids).where.not(clicked_at: nil).count
       }
     end
 

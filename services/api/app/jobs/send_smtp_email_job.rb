@@ -53,9 +53,14 @@ class SendSmtpEmailJob < ApplicationJob
                      "<pre>#{message[:text]}</pre>"
                    end
 
+    Rails.logger.info "[SendSmtpEmailJob] Original HTML length: #{html_content.length}, preview: #{html_content[0..200]}"
+
     # Apply our own tracking (replace links + add pixel)
     tracker = LinkTracker.new(email_log: email_log)
     html_with_tracking = tracker.process_html(html_content, track_clicks: true, track_opens: true)
+
+    Rails.logger.info "[SendSmtpEmailJob] Tracked HTML length: #{html_with_tracking.length}, preview: #{html_with_tracking[0..200]}"
+    Rails.logger.info "[SendSmtpEmailJob] HTML changed: #{html_content != html_with_tracking}"
 
     postal_payload = {
       to: envelope[:to].is_a?(Array) ? envelope[:to].first : envelope[:to],
@@ -66,6 +71,8 @@ class SendSmtpEmailJob < ApplicationJob
       tag: 'smtp-relay',
       campaign_id: email_log.campaign_id
     }
+
+    Rails.logger.info "[SendSmtpEmailJob] Postal payload html_body preview: #{postal_payload[:html_body][0..200]}"
 
     # Send to Postal
     postal_client = PostalClient.new(

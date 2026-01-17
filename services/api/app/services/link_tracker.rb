@@ -19,8 +19,12 @@ class LinkTracker
   def track_links(html_body)
     return html_body if html_body.blank? || !options[:track_clicks]
 
+    Rails.logger.info "[LinkTracker] Starting track_links, track_clicks=#{options[:track_clicks]}, max_links=#{options[:max_tracked_links]}"
+
     doc = Nokogiri::HTML.fragment(html_body)
     tracked_count = 0
+    total_links = doc.css('a[href]').count
+    Rails.logger.info "[LinkTracker] Found #{total_links} links in HTML"
 
     # Track all <a href="..."> links
     doc.css('a[href]').each do |link|
@@ -30,18 +34,32 @@ class LinkTracker
       # Skip anchors, mailto, tel, and DANGEROUS schemes (XSS prevention)
       # Use downcase to prevent case-variation bypass (e.g., "JAVASCRIPT:" or "JaVaScRiPt:")
       url_lower = original_url.downcase
-      next if url_lower.start_with?('#', 'mailto:', 'tel:', 'javascript:', 'data:', 'vbscript:', 'file:', 'about:')
-      next if own_domain_link?(original_url) # Skip own domain links
+
+      if url_lower.start_with?('#', 'mailto:', 'tel:', 'javascript:', 'data:', 'vbscript:', 'file:', 'about:')
+        Rails.logger.debug "[LinkTracker] Skipping dangerous/special URL: #{original_url[0..50]}"
+        next
+      end
+
+      if own_domain_link?(original_url)
+        Rails.logger.debug "[LinkTracker] Skipping own domain link: #{original_url[0..50]}"
+        next
+      end
 
       # Limit number of tracked links if configured
-      break if tracked_count >= options[:max_tracked_links]
+      if tracked_count >= options[:max_tracked_links]
+        Rails.logger.warn "[LinkTracker] Reached max tracked links limit (#{options[:max_tracked_links]})"
+        break
+      end
 
       tracking_url = create_tracking_url(original_url)
       link['href'] = tracking_url
       tracked_count += 1
+      Rails.logger.info "[LinkTracker] Replaced link #{tracked_count}/#{total_links}: #{original_url[0..50]} -> #{tracking_url[0..80]}"
     end
 
-    doc.to_html
+    result_html = doc.to_html
+    Rails.logger.info "[LinkTracker] Completed: tracked #{tracked_count} links, HTML length: #{html_body.length} -> #{result_html.length}"
+    result_html
   end
 
   # Add tracking pixel to HTML (Gmail-optimized)
