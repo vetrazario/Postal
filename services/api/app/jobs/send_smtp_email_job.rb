@@ -103,8 +103,8 @@ class SendSmtpEmailJob < ApplicationJob
         email_log_id: email_log.id,
         campaign_id: email_log.campaign_id,
         category: categorize_error(response[:error]),
-        error_message: response[:error].to_s.truncate(1000),
-        recipient: email_log.recipient
+        smtp_message: response[:error].to_s.truncate(1000),
+        recipient_domain: email_log.recipient.split('@').last
       )
 
       Rails.logger.error "SMTP email failed: #{response[:error]}"
@@ -130,9 +130,8 @@ class SendSmtpEmailJob < ApplicationJob
         email_log_id: email_log.id,
         campaign_id: email_log.campaign_id,
         category: 'unknown',
-        error_message: "#{e.class.name}: #{e.message}".truncate(1000),
-        recipient: email_log.recipient,
-        metadata: { exception_class: e.class.name }
+        smtp_message: "#{e.class.name}: #{e.message}".truncate(1000),
+        recipient_domain: email_log.recipient.split('@').last
       )
     rescue StandardError => update_error
       Rails.logger.error "Failed to update email log: #{update_error.message}"
