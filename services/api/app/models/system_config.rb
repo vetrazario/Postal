@@ -273,4 +273,12 @@ class SystemConfig < ApplicationRecord
   rescue NoMethodError
     nil
   end
+
+  # Set configuration value (for use in code)
+  def self.set(key, value)
+    instance.update!(key => value)
+  rescue NoMethodError => e
+    Rails.logger.error "SystemConfig.set failed: #{e.message}"
+    false
+  end
 end
