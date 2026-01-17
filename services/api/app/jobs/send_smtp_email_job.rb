@@ -105,14 +105,19 @@ class SendSmtpEmailJob < ApplicationJob
         status_details: { error: response[:error] }
       )
 
-      # Create delivery error record
-      DeliveryError.create!(
-        email_log_id: email_log.id,
-        campaign_id: email_log.campaign_id,
-        category: categorize_error(response[:error]),
-        smtp_message: response[:error].to_s.truncate(1000),
-        recipient_domain: email_log.recipient.split('@').last
-      )
+      # Create delivery error record (only if campaign_id present)
+      if email_log.campaign_id.present?
+        DeliveryError.create!(
+          email_log_id: email_log.id,
+          campaign_id: email_log.campaign_id,
+          category: categorize_error(response[:error]),
+          smtp_message: response[:error].to_s.truncate(1000),
+          recipient_domain: email_log.recipient.split('@').last
+        )
+        Rails.logger.info "[SendSmtpEmailJob] DeliveryError created: campaign=#{email_log.campaign_id}, category=#{categorize_error(response[:error])}"
+      else
+        Rails.logger.warn "[SendSmtpEmailJob] DeliveryError NOT created - no campaign_id for EmailLog #{email_log.id}"
+      end
 
       Rails.logger.error "SMTP email failed: #{response[:error]}"
 
@@ -132,14 +137,19 @@ class SendSmtpEmailJob < ApplicationJob
         status_details: { error: e.class.name, message: e.message.truncate(200) }
       )
 
-      # Create delivery error record
-      DeliveryError.create!(
-        email_log_id: email_log.id,
-        campaign_id: email_log.campaign_id,
-        category: 'unknown',
-        smtp_message: "#{e.class.name}: #{e.message}".truncate(1000),
-        recipient_domain: email_log.recipient.split('@').last
-      )
+      # Create delivery error record (only if campaign_id present)
+      if email_log.campaign_id.present?
+        DeliveryError.create!(
+          email_log_id: email_log.id,
+          campaign_id: email_log.campaign_id,
+          category: 'unknown',
+          smtp_message: "#{e.class.name}: #{e.message}".truncate(1000),
+          recipient_domain: email_log.recipient.split('@').last
+        )
+        Rails.logger.info "[SendSmtpEmailJob] DeliveryError created for exception: campaign=#{email_log.campaign_id}"
+      else
+        Rails.logger.warn "[SendSmtpEmailJob] DeliveryError NOT created for exception - no campaign_id for EmailLog #{email_log.id}"
+      end
     rescue StandardError => update_error
       Rails.logger.error "Failed to update email log: #{update_error.message}"
     end

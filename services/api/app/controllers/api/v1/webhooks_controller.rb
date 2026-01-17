@@ -105,9 +105,13 @@ class Api::V1::WebhooksController < Api::V1::ApplicationController
           smtp_message: error_info[:message],
           recipient_domain: email_log.recipient&.split('@')&.last
         )
-        
+
+        Rails.logger.info "[WebhooksController] DeliveryError created for #{event}: campaign=#{email_log.campaign_id}, category=#{error_info[:category]}, smtp_code=#{error_info[:smtp_code]}"
+
         # Проверить пороги асинхронно (останавливает рассылку если нужно)
         CheckMailingThresholdsJob.perform_later(email_log.campaign_id)
+      else
+        Rails.logger.warn "[WebhooksController] DeliveryError NOT created for #{event} - no campaign_id for EmailLog #{email_log.id}, recipient: #{email_log.recipient_masked}"
       end
       
       TrackingEvent.create_event(email_log: email_log, event_type: 'bounce', event_data: payload)
@@ -159,7 +163,9 @@ class Api::V1::WebhooksController < Api::V1::ApplicationController
           recipient_domain: email_log.recipient&.split('@')&.last
         )
 
-        Rails.logger.info "DeliveryError created for MessageHeld: campaign=#{email_log.campaign_id}, reason=#{held_reason}"
+        Rails.logger.info "[WebhooksController] DeliveryError created for MessageHeld: campaign=#{email_log.campaign_id}, category=#{category}, reason=#{held_reason.truncate(100)}"
+      else
+        Rails.logger.warn "[WebhooksController] DeliveryError NOT created for MessageHeld - no campaign_id for EmailLog #{email_log.id}, recipient: #{email_log.recipient_masked}"
       end
 
       ReportToAmsJob.perform_later(email_log.external_message_id, 'failed', 'Message held')
