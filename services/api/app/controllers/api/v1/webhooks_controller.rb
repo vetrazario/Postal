@@ -132,7 +132,36 @@ class Api::V1::WebhooksController < Api::V1::ApplicationController
       )
 
     when 'MessageHeld'
+      # Письмо заблокировано (suppression list, rate limit, etc.)
+      held_reason = payload['details'] || payload[:details] || 'Message held'
+
       email_log.update_status('failed', details: payload)
+
+      # Создать запись DeliveryError
+      if email_log.campaign_id.present?
+        # Определить категорию ошибки
+        category = if held_reason.to_s.downcase.include?('suppression')
+                     'user_not_found'
+                   elsif held_reason.to_s.downcase.include?('rate') || held_reason.to_s.downcase.include?('limit')
+                     'rate_limit'
+                   elsif held_reason.to_s.downcase.include?('spam')
+                     'spam_block'
+                   else
+                     'temporary'
+                   end
+
+        DeliveryError.create!(
+          email_log: email_log,
+          campaign_id: email_log.campaign_id,
+          category: category,
+          smtp_code: nil,
+          smtp_message: held_reason.to_s.truncate(1000),
+          recipient_domain: email_log.recipient&.split('@')&.last
+        )
+
+        Rails.logger.info "DeliveryError created for MessageHeld: campaign=#{email_log.campaign_id}, reason=#{held_reason}"
+      end
+
       ReportToAmsJob.perform_later(email_log.external_message_id, 'failed', 'Message held')
 
     when 'MessageComplained'
