@@ -100,11 +100,11 @@ class SendSmtpEmailJob < ApplicationJob
 
       # Create delivery error record
       DeliveryError.create!(
-        email: email_log.recipient,
+        email_log_id: email_log.id,
         campaign_id: email_log.campaign_id,
-        error_type: 'send_failed',
-        error_message: response[:error].to_s.truncate(500),
-        occurred_at: Time.current
+        category: categorize_error(response[:error]),
+        error_message: response[:error].to_s.truncate(1000),
+        recipient: email_log.recipient
       )
 
       Rails.logger.error "SMTP email failed: #{response[:error]}"
@@ -127,11 +127,12 @@ class SendSmtpEmailJob < ApplicationJob
 
       # Create delivery error record
       DeliveryError.create!(
-        email: email_log.recipient,
+        email_log_id: email_log.id,
         campaign_id: email_log.campaign_id,
-        error_type: 'job_exception',
-        error_message: "#{e.class.name}: #{e.message}".truncate(500),
-        occurred_at: Time.current
+        category: 'unknown',
+        error_message: "#{e.class.name}: #{e.message}".truncate(1000),
+        recipient: email_log.recipient,
+        metadata: { exception_class: e.class.name }
       )
     rescue StandardError => update_error
       Rails.logger.error "Failed to update email log: #{update_error.message}"
@@ -188,5 +189,20 @@ class SendSmtpEmailJob < ApplicationJob
   rescue StandardError => e
     Rails.logger.error "Webhook send error: #{e.message}"
     # Don't fail the job if webhook fails
+  end
+
+  # Categorize error based on error message
+  def categorize_error(error_message)
+    msg = error_message.to_s.downcase
+
+    return 'rate_limit' if msg.include?('rate limit') || msg.include?('too many')
+    return 'spam_block' if msg.include?('spam') || msg.include?('blocked') || msg.include?('blacklist')
+    return 'user_not_found' if msg.include?('user not found') || msg.include?('no such user') || msg.include?('recipient unknown')
+    return 'mailbox_full' if msg.include?('mailbox full') || msg.include?('quota exceeded')
+    return 'authentication' if msg.include?('auth') || msg.include?('credential')
+    return 'connection' if msg.include?('connection') || msg.include?('timeout') || msg.include?('network')
+    return 'temporary' if msg.include?('temporary') || msg.include?('try again')
+
+    'unknown'
   end
 end
