@@ -8,12 +8,12 @@ echo "ОТПРАВКА ТЕСТОВОГО EMAIL ДЛЯ ПРОВЕРКИ DELIVERY
 echo "==================================================================="
 echo ""
 
-echo "Отправляем email через вашу систему (Campaign API)..."
+echo "Отправляем email через вашу систему..."
 echo ""
 
 docker compose exec -T api bundle exec rails runner "
-# Найти существующую кампанию или создать тестовую
-campaign_id = Campaign.order(created_at: :desc).first&.id || 'test-campaign-999'
+# Взять campaign_id из существующих EmailLog
+campaign_id = EmailLog.where.not(campaign_id: nil).order(created_at: :desc).first&.campaign_id || 'test-999'
 
 puts \"Используем campaign_id: #{campaign_id}\"
 puts ''
@@ -54,26 +54,25 @@ puts '✅ Job поставлен в очередь Sidekiq'
 puts ''
 puts 'Email будет обработан через несколько секунд.'
 puts 'Получатель НЕ существует, поэтому:'
-puts '  1. Postal попытается отправить'
+puts '  1. SendSmtpEmailJob отправит через Postal'
 puts '  2. Gmail вернет 550 User not found'
 puts '  3. Postal отправит MessageBounced/MessageHeld webhook'
 puts '  4. WebhooksController создаст DeliveryError'
 puts ''
-puts 'Подождите 60 секунд, затем проверьте:'
-puts '  docker compose exec -T api tail -n 100 /app/log/production.log | grep DeliveryError'
+puts 'Подождите 60 секунд...'
 "
 
 echo ""
 echo "Ожидание 60 секунд для обработки..."
 for i in {60..1}; do
-  echo -ne "Осталось $i секунд...\r"
+  printf "Осталось %2d секунд...\r" $i
   sleep 1
 done
 echo ""
-
 echo ""
+
 echo "=== Проверка production.log ==="
-docker compose exec -T api tail -n 200 /app/log/production.log | grep -i "DeliveryError\|MessageHeld\|MessageBounced" || echo "  (не найдено в логах)"
+docker compose exec -T api tail -n 300 /app/log/production.log | grep -i "DeliveryError\|MessageHeld\|MessageBounced\|test-error-monitor" || echo "  (не найдено в логах)"
 
 echo ""
 echo "=== Проверка базы данных ==="
@@ -85,16 +84,12 @@ docker compose exec -T api bundle exec rails runner "
     puts ''
     puts '✅ УСПЕХ! DeliveryError созданы:'
     recent.each do |err|
-      puts \"  ##{err.id}: campaign=#{err.campaign_id}, category=#{err.category}, created=#{err.created_at}\"
+      log = err.email_log
+      puts \"  ##{err.id}: campaign=#{err.campaign_id}, category=#{err.category}, recipient=#{log&.recipient_masked}, created=#{err.created_at}\"
     end
   else
     puts ''
     puts '❌ DeliveryError НЕ создан'
-    puts ''
-    puts 'Проверьте:'
-    puts '1. EmailLog статус'
-    puts '2. production.log полностью'
-    puts '3. Sidekiq логи'
   end
 "
 
@@ -103,11 +98,23 @@ echo "=== Проверка EmailLog ==="
 docker compose exec -T api bundle exec rails runner "
   recent_logs = EmailLog.where('created_at > ?', 2.minutes.ago).order(created_at: :desc)
   puts \"EmailLog за последние 2 минуты: #{recent_logs.count}\"
+  puts ''
 
   recent_logs.each do |log|
-    puts \"  ##{log.id}: status=#{log.status}, campaign=#{log.campaign_id}, recipient=#{log.recipient_masked}\"
+    has_delivery_error = DeliveryError.where(email_log_id: log.id).exists?
+    puts \"  ##{log.id}:\"
+    puts \"    Status: #{log.status}\"
+    puts \"    Campaign: #{log.campaign_id}\"
+    puts \"    Recipient: #{log.recipient_masked}\"
+    puts \"    Has DeliveryError: #{has_delivery_error}\"
+    puts \"    postal_message_id: #{log.postal_message_id.inspect}\"
+    puts ''
   end
 "
+
+echo ""
+echo "=== Проверка Sidekiq логов ==="
+docker compose logs --tail=100 sidekiq | grep -i "SendSmtpEmailJob\|test-error-monitor" || echo "  (не найдено)"
 
 echo ""
 echo "==================================================================="
@@ -116,4 +123,7 @@ echo "==================================================================="
 echo ""
 echo "Если DeliveryError создан - проверьте Error Monitor:"
 echo "https://linenarrow.com/dashboard/error_monitor"
+echo ""
+echo "Если НЕ создан, проверьте полный production.log:"
+echo "docker compose exec -T api tail -n 500 /app/log/production.log"
 echo ""
