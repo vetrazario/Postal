@@ -111,7 +111,80 @@ class TrackingHandler
     end
   end
 
+  def handle_unsubscribe(eid:, cid:, mid: nil, ip:, user_agent:, reason: 'user_request')
+    return { success: false, error: 'Missing parameters' } if eid.blank? || cid.blank?
+
+    # Decode parameters
+    email = Base64.urlsafe_decode64(eid) rescue nil
+    campaign_id = Base64.urlsafe_decode64(cid) rescue nil
+    message_id = mid.present? ? (Base64.urlsafe_decode64(mid) rescue nil) : nil
+
+    return { success: false, error: 'Invalid parameters' } unless email && campaign_id
+
+    conn = nil
+    begin
+      conn = PG.connect(@database_url)
+
+      # Insert into unsubscribes table (upsert - update timestamp if exists)
+      conn.exec_params(
+        <<~SQL,
+          INSERT INTO unsubscribes (email, campaign_id, reason, ip_address, user_agent, unsubscribed_at, created_at, updated_at)
+          VALUES ($1, $2, $3, $4, $5, NOW(), NOW(), NOW())
+          ON CONFLICT (email, campaign_id) DO UPDATE SET
+            unsubscribed_at = NOW(),
+            updated_at = NOW(),
+            reason = EXCLUDED.reason
+        SQL
+        [email, campaign_id, reason, ip, user_agent]
+      )
+
+      # If we have message_id, also create tracking event
+      if message_id.present?
+        result = conn.exec_params(
+          "SELECT id FROM email_logs WHERE external_message_id = $1",
+          [message_id]
+        )
+
+        if result.rows.any?
+          email_log_id = result.rows.first[0]
+          conn.exec_params(
+            "INSERT INTO tracking_events (email_log_id, event_type, event_data, ip_address, user_agent, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, NOW(), NOW())",
+            [email_log_id, 'unsubscribe', { campaign_id: campaign_id, reason: reason }.to_json, ip, user_agent]
+          )
+        end
+      end
+
+      # Enqueue webhook job to notify AMS
+      enqueue_webhook_job(message_id || "unsub_#{campaign_id}", 'unsubscribed', {
+        email_masked: mask_email(email),
+        campaign_id: campaign_id,
+        reason: reason,
+        ip: ip
+      })
+
+      { success: true, email_masked: mask_email(email) }
+    rescue => e
+      puts "TrackingHandler unsubscribe error: #{e.message}"
+      { success: false, error: 'Database error' }
+    ensure
+      conn&.close
+    end
+  end
+
   private
+
+  # Mask email for display (privacy protection)
+  def mask_email(email)
+    return '***' if email.blank?
+    return email unless email.include?('@')
+
+    local, domain = email.split('@', 2)
+    if local.length <= 2
+      "#{local[0]}***@#{domain}"
+    else
+      "#{local[0]}***#{local[-1]}@#{domain}"
+    end
+  end
 
   # Validate URL to prevent open redirect attacks
   def validate_redirect_url(url)
