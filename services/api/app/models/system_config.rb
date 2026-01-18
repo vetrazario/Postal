@@ -383,4 +383,9 @@ class SystemConfig < ApplicationRecord
   rescue NoMethodError
     nil
   end
+
+  # Check if restart is required
+  def restart_required?
+    restart_required == true
+  end
 end
