@@ -1,11 +1,15 @@
 #!/bin/bash
 set -e
 
-cd /opt/email-sender
+# Get the directory where this script is located
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+cd "$SCRIPT_DIR"
 
 echo "=================================================================="
 echo "DEPLOYING ERROR MONITOR FIX"
 echo "=================================================================="
+echo ""
+echo "Working directory: $SCRIPT_DIR"
 echo ""
 
 echo "=== 1. Pulling latest changes ==="
