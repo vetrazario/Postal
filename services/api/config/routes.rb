@@ -129,6 +129,9 @@ Rails.application.routes.draw do
         get :stats
       end
     end
+
+    # Tracking Settings
+    resource :tracking_settings, only: [:show, :update]
   end
 
   # Sidekiq Web UI
