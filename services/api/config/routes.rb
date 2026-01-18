@@ -8,13 +8,6 @@ Sidekiq::Web.use(Rack::Auth::Basic, 'Sidekiq') do |username, password|
 end
 
 Rails.application.routes.draw do
-  # Tracking endpoints (public, no auth)
-  get '/go/:slug', to: 'tracking#click', as: 'track_click_readable'
-  get '/t/c/:token', to: 'tracking#click', as: 'track_click'
-  get '/t/o/:token', to: 'tracking#open', as: 'track_open'
-  get '/unsubscribe', to: 'unsubscribes#show', as: 'unsubscribe_page'
-  post '/unsubscribe', to: 'unsubscribes#create', as: 'unsubscribe_submit'
-
   namespace :api do
     namespace :v1 do
       # Health check (no auth)
@@ -94,6 +87,14 @@ Rails.application.routes.draw do
       get :hourly
       get :daily
       get :campaigns
+      get :export_opens
+      get :export_clicks
+      get :export_unsubscribes
+      get :export_bounces
+      post :analyze_bounces
+      post :optimize_timing
+      post :compare_campaigns
+      post :analyze_campaign
     end
 
     # AI Analytics
@@ -117,6 +118,9 @@ Rails.application.routes.draw do
     # Mailing Rules
     resource :mailing_rules, only: [:show, :update] do
       post :test_ams_connection
+      get :download_bounce_patterns
+      post :upload_bounce_patterns
+      post :reset_bounce_patterns
     end
 
     # Error Monitor
@@ -124,13 +128,6 @@ Rails.application.routes.draw do
       collection do
         get :stats
       end
-    end
-
-    # Tracking Settings
-    resource :tracking_settings, only: [:show, :update] do
-      post :enable_warmup, on: :collection
-      post :disable_warmup, on: :collection
-      get :check_reputation, on: :collection
     end
   end
 

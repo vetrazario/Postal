@@ -3,6 +3,8 @@ class EmailLog < ApplicationRecord
 
   belongs_to :template, class_name: 'EmailTemplate', optional: true
   has_many :tracking_events, dependent: :destroy
+  has_many :email_opens, dependent: :destroy
+  has_many :email_clicks, dependent: :destroy
   has_many :delivery_errors, dependent: :destroy
 
   validates :message_id, presence: true, uniqueness: true
