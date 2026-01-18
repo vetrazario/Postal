@@ -45,7 +45,7 @@
           <div class="flex items-center justify-between">
             <div>
               <dt class="text-sm font-medium text-blue-700">Total Clicks</dt>
-              <dd class="mt-2 text-3xl font-semibold text-blue-900"><%= EmailClick.clicked.count rescue 0 %></dd>
+              <dd class="mt-2 text-3xl font-semibold text-blue-900"><%= EmailClick.count rescue 0 %></dd>
             </div>
             <svg class="h-8 w-8 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
@@ -58,7 +58,7 @@
           <div class="flex items-center justify-between">
             <div>
               <dt class="text-sm font-medium text-green-700">Total Opens</dt>
-              <dd class="mt-2 text-3xl font-semibold text-green-900"><%= EmailOpen.opened.count rescue 0 %></dd>
+              <dd class="mt-2 text-3xl font-semibold text-green-900"><%= EmailOpen.count rescue 0 %></dd>
             </div>
             <svg class="h-8 w-8 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 19v-8.93a2 2 0 01.89-1.664l7-4.666a2 2 0 012.22 0l7 4.666A2 2 0 0121 10.07V19M3 19a2 2 0 002 2h14a2 2 0 002-2M3 19l6.75-4.5M21 19l-6.75-4.5M3 10l6.75 4.5M21 10l-6.75 4.5m0 0l-1.14.76a2 2 0 01-2.22 0l-1.14-.76" />
@@ -71,7 +71,7 @@
           <div class="flex items-center justify-between">
             <div>
               <dt class="text-sm font-medium text-purple-700">Unique Opens</dt>
-              <dd class="mt-2 text-3xl font-semibold text-purple-900"><%= EmailOpen.unique_opens.count rescue 0 %></dd>
+              <dd class="mt-2 text-3xl font-semibold text-purple-900"><%= EmailOpen.select(:email_log_id).distinct.count rescue 0 %></dd>
             </div>
             <svg class="h-8 w-8 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
