@@ -1,29 +1,17 @@
+require 'base64'
+
 class PostalClient
   def initialize(api_url:, api_key:)
     @api_url = api_url
     @api_key = api_key
   end
 
-  def send_message(to:, from:, subject:, html_body:, headers: {}, tag: nil, campaign_id: nil)
+  def send_message(to:, from:, subject:, html_body:, headers: {}, tag: nil, campaign_id: nil, track_clicks: true, track_opens: true)
     domain = SystemConfig.get(:domain) || 'localhost'
-    message_headers = build_headers(from, to, subject, domain).merge(headers)
-
-    # Build request body (no Postal tracking - we do our own)
-    request_body = {
-      to: [to],
-      from: from,
-      sender: from,
-      subject: subject,
-      html_body: html_body,
-      plain_body: html_to_text(html_body),
-      headers: message_headers,
-      tag: tag,
-      bounce: true
-    }
+    message_headers = build_headers(from, to, subject, domain, campaign_id).merge(headers)
 
     # Log request (without sensitive data)
     Rails.logger.info "PostalClient: Sending to #{@api_url}/api/v1/send/message, recipient: #{mask_email(to)}"
-    Rails.logger.debug "  Domain: #{domain}, campaign_id: #{campaign_id.inspect}" if Rails.env.development?
 
     request_options = {
       headers: {
@@ -31,7 +19,19 @@ class PostalClient
         'X-Server-API-Key' => @api_key,
         'Content-Type' => 'application/json'
       },
-      body: request_body.to_json,
+      body: {
+        to: [to],
+        from: from,
+        sender: from,
+        subject: subject,
+        html_body: html_body,
+        plain_body: html_to_text(html_body),
+        headers: message_headers,
+        tag: tag,
+        bounce: true,
+        track_clicks: track_clicks,
+        track_opens: track_opens
+      }.to_json,
       timeout: 30
     }
 
@@ -57,7 +57,16 @@ class PostalClient
 
   private
 
-  def build_headers(from, to, subject, domain)
+  def build_headers(from, to, subject, domain, campaign_id = nil)
+    # Build unsubscribe URL with encoded parameters
+    unsubscribe_url = if campaign_id.present?
+      encoded_email = Base64.urlsafe_encode64(to)
+      encoded_cid = Base64.urlsafe_encode64(campaign_id)
+      "<https://#{domain}/unsubscribe?eid=#{encoded_email}&cid=#{encoded_cid}>"
+    else
+      "<mailto:unsubscribe@#{domain}>"
+    end
+
     {
       'From' => from,
       'To' => to,
@@ -66,7 +75,7 @@ class PostalClient
       'Date' => Time.current.rfc2822,
       'Return-Path' => "bounce@#{domain}",
       'Reply-To' => "reply@#{domain}",
-      'List-Unsubscribe' => "<mailto:unsubscribe@#{domain}>"
+      'List-Unsubscribe' => unsubscribe_url
     }
   end
 
