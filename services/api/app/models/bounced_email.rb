@@ -43,8 +43,9 @@ class BouncedEmail < ApplicationRecord
   # Добавить bounce ТОЛЬКО если нужно (не для rate_limit/temporary/connection)
   def self.record_bounce_if_needed(email:, bounce_category: nil, smtp_code: nil, smtp_message: nil, campaign_id: nil)
     # Не добавлять для rate_limit, temporary, connection
-    return nil if ErrorClassifier::NON_BOUNCE_CATEGORIES.include?(bounce_category.to_s)
-    
+    # Используем метод ErrorClassifier вместо константы
+    return nil unless ErrorClassifier.should_add_to_bounce?(bounce_category)
+
     record_bounce(
       email: email,
       bounce_type: 'hard',
