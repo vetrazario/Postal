@@ -100,8 +100,9 @@ class SendSmtpEmailJob < ApplicationJob
 
       # Create delivery error record
       DeliveryError.create!(
-        email: email_log.recipient,
+        recipient_domain: email_log.recipient.split('@').last,
         campaign_id: email_log.campaign_id,
+        category: 'connection',
         error_type: 'send_failed',
         error_message: response[:error].to_s.truncate(500),
         occurred_at: Time.current
@@ -127,8 +128,9 @@ class SendSmtpEmailJob < ApplicationJob
 
       # Create delivery error record
       DeliveryError.create!(
-        email: email_log.recipient,
+        recipient_domain: email_log.recipient.split('@').last,
         campaign_id: email_log.campaign_id,
+        category: 'connection',
         error_type: 'job_exception',
         error_message: "#{e.class.name}: #{e.message}".truncate(500),
         occurred_at: Time.current
