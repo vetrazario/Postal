@@ -79,6 +79,8 @@ Rails.application.routes.draw do
     resources :logs, only: [:index, :show] do
       collection do
         get :export
+        get :export_unsubscribes
+        get :export_bounces
       end
     end
 
