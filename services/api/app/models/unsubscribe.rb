@@ -2,8 +2,9 @@
 
 class Unsubscribe < ApplicationRecord
   validates :email, presence: true
-  validates :unsubscribed_at, presence: true
-  validates :reason, presence: true
+
+  # Set defaults before validation
+  before_validation :set_defaults
 
   scope :global, -> { where(campaign_id: nil) }
   scope :by_campaign, ->(campaign_id) { where(campaign_id: campaign_id) }
@@ -13,17 +14,17 @@ class Unsubscribe < ApplicationRecord
   def self.blocked?(email:, campaign_id: nil)
     # Проверяем глобальный unsubscribe (campaign_id = null)
     return true if exists?(email: email, campaign_id: nil)
-    
+
     # Проверяем unsubscribe для конкретной кампании
     return true if campaign_id.present? && exists?(email: email, campaign_id: campaign_id)
-    
+
     false
   end
 
   # Создать или обновить unsubscribe
   def self.record_unsubscribe(email:, campaign_id: nil, ip_address: nil, user_agent: nil, reason: 'user_request')
     unsubscribe = find_or_initialize_by(email: email, campaign_id: campaign_id)
-    
+
     if unsubscribe.new_record?
       unsubscribe.assign_attributes(
         reason: reason,
@@ -39,9 +40,15 @@ class Unsubscribe < ApplicationRecord
         user_agent: user_agent
       )
     end
-    
+
     unsubscribe.save!
     unsubscribe
   end
-end
 
+  private
+
+  def set_defaults
+    self.unsubscribed_at ||= Time.current
+    self.reason ||= 'user_request'
+  end
+end

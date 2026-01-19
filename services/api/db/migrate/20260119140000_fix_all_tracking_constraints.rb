@@ -56,6 +56,28 @@ class FixAllTrackingConstraints < ActiveRecord::Migration[7.1]
     if table_exists?(:tracking_events) && foreign_key_exists?(:tracking_events, :email_logs)
       remove_foreign_key :tracking_events, :email_logs
     end
+
+    # 6. Fix unsubscribes table
+    if table_exists?(:unsubscribes)
+      if column_exists?(:unsubscribes, :email_log_id)
+        change_column_null :unsubscribes, :email_log_id, true
+      end
+
+      if foreign_key_exists?(:unsubscribes, :email_logs)
+        remove_foreign_key :unsubscribes, :email_logs
+      end
+    end
+
+    # 7. Fix bounced_emails table
+    if table_exists?(:bounced_emails)
+      if column_exists?(:bounced_emails, :email_log_id)
+        change_column_null :bounced_emails, :email_log_id, true
+      end
+
+      if foreign_key_exists?(:bounced_emails, :email_logs)
+        remove_foreign_key :bounced_emails, :email_logs
+      end
+    end
   end
 
   def down

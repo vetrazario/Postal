@@ -1,8 +1,9 @@
 class TrackingEvent < ApplicationRecord
-  belongs_to :email_log
+  belongs_to :email_log, optional: true
 
-  validates :event_type, presence: true, inclusion: { in: %w[open click bounce complaint delivered unsubscribe] }
-  validates :email_log_id, presence: true
+  VALID_TYPES = %w[open click bounce complaint delivered unsubscribe sent failed].freeze
+
+  validates :event_type, presence: true, inclusion: { in: VALID_TYPES, allow_blank: true }
 
   # Create event with IP and user agent
   def self.create_event(email_log:, event_type:, event_data: nil, ip_address: nil, user_agent: nil)
@@ -13,10 +14,8 @@ class TrackingEvent < ApplicationRecord
       ip_address: ip_address,
       user_agent: user_agent
     )
+  rescue StandardError => e
+    Rails.logger.error "TrackingEvent creation failed: #{e.message}"
+    nil
   end
 end
-
-
-
-
-
