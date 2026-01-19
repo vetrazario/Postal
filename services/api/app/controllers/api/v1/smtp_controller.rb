@@ -48,7 +48,7 @@ module Api
           message_id: message_id,
           external_message_id: message['headers']&.dig('message-id'),
           campaign_id: campaign_id,
-          recipient: encrypt_email(recipient),
+          recipient: recipient,  # Rails Encryption handles this automatically via `encrypts :recipient`
           recipient_masked: mask_email(recipient),
           sender: envelope['from'],
           subject: message['subject'],
@@ -180,11 +180,6 @@ module Api
 
       def generate_message_id
         "smtp_#{SecureRandom.hex(12)}"
-      end
-
-      def encrypt_email(email)
-        # Use Rails 7.1 encryption
-        email
       end
 
       def mask_email(email)
