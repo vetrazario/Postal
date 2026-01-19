@@ -333,8 +333,7 @@ services:
       POSTAL_DNS_TRACK_DOMAIN: ${DOMAIN}
       POSTAL_RAILS_SECRET_KEY: ${SECRET_KEY_BASE}
     volumes:
-      - ./config/postal.yml:/config/postal.yml:ro
-      - ./config/postal.yml:/opt/postal/config/postal.yml:ro
+      # postal.yml removed - using ENV variables instead (POSTAL_MAIN_DB_PASSWORD etc.)
       - postal_data:/opt/postal/data
     deploy:
       resources:
