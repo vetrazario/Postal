@@ -14,6 +14,16 @@ class SendSmtpEmailJob < ApplicationJob
 
     email_log = EmailLog.find(email_data[:email_log_id])
 
+    # Check throttling (warmup mode)
+    unless EmailThrottler.can_send_email?
+      email_log.update!(status: 'throttled', status_details: {
+        reason: 'daily_limit_reached',
+        quota: EmailThrottler.throttle_info
+      })
+      Rails.logger.warn "Email throttled: daily limit reached (#{EmailThrottler.emails_sent_today}/#{EmailThrottler.daily_limit})"
+      return
+    end
+
     # Check if email is blocked (unsubscribed or bounced)
     if Unsubscribe.blocked?(email: email_log.recipient, campaign_id: email_log.campaign_id)
       email_log.update!(status: 'failed', status_details: { reason: 'unsubscribed' })
@@ -43,16 +53,18 @@ class SendSmtpEmailJob < ApplicationJob
                      "<pre>#{message[:text]}</pre>"
                    end
 
+    # Apply our own tracking (replace links + add pixel)
+    tracker = LinkTracker.new(email_log: email_log)
+    html_with_tracking = tracker.process_html(html_content, track_clicks: true, track_opens: true)
+
     postal_payload = {
       to: envelope[:to].is_a?(Array) ? envelope[:to].first : envelope[:to],
       from: envelope[:from],
       subject: message[:subject],
-      html_body: html_content,
+      html_body: html_with_tracking,
       headers: build_custom_headers(message),
       tag: 'smtp-relay',
-      campaign_id: email_log.campaign_id,
-      track_clicks: true,
-      track_opens: true
+      campaign_id: email_log.campaign_id
     }
 
     # Send to Postal
@@ -86,6 +98,15 @@ class SendSmtpEmailJob < ApplicationJob
         status_details: { error: response[:error] }
       )
 
+      # Create delivery error record
+      DeliveryError.create!(
+        email: email_log.recipient,
+        campaign_id: email_log.campaign_id,
+        error_type: 'send_failed',
+        error_message: response[:error].to_s.truncate(500),
+        occurred_at: Time.current
+      )
+
       Rails.logger.error "SMTP email failed: #{response[:error]}"
 
       # Send failure webhook
@@ -102,6 +123,15 @@ class SendSmtpEmailJob < ApplicationJob
       email_log.update!(
         status: 'failed',
         status_details: { error: e.class.name, message: e.message.truncate(200) }
+      )
+
+      # Create delivery error record
+      DeliveryError.create!(
+        email: email_log.recipient,
+        campaign_id: email_log.campaign_id,
+        error_type: 'job_exception',
+        error_message: "#{e.class.name}: #{e.message}".truncate(500),
+        occurred_at: Time.current
       )
     rescue StandardError => update_error
       Rails.logger.error "Failed to update email log: #{update_error.message}"

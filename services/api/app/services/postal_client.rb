@@ -4,12 +4,26 @@ class PostalClient
     @api_key = api_key
   end
 
-  def send_message(to:, from:, subject:, html_body:, headers: {}, tag: nil)
+  def send_message(to:, from:, subject:, html_body:, headers: {}, tag: nil, campaign_id: nil)
     domain = SystemConfig.get(:domain) || 'localhost'
     message_headers = build_headers(from, to, subject, domain).merge(headers)
 
+    # Build request body (no Postal tracking - we do our own)
+    request_body = {
+      to: [to],
+      from: from,
+      sender: from,
+      subject: subject,
+      html_body: html_body,
+      plain_body: html_to_text(html_body),
+      headers: message_headers,
+      tag: tag,
+      bounce: true
+    }
+
     # Log request (without sensitive data)
     Rails.logger.info "PostalClient: Sending to #{@api_url}/api/v1/send/message, recipient: #{mask_email(to)}"
+    Rails.logger.debug "  Domain: #{domain}, campaign_id: #{campaign_id.inspect}" if Rails.env.development?
 
     request_options = {
       headers: {
@@ -17,17 +31,7 @@ class PostalClient
         'X-Server-API-Key' => @api_key,
         'Content-Type' => 'application/json'
       },
-      body: {
-        to: [to],
-        from: from,
-        sender: from,
-        subject: subject,
-        html_body: html_body,
-        plain_body: html_to_text(html_body),
-        headers: message_headers,
-        tag: tag,
-        bounce: true
-      }.to_json,
+      body: request_body.to_json,
       timeout: 30
     }
 

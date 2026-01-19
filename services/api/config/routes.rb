@@ -8,6 +8,13 @@ Sidekiq::Web.use(Rack::Auth::Basic, 'Sidekiq') do |username, password|
 end
 
 Rails.application.routes.draw do
+  # Tracking endpoints (public, no auth)
+  get '/go/:slug', to: 'tracking#click', as: 'track_click_readable'
+  get '/t/c/:token', to: 'tracking#click', as: 'track_click'
+  get '/t/o/:token', to: 'tracking#open', as: 'track_open'
+  get '/unsubscribe', to: 'unsubscribes#show', as: 'unsubscribe_page'
+  post '/unsubscribe', to: 'unsubscribes#create', as: 'unsubscribe_submit'
+
   namespace :api do
     namespace :v1 do
       # Health check (no auth)
@@ -117,6 +124,13 @@ Rails.application.routes.draw do
       collection do
         get :stats
       end
+    end
+
+    # Tracking Settings
+    resource :tracking_settings, only: [:show, :update] do
+      post :enable_warmup, on: :collection
+      post :disable_warmup, on: :collection
+      get :check_reputation, on: :collection
     end
   end
 
