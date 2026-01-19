@@ -276,20 +276,23 @@ email_log = EmailLog.create!(
   campaign_id: 'test123'
 )
 
-html = '<a href=\"https://example.com/page\">Link</a>'
-tracker = LinkTracker.new(email_log: email_log, domain: 'example.com')
+# Используем внешний домен чтобы не попасть в own_domain_link проверку
+html = '<a href=\"https://youtube.com/watch?v=test\">Link</a>'
+tracker = LinkTracker.new(email_log: email_log, domain: 'linenarrow.com')
 tracked = tracker.track_links(html)
 
 # Проверяем что ссылка заменена на /go/ формат
-if tracked.include?('/go/') || tracked.include?('example.com/go/')
+if tracked.include?('/go/')
   result = 'OK'
 else
   result = 'FAIL'
-  puts \"Original: #{html}\"
-  puts \"Tracked: #{tracked}\"
+  puts \"DEBUG: Original: #{html}\"
+  puts \"DEBUG: Tracked: #{tracked}\"
+  puts \"DEBUG: track_clicks enabled: #{tracker.options[:track_clicks]}\"
 end
 
-# Удаляем тестовый EmailLog
+# Удаляем тестовый EmailLog и связанные записи
+EmailClick.where(email_log_id: email_log.id).destroy_all
 email_log.destroy
 
 puts result
@@ -299,6 +302,10 @@ if echo "$LINK_TRACKER_CHECK" | grep -q "OK"; then
     log_success "LinkTracker заменяет ссылки на tracking URLs"
 else
     log_error "LinkTracker не заменяет ссылки"
+    # Показать детали если есть
+    if echo "$LINK_TRACKER_CHECK" | grep -q "DEBUG"; then
+        echo "$LINK_TRACKER_CHECK" | grep "DEBUG" | sed 's/^/    /'
+    fi
 fi
 
 # Проверка формата tracking URL (читаемый формат /go/slug-TOKEN)
@@ -314,18 +321,20 @@ email_log = EmailLog.create!(
   campaign_id: 'test123'
 )
 
-tracker = LinkTracker.new(email_log: email_log, domain: 'example.com')
+tracker = LinkTracker.new(email_log: email_log, domain: 'linenarrow.com')
 original_url = 'https://youtube.com/watch'
 tracking_url = tracker.send(:create_tracking_url, original_url)
 
-# Формат должен быть: https://example.com/go/youtube-watch-TOKEN
-if tracking_url.include?('/go/') && tracking_url.include?('example.com')
+# Формат должен быть: https://linenarrow.com/go/youtube-watch-TOKEN
+if tracking_url.include?('/go/') && tracking_url.include?('linenarrow.com')
   result = 'OK'
 else
   result = 'FAIL'
   puts \"Tracking URL: #{tracking_url}\"
 end
 
+# Удаляем тестовые записи
+EmailClick.where(email_log_id: email_log.id).destroy_all
 email_log.destroy
 puts result
 " 2>/dev/null || echo "FAIL")
