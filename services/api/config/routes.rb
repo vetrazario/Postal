@@ -136,6 +136,24 @@ Rails.application.routes.draw do
     resource :tracking_settings, only: [:show, :update]
   end
 
+  # ==========================================
+  # Public Tracking Endpoints (no auth required)
+  # ==========================================
+
+  # Click tracking - readable URL format
+  get '/go/:slug', to: 'tracking#click', as: 'track_click_readable'
+
+  # Click tracking - token format
+  get '/t/c/:token', to: 'tracking#click', as: 'track_click'
+
+  # Open tracking - returns 1x1 pixel
+  get '/t/o/:token', to: 'tracking#open', as: 'track_open'
+  get '/t/o/:token.gif', to: 'tracking#open', as: 'track_open_gif'
+
+  # Unsubscribe page
+  get '/unsubscribe', to: 'unsubscribes#show', as: 'unsubscribe_page'
+  post '/unsubscribe', to: 'unsubscribes#create', as: 'unsubscribe_submit'
+
   # Sidekiq Web UI
   # Authentication is handled by SidekiqWebAuth middleware (reads from SystemConfig or ENV)
   mount Sidekiq::Web => '/sidekiq' if defined?(Sidekiq::Web)
