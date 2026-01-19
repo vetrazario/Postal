@@ -10,11 +10,10 @@ cd /opt/email-sender
 
 # Создать backup
 cp docker-compose.yml docker-compose.yml.backup.$(date +%Y%m%d_%H%M%S)
+echo "✅ Создан backup: docker-compose.yml.backup.$(date +%Y%m%d_%H%M%S)"
 
-# Убрать строки с postal.yml из volumes секции postal
-sed -i '/postal:/,/^  [a-z]/ {
-  /postal.yml/d
-}' docker-compose.yml
+# Убрать строки с postal.yml
+sed -i '/\.\/config\/postal\.yml:/d' docker-compose.yml
 
 # Проверить что строки убраны
 if grep -q "postal.yml" docker-compose.yml; then
