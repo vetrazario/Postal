@@ -265,14 +265,34 @@ log_step "7.1" "Проверка замены ссылок на tracking URLs"
 
 # Проверка что LinkTracker существует и заменяет ссылки
 LINK_TRACKER_CHECK=$(rails_exec "
+# Создаем временный EmailLog для теста
+email_log = EmailLog.create!(
+  message_id: 'test_tracking_' + SecureRandom.hex(8),
+  recipient: 'test@example.com',
+  recipient_masked: 't***@example.com',
+  sender: 'sender@example.com',
+  subject: 'Test',
+  status: 'queued',
+  campaign_id: 'test123'
+)
+
 html = '<a href=\"https://example.com/page\">Link</a>'
-tracker = LinkTracker.new(email_log: EmailLog.new(id: 1, campaign_id: 'test123'), domain: 'example.com')
+tracker = LinkTracker.new(email_log: email_log, domain: 'example.com')
 tracked = tracker.track_links(html)
-if tracked.include?('/track/') || tracked.include?('tracking')
-  puts 'OK'
+
+# Проверяем что ссылка заменена на /go/ формат
+if tracked.include?('/go/') || tracked.include?('example.com/go/')
+  result = 'OK'
 else
-  puts 'FAIL'
+  result = 'FAIL'
+  puts \"Original: #{html}\"
+  puts \"Tracked: #{tracked}\"
 end
+
+# Удаляем тестовый EmailLog
+email_log.destroy
+
+puts result
 " 2>/dev/null || echo "FAIL")
 
 if echo "$LINK_TRACKER_CHECK" | grep -q "OK"; then
@@ -281,13 +301,33 @@ else
     log_error "LinkTracker не заменяет ссылки"
 fi
 
-# Проверка формата tracking URL
+# Проверка формата tracking URL (читаемый формат /go/slug-TOKEN)
 TRACKING_URL_CHECK=$(rails_exec "
-require 'base64'
-original_url = 'https://example.com/page'
-encoded = Base64.urlsafe_encode64(original_url)
-tracking_url = \"https://example.com/track/c?url=#{encoded}&eid=test&cid=test123&mid=test456\"
-puts tracking_url.include?('/track/c') && tracking_url.include?('url=') ? 'OK' : 'FAIL'
+# Проверяем что LinkTracker создает URL в формате /go/slug-TOKEN
+email_log = EmailLog.create!(
+  message_id: 'test_url_' + SecureRandom.hex(8),
+  recipient: 'test@example.com',
+  recipient_masked: 't***@example.com',
+  sender: 'sender@example.com',
+  subject: 'Test',
+  status: 'queued',
+  campaign_id: 'test123'
+)
+
+tracker = LinkTracker.new(email_log: email_log, domain: 'example.com')
+original_url = 'https://youtube.com/watch'
+tracking_url = tracker.send(:create_tracking_url, original_url)
+
+# Формат должен быть: https://example.com/go/youtube-watch-TOKEN
+if tracking_url.include?('/go/') && tracking_url.include?('example.com')
+  result = 'OK'
+else
+  result = 'FAIL'
+  puts \"Tracking URL: #{tracking_url}\"
+end
+
+email_log.destroy
+puts result
 " 2>/dev/null || echo "FAIL")
 
 if echo "$TRACKING_URL_CHECK" | grep -q "OK"; then
@@ -298,12 +338,20 @@ fi
 
 # Проверка что tracking endpoint обрабатывает редирект
 log_step "7.2" "Проверка tracking endpoint для редиректа"
-TRACKING_ENDPOINT=$(docker compose exec -T api rails routes 2>/dev/null | grep -E "track.*click|track.*c" | head -1)
+TRACKING_ENDPOINT=$(docker compose exec -T api rails routes 2>/dev/null | grep -E "/go/|track_click" | head -1)
 if [ -n "$TRACKING_ENDPOINT" ]; then
     log_success "Tracking endpoint для кликов существует"
     log_check "Route: $TRACKING_ENDPOINT"
 else
     log_error "Tracking endpoint для кликов не найден"
+fi
+
+# Проверка что endpoint /go/ существует
+GO_ENDPOINT=$(docker compose exec -T api rails routes 2>/dev/null | grep "/go/" | head -1)
+if [ -n "$GO_ENDPOINT" ]; then
+    log_success "Endpoint /go/ для читаемых tracking URLs существует"
+else
+    log_error "Endpoint /go/ не найден"
 fi
 
 # Проверка что TrackingController обрабатывает редирект
