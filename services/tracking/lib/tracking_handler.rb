@@ -46,7 +46,7 @@ class TrackingHandler
       
       # Create tracking event (don't store decrypted email for PII protection)
       conn.exec_params(
-        "INSERT INTO tracking_events (email_log_id, event_type, event_data, ip_address, user_agent, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, NOW(), NOW())",
+        "INSERT INTO tracking_events (email_log_id, event_type, event_data, ip_address, user_agent, created_at, updated_at) VALUES ($1, $2, $3, $4::inet, $5, NOW(), NOW())",
         [email_log_id, 'open', { campaign_id: campaign_id }.to_json, ip, user_agent]
       )
       
@@ -95,7 +95,7 @@ class TrackingHandler
 
       # Create tracking event (don't store decrypted email for PII protection)
       conn.exec_params(
-        "INSERT INTO tracking_events (email_log_id, event_type, event_data, ip_address, user_agent, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, NOW(), NOW())",
+        "INSERT INTO tracking_events (email_log_id, event_type, event_data, ip_address, user_agent, created_at, updated_at) VALUES ($1, $2, $3, $4::inet, $5, NOW(), NOW())",
         [email_log_id, 'click', { url: validated_url, campaign_id: campaign_id }.to_json, ip, user_agent]
       )
 
@@ -129,7 +129,7 @@ class TrackingHandler
       conn.exec_params(
         <<~SQL,
           INSERT INTO unsubscribes (email, campaign_id, reason, ip_address, user_agent, unsubscribed_at, created_at, updated_at)
-          VALUES ($1, $2, $3, $4, $5, NOW(), NOW(), NOW())
+          VALUES ($1, $2, $3, $4::inet, $5, NOW(), NOW(), NOW())
           ON CONFLICT (email, campaign_id) DO UPDATE SET
             unsubscribed_at = NOW(),
             updated_at = NOW(),
@@ -148,7 +148,7 @@ class TrackingHandler
         if result.rows.any?
           email_log_id = result.rows.first[0]
           conn.exec_params(
-            "INSERT INTO tracking_events (email_log_id, event_type, event_data, ip_address, user_agent, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, NOW(), NOW())",
+            "INSERT INTO tracking_events (email_log_id, event_type, event_data, ip_address, user_agent, created_at, updated_at) VALUES ($1, $2, $3, $4::inet, $5, NOW(), NOW())",
             [email_log_id, 'unsubscribe', { campaign_id: campaign_id, reason: reason }.to_json, ip, user_agent]
           )
         end

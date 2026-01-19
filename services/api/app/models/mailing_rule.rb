@@ -1,84 +1,131 @@
 # frozen_string_literal: true
 
 class MailingRule < ApplicationRecord
-  encrypts :ams_api_key_encrypted, deterministic: false
+  RULE_TYPES = %w[
+    bounce_threshold
+    rate_limit
+    spam_filter
+    domain_block
+    custom
+  ].freeze
 
   validates :name, presence: true
-  validates :max_bounce_rate, numericality: { greater_than_or_equal_to: 0, less_than_or_equal_to: 100 }
-  validates :max_rate_limit_errors, numericality: { greater_than_or_equal_to: 0 }
-  validates :max_spam_blocks, numericality: { greater_than_or_equal_to: 0 }
-  validates :check_window_minutes, numericality: { greater_than: 0 }
-  validates :notification_email, format: { with: URI::MailTo::EMAIL_REGEXP }, allow_blank: true
-  validates :ams_api_url, format: { with: URI::DEFAULT_PARSER.make_regexp(%w[http https]) }, allow_blank: true
+  validates :rule_type, presence: true, inclusion: { in: RULE_TYPES }
 
-  # Singleton pattern - одна активная запись
-  def self.instance
-    first_or_create!(name: 'Default Rule')
+  scope :active, -> { where(active: true) }
+  scope :by_type, ->(type) { where(rule_type: type) }
+  scope :by_priority, -> { order(priority: :desc) }
+
+  # Get all active rules sorted by priority
+  def self.active_rules
+    active.by_priority
   end
 
-  def ams_api_key
-    return nil if ams_api_key_encrypted.blank?
-    ams_api_key_encrypted
+  # Check if any rule matches the given conditions
+  def self.matches?(email_log:, error_type: nil)
+    active_rules.find do |rule|
+      rule.matches?(email_log: email_log, error_type: error_type)
+    end
   end
 
-  def ams_api_key=(value)
-    self.ams_api_key_encrypted = value.presence
-  end
-
-  def thresholds_exceeded?(campaign_id)
+  # Check if this rule matches the given conditions
+  def matches?(email_log:, error_type: nil)
     return false unless active?
-    return false unless auto_stop_mailing?
 
-    window = check_window_minutes
-    errors = DeliveryError.by_campaign(campaign_id).in_window(window)
-
-    # Подсчёт статистики
-    # Считаем все письма в окне (включая queued/processing для корректного расчета bounce_rate)
-    total_sent = EmailLog.where(campaign_id: campaign_id)
-                         .where('created_at > ?', window.minutes.ago)
-                         .count
-
-    total_bounced = errors.count
-    bounce_rate = total_sent > 0 ? (total_bounced.to_f / total_sent * 100) : 0
-
-    rate_limit_count = errors.by_category('rate_limit').count
-    spam_block_count = errors.by_category('spam_block').count
-
-    violations = []
-
-    if bounce_rate > max_bounce_rate
-      violations << {
-        type: :bounce_rate,
-        value: bounce_rate.round(2),
-        threshold: max_bounce_rate,
-        message: "Bounce rate #{bounce_rate.round(2)}% exceeds threshold of #{max_bounce_rate}%"
-      }
+    case rule_type
+    when 'bounce_threshold'
+      check_bounce_threshold(email_log)
+    when 'rate_limit'
+      check_rate_limit(email_log)
+    when 'spam_filter'
+      error_type == 'spam_block'
+    when 'domain_block'
+      check_domain_block(email_log)
+    else
+      check_custom_conditions(email_log, error_type)
     end
-
-    if rate_limit_count > max_rate_limit_errors
-      violations << {
-        type: :rate_limit,
-        value: rate_limit_count,
-        threshold: max_rate_limit_errors,
-        message: "Rate limit errors: #{rate_limit_count} (threshold: #{max_rate_limit_errors})"
-      }
-    end
-
-    if spam_block_count > max_spam_blocks
-      violations << {
-        type: :spam_block,
-        value: spam_block_count,
-        threshold: max_spam_blocks,
-        message: "Spam blocks: #{spam_block_count} (threshold: #{max_spam_blocks})"
-      }
-    end
-
-    violations.any? ? violations : false
   end
 
-  # Проверка: нужно ли отправлять email уведомления
-  def notify_email?
-    notification_email.present?
+  # Execute rule actions
+  def execute_actions(email_log)
+    actions.each do |action_type, action_params|
+      case action_type.to_s
+      when 'block_email'
+        block_email(email_log)
+      when 'notify'
+        send_notification(email_log, action_params)
+      when 'stop_campaign'
+        stop_campaign(email_log.campaign_id)
+      end
+    end
+  end
+
+  private
+
+  def check_bounce_threshold(email_log)
+    threshold = conditions['bounce_count']&.to_i || 3
+    window = conditions['window_minutes']&.to_i || 60
+
+    bounce_count = DeliveryError
+      .where(email_log_id: email_log.id)
+      .where('created_at > ?', window.minutes.ago)
+      .count
+
+    bounce_count >= threshold
+  end
+
+  def check_rate_limit(email_log)
+    max_emails = conditions['max_emails']&.to_i || 100
+    window = conditions['window_minutes']&.to_i || 60
+
+    recent_count = EmailLog
+      .where(campaign_id: email_log.campaign_id)
+      .where('created_at > ?', window.minutes.ago)
+      .count
+
+    recent_count >= max_emails
+  end
+
+  def check_domain_block(email_log)
+    blocked_domains = conditions['domains'] || []
+    domain = email_log.recipient.split('@').last
+    blocked_domains.include?(domain)
+  end
+
+  def check_custom_conditions(email_log, error_type)
+    # Custom rule evaluation based on conditions JSON
+    return false if conditions.blank?
+
+    conditions.all? do |field, expected|
+      case field.to_s
+      when 'error_type'
+        error_type == expected
+      when 'campaign_id'
+        email_log.campaign_id == expected
+      when 'status'
+        email_log.status == expected
+      else
+        false
+      end
+    end
+  end
+
+  def block_email(email_log)
+    BouncedEmail.record_bounce(
+      email: email_log.recipient,
+      bounce_type: 'hard',
+      bounce_category: 'rule_blocked',
+      campaign_id: email_log.campaign_id
+    )
+  end
+
+  def send_notification(email_log, params)
+    # TODO: Implement notification sending
+    Rails.logger.info "MailingRule notification: #{params.inspect} for #{email_log.id}"
+  end
+
+  def stop_campaign(campaign_id)
+    # TODO: Implement campaign stopping logic
+    Rails.logger.warn "MailingRule: Stopping campaign #{campaign_id}"
   end
 end
-

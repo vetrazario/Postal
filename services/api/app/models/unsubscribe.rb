@@ -3,7 +3,7 @@
 class Unsubscribe < ApplicationRecord
   validates :email, presence: true
   validates :unsubscribed_at, presence: true
-  validates :reason, presence: true
+  # reason is optional - can be user_request, complaint, bounce, etc.
 
   scope :global, -> { where(campaign_id: nil) }
   scope :by_campaign, ->(campaign_id) { where(campaign_id: campaign_id) }

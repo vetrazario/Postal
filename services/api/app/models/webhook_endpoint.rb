@@ -6,8 +6,7 @@ class WebhookEndpoint < ApplicationRecord
 
   # Validations
   validates :url, presence: true, format: { with: URI::DEFAULT_PARSER.make_regexp(%w[http https]) }
-  validates :retry_count, numericality: { greater_than_or_equal_to: 0, less_than_or_equal_to: 10 }
-  validates :timeout, numericality: { greater_than: 0, less_than_or_equal_to: 120 }
+  validates :secret, presence: true
 
   # Scopes
   scope :active, -> { where(active: true) }
@@ -15,6 +14,12 @@ class WebhookEndpoint < ApplicationRecord
 
   # Default events
   DEFAULT_EVENTS = %w[delivered opened clicked bounced failed complained unsubscribed].freeze
+
+  # Initialize with default events
+  after_initialize do
+    self.events ||= DEFAULT_EVENTS
+    self.headers ||= {}
+  end
 
   # Check if event should be sent
   def should_send_event?(event_type)
@@ -34,65 +39,34 @@ class WebhookEndpoint < ApplicationRecord
         data: data
       }
 
-      # Use HTTParty instead of HTTP gem (HTTParty is already in Gemfile)
       response = HTTParty.post(
         url,
-        headers: build_headers,
+        headers: build_headers(body),
         body: body.to_json,
-        timeout: timeout,
-        verify: true  # Verify SSL certificates
+        timeout: 30,
+        verify: true
       )
-
-      duration = ((Time.current - start_time) * 1000).round(2)
 
       log_delivery(
         event_type: event_type,
-        message_id: data[:message_id],
-        response_code: response.code,
+        payload: body,
+        status_code: response.code,
         response_body: response.body.to_s.truncate(1000),
-        success: response.code.between?(200, 299),
-        delivered_at: Time.current,
-        duration_ms: duration
+        sent_at: Time.current
       )
-
-      increment_successful! if response.code.between?(200, 299)
-      increment_failed! unless response.code.between?(200, 299)
 
       response.code.between?(200, 299)
 
     rescue HTTParty::Error, Net::OpenTimeout, Net::ReadTimeout, SocketError => e
-      duration = ((Time.current - start_time) * 1000).round(2)
-
       log_delivery(
         event_type: event_type,
-        message_id: data[:message_id],
-        success: false,
+        payload: body,
         error_message: e.message,
-        duration_ms: duration
+        sent_at: Time.current
       )
 
-      increment_failed!
       false
     end
-  end
-
-  # Increment counters
-  def increment_successful!
-    increment!(:successful_deliveries)
-    update_column(:last_success_at, Time.current)
-  end
-
-  def increment_failed!
-    increment!(:failed_deliveries)
-    update_column(:last_failure_at, Time.current)
-  end
-
-  # Success rate
-  def success_rate
-    total = successful_deliveries + failed_deliveries
-    return 0 if total.zero?
-
-    ((successful_deliveries.to_f / total) * 100).round(2)
   end
 
   # Recent logs
@@ -102,22 +76,22 @@ class WebhookEndpoint < ApplicationRecord
 
   private
 
-  def build_headers
-    headers = {
+  def build_headers(body)
+    request_headers = {
       'Content-Type' => 'application/json',
       'User-Agent' => 'EmailSender-Webhook/1.0'
     }
 
-    if secret_key.present?
-      headers['X-Webhook-Signature'] = generate_signature
+    # Merge custom headers
+    request_headers.merge!(headers) if headers.present?
+
+    # Add HMAC signature
+    if secret.present?
+      signature = OpenSSL::HMAC.hexdigest('SHA256', secret, body.to_json)
+      request_headers['X-Webhook-Signature'] = "sha256=#{signature}"
     end
 
-    headers
-  end
-
-  def generate_signature
-    # HMAC signature for webhook verification
-    OpenSSL::HMAC.hexdigest('SHA256', secret_key, url)
+    request_headers
   end
 
   def log_delivery(attributes)
