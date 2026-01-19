@@ -34,6 +34,7 @@ class SmtpCredential < ApplicationRecord
   def verify_password(password)
     BCrypt::Password.new(password_hash) == password
   end
+  alias authenticate verify_password
 
   # Update last used timestamp
   def mark_as_used!
