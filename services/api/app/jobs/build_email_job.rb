@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class BuildEmailJob < ApplicationJob
   queue_as :default
   retry_on StandardError, wait: :polynomially_longer, attempts: 3
@@ -8,15 +10,10 @@ class BuildEmailJob < ApplicationJob
     return if email_log.status.in?(%w[sent delivered])
 
     # Check if email is blocked (unsubscribed or bounced)
-    if Unsubscribe.blocked?(email: email_log.recipient, campaign_id: email_log.campaign_id)
-      email_log.update!(status: 'failed', status_details: { reason: 'unsubscribed' })
-      Rails.logger.warn "Email #{email_log.recipient_masked} is unsubscribed, skipping build"
-      return
-    end
-
-    if BouncedEmail.blocked?(email: email_log.recipient, campaign_id: email_log.campaign_id)
-      email_log.update!(status: 'failed', status_details: { reason: 'bounced' })
-      Rails.logger.warn "Email #{email_log.recipient_masked} is bounced, skipping build"
+    block_result = EmailBlocker.blocked?(email: email_log.recipient, campaign_id: email_log.campaign_id)
+    if block_result[:blocked]
+      email_log.update!(status: 'failed', status_details: { reason: block_result[:reason] })
+      Rails.logger.warn "Email #{email_log.recipient_masked} is #{block_result[:reason]}, skipping build"
       return
     end
 

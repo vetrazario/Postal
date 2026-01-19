@@ -25,15 +25,10 @@ class SendSmtpEmailJob < ApplicationJob
     end
 
     # Check if email is blocked (unsubscribed or bounced)
-    if Unsubscribe.blocked?(email: email_log.recipient, campaign_id: email_log.campaign_id)
-      email_log.update!(status: 'failed', status_details: { reason: 'unsubscribed' })
-      Rails.logger.warn "Email #{email_log.recipient_masked} is unsubscribed, skipping send"
-      return
-    end
-
-    if BouncedEmail.blocked?(email: email_log.recipient, campaign_id: email_log.campaign_id)
-      email_log.update!(status: 'failed', status_details: { reason: 'bounced' })
-      Rails.logger.warn "Email #{email_log.recipient_masked} is bounced, skipping send"
+    block_result = EmailBlocker.blocked?(email: email_log.recipient, campaign_id: email_log.campaign_id)
+    if block_result[:blocked]
+      email_log.update!(status: 'failed', status_details: { reason: block_result[:reason] })
+      Rails.logger.warn "Email #{email_log.recipient_masked} is #{block_result[:reason]}, skipping send"
       return
     end
 

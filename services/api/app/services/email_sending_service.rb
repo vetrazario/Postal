@@ -29,7 +29,7 @@ class EmailSendingService
   def send_batch(messages)
     return Result.new(success?: false, error: 'Batch must contain 1-100 messages') if messages.empty? || messages.size > 100
 
-    validation = validate_email(@params[:from_email], @params[:from_email])
+    validation = validate_email(messages.first&.dig(:recipient) || @params[:recipient], @params[:from_email])
     return Result.new(success?: false, error: validation[:error]) unless validation[:valid]
 
     batch_id = SecureRandom.hex(12)
