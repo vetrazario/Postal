@@ -612,7 +612,9 @@ function analyticsPage() {
       });
     },
     async loadDailyChart() {
-      const response = await fetch('<%= daily_dashboard_analytics_path %>');
+      const response = await fetch('<%= daily_dashboard_analytics_path %>', {
+        credentials: 'include'
+      });
       const data = await response.json();
       
       const ctx = document.getElementById('mainChart');
@@ -662,7 +664,9 @@ function analyticsPage() {
     },
     async loadHourlyChart() {
       const date = new Date().toISOString().split('T')[0];
-      const response = await fetch(`<%= hourly_dashboard_analytics_path %>?date=${date}`);
+      const response = await fetch(`<%= hourly_dashboard_analytics_path %>?date=${date}`, {
+        credentials: 'include'
+      });
       const data = await response.json();
       
       const ctx = document.getElementById('mainChart');
@@ -711,7 +715,9 @@ function analyticsPage() {
       });
     },
     async loadCampaignsChart() {
-      const response = await fetch('<%= campaigns_dashboard_analytics_path %>');
+      const response = await fetch('<%= campaigns_dashboard_analytics_path %>', {
+        credentials: 'include'
+      });
       const data = await response.json();
       
       const ctx = document.getElementById('mainChart');

@@ -259,6 +259,7 @@
         'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content,
         'Content-Type': 'application/json'
       },
+      credentials: 'include',
       body: JSON.stringify({
         mailing_rule: {
           ams_api_url: formData.get('mailing_rule[ams_api_url]'),

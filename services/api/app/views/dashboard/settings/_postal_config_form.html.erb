@@ -10,7 +10,8 @@
       headers: {
         'Content-Type': 'application/json',
         'X-CSRF-Token': document.querySelector('[name=csrf-token]').content
-      }
+      },
+      credentials: 'include'
     })
     .then(r => r.json())
     .then(data => {
