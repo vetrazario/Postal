@@ -1,6 +1,7 @@
 class UnsubscribesController < ActionController::Base
+  include Rails.application.routes.url_helpers
   skip_before_action :verify_authenticity_token
-  layout 'application'
+  layout 'unsubscribes'
 
   # GET /unsubscribe?eid=BASE64_EMAIL&cid=BASE64_CAMPAIGN_ID
   def show

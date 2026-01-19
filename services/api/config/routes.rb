@@ -8,6 +8,9 @@ Sidekiq::Web.use(Rack::Auth::Basic, 'Sidekiq') do |username, password|
 end
 
 Rails.application.routes.draw do
+  # Global root - redirect to dashboard
+  root to: redirect('/dashboard')
+
   namespace :api do
     namespace :v1 do
       # Health check (no auth)

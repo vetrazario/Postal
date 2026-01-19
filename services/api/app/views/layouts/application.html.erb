@@ -235,7 +235,7 @@
     <div class="container">
       <h1>Email Sender Dashboard</h1>
       <nav>
-        <%= link_to 'Статистика', dashboard_index_path, class: (request.path == '/dashboard' ? 'active' : '') %>
+        <%= link_to 'Статистика', dashboard_root_path, class: (request.path == '/dashboard' ? 'active' : '') %>
         <%= link_to 'Логи', dashboard_logs_path, class: (request.path == '/dashboard/logs' ? 'active' : '') %>
       </nav>
     </div>

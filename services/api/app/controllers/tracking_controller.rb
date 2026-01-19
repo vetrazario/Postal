@@ -1,4 +1,5 @@
 class TrackingController < ActionController::Base
+  include Rails.application.routes.url_helpers
   skip_before_action :verify_authenticity_token
 
   # Public endpoint - no authentication required
