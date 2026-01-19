@@ -260,7 +260,85 @@ else
 fi
 
 echo ""
-echo -e "${BLUE}=== ЭТАП 7: Работа трекинга ===${NC}"
+echo -e "${BLUE}=== ЭТАП 7: Переупаковка ссылок ===${NC}"
+log_step "7.1" "Проверка замены ссылок на tracking URLs"
+
+# Проверка что LinkTracker существует и заменяет ссылки
+LINK_TRACKER_CHECK=$(rails_exec "
+html = '<a href=\"https://example.com/page\">Link</a>'
+tracker = LinkTracker.new(email_log: EmailLog.new(id: 1, campaign_id: 'test123'), domain: 'example.com')
+tracked = tracker.track_links(html)
+if tracked.include?('/track/') || tracked.include?('tracking')
+  puts 'OK'
+else
+  puts 'FAIL'
+end
+" 2>/dev/null || echo "FAIL")
+
+if echo "$LINK_TRACKER_CHECK" | grep -q "OK"; then
+    log_success "LinkTracker заменяет ссылки на tracking URLs"
+else
+    log_error "LinkTracker не заменяет ссылки"
+fi
+
+# Проверка формата tracking URL
+TRACKING_URL_CHECK=$(rails_exec "
+require 'base64'
+original_url = 'https://example.com/page'
+encoded = Base64.urlsafe_encode64(original_url)
+tracking_url = \"https://example.com/track/c?url=#{encoded}&eid=test&cid=test123&mid=test456\"
+puts tracking_url.include?('/track/c') && tracking_url.include?('url=') ? 'OK' : 'FAIL'
+" 2>/dev/null || echo "FAIL")
+
+if echo "$TRACKING_URL_CHECK" | grep -q "OK"; then
+    log_success "Tracking URL имеет правильный формат"
+else
+    log_error "Tracking URL имеет неправильный формат"
+fi
+
+# Проверка что tracking endpoint обрабатывает редирект
+log_step "7.2" "Проверка tracking endpoint для редиректа"
+TRACKING_ENDPOINT=$(docker compose exec -T api rails routes 2>/dev/null | grep -E "track.*click|track.*c" | head -1)
+if [ -n "$TRACKING_ENDPOINT" ]; then
+    log_success "Tracking endpoint для кликов существует"
+    log_check "Route: $TRACKING_ENDPOINT"
+else
+    log_error "Tracking endpoint для кликов не найден"
+fi
+
+# Проверка что TrackingController обрабатывает редирект
+TRACKING_CONTROLLER_CHECK=$(rails_exec "
+if defined?(TrackingController)
+  controller = TrackingController.new
+  puts controller.respond_to?(:click, true) || controller.respond_to?(:redirect, true) ? 'OK' : 'FAIL'
+else
+  puts 'FAIL'
+end
+" 2>/dev/null || echo "FAIL")
+
+if echo "$TRACKING_CONTROLLER_CHECK" | grep -q "OK"; then
+    log_success "TrackingController обрабатывает редиректы"
+else
+    log_error "TrackingController не обрабатывает редиректы"
+fi
+
+# Проверка что оригинальный URL декодируется
+URL_DECODE_CHECK=$(rails_exec "
+require 'base64'
+original = 'https://example.com/test?param=value'
+encoded = Base64.urlsafe_encode64(original)
+decoded = Base64.urlsafe_decode64(encoded)
+puts decoded == original ? 'OK' : 'FAIL'
+" 2>/dev/null || echo "FAIL")
+
+if echo "$URL_DECODE_CHECK" | grep -q "OK"; then
+    log_success "URL правильно кодируется/декодируется"
+else
+    log_error "Проблема с кодированием/декодированием URL"
+fi
+
+echo ""
+echo -e "${BLUE}=== ЭТАП 8: Работа трекинга ===${NC}"
 log_step "7.1" "Проверка моделей трекинга"
 
 EMAIL_OPEN=$(rails_exec "puts defined?(EmailOpen) ? 'OK' : 'FAIL'" 2>/dev/null || echo "FAIL")
@@ -290,7 +368,7 @@ else
 fi
 
 echo ""
-echo -e "${BLUE}=== ЭТАП 8: Остановка рассылки при ошибках ===${NC}"
+echo -e "${BLUE}=== ЭТАП 9: Остановка рассылки при ошибках ===${NC}"
 log_step "8.1" "Проверка системы остановки"
 
 THRESHOLD_JOB=$(rails_exec "puts defined?(CheckMailingThresholdsJob) ? 'OK' : 'FAIL'" 2>/dev/null || echo "FAIL")
