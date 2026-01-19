@@ -101,11 +101,22 @@ else
 fi
 
 log_step "1.2" "Проверка API endpoint"
-API_STATUS=$(curl -s -o /dev/null -w '%{http_code}' "${API_URL}/api/v1/smtp/receive" -X POST -H 'Content-Type: application/json' -d '{}' 2>/dev/null || echo "000")
-if [ "$API_STATUS" = "400" ] || [ "$API_STATUS" = "401" ]; then
-    log_success "API endpoint /api/v1/smtp/receive доступен (код: $API_STATUS)"
+# Проверка через docker exec так как API может быть не доступен снаружи
+API_CHECK=$(docker compose exec -T api curl -s -o /dev/null -w '%{http_code}' "http://localhost:3000/api/v1/smtp/receive" -X POST -H 'Content-Type: application/json' -d '{}' 2>/dev/null || echo "000")
+if [ "$API_CHECK" = "400" ] || [ "$API_CHECK" = "401" ] || [ "$API_CHECK" = "200" ]; then
+    log_success "API endpoint /api/v1/smtp/receive доступен (код: $API_CHECK)"
 else
-    log_error "API endpoint недоступен (код: $API_STATUS)"
+    # Попробовать через внешний URL если указан
+    if [ "$API_URL" != "http://localhost:3000" ]; then
+        API_STATUS=$(curl -s -o /dev/null -w '%{http_code}' --connect-timeout 2 "${API_URL}/api/v1/smtp/receive" -X POST -H 'Content-Type: application/json' -d '{}' 2>/dev/null || echo "000")
+        if [ "$API_STATUS" = "400" ] || [ "$API_STATUS" = "401" ]; then
+            log_success "API endpoint доступен через внешний URL (код: $API_STATUS)"
+        else
+            log_error "API endpoint недоступен (внутренний: $API_CHECK, внешний: $API_STATUS)"
+        fi
+    else
+        log_error "API endpoint недоступен (код: $API_CHECK). Проверьте что контейнер api работает"
+    fi
 fi
 
 echo ""
@@ -185,11 +196,22 @@ echo ""
 echo -e "${BLUE}=== ЭТАП 5: Получение логов от Postal ===${NC}"
 log_step "5.1" "Проверка webhook endpoint"
 
-WEBHOOK_STATUS=$(curl -s -o /dev/null -w '%{http_code}' "${API_URL}/api/v1/webhook" -X POST -H 'Content-Type: application/json' -d '{}' 2>/dev/null || echo "000")
-if [ "$WEBHOOK_STATUS" = "200" ] || [ "$WEBHOOK_STATUS" = "400" ] || [ "$WEBHOOK_STATUS" = "401" ]; then
-    log_success "Webhook endpoint доступен (код: $WEBHOOK_STATUS)"
+# Проверка через docker exec
+WEBHOOK_CHECK=$(docker compose exec -T api curl -s -o /dev/null -w '%{http_code}' "http://localhost:3000/api/v1/webhook" -X POST -H 'Content-Type: application/json' -d '{}' 2>/dev/null || echo "000")
+if [ "$WEBHOOK_CHECK" = "200" ] || [ "$WEBHOOK_CHECK" = "400" ] || [ "$WEBHOOK_CHECK" = "401" ]; then
+    log_success "Webhook endpoint доступен (код: $WEBHOOK_CHECK)"
 else
-    log_error "Webhook endpoint недоступен (код: $WEBHOOK_STATUS)"
+    # Попробовать через внешний URL если указан
+    if [ "$API_URL" != "http://localhost:3000" ]; then
+        WEBHOOK_STATUS=$(curl -s -o /dev/null -w '%{http_code}' --connect-timeout 2 "${API_URL}/api/v1/webhook" -X POST -H 'Content-Type: application/json' -d '{}' 2>/dev/null || echo "000")
+        if [ "$WEBHOOK_STATUS" = "200" ] || [ "$WEBHOOK_STATUS" = "400" ]; then
+            log_success "Webhook endpoint доступен через внешний URL (код: $WEBHOOK_STATUS)"
+        else
+            log_error "Webhook endpoint недоступен (внутренний: $WEBHOOK_CHECK, внешний: $WEBHOOK_STATUS)"
+        fi
+    else
+        log_error "Webhook endpoint недоступен (код: $WEBHOOK_CHECK). Проверьте что контейнер api работает"
+    fi
 fi
 
 log_step "5.2" "Проверка обработки событий"
@@ -294,13 +316,29 @@ fi
 
 ERROR_CLASSIFIER=$(rails_exec "
 ec = ErrorClassifier.new
-puts ec.respond_to?(:stop_mailing_categories) ? 'OK' : 'FAIL'
+if ec.respond_to?(:stop_mailing_categories)
+  result = ec.stop_mailing_categories
+  puts result.is_a?(Array) ? 'OK' : 'FAIL'
+else
+  # Проверяем через класс метод
+  if ErrorClassifier.respond_to?(:stop_mailing_categories)
+    result = ErrorClassifier.stop_mailing_categories
+    puts result.is_a?(Array) ? 'OK' : 'FAIL'
+  else
+    puts 'FAIL'
+  end
+end
 " 2>/dev/null || echo "FAIL")
 
 if echo "$ERROR_CLASSIFIER" | grep -q "OK"; then
     log_success "ErrorClassifier определяет критические категории"
 else
-    log_error "ErrorClassifier не определяет критические категории"
+    log_error "ErrorClassifier не определяет критические категории (проверьте метод stop_mailing_categories)"
+    # Показываем что есть в ErrorClassifier
+    ERROR_METHODS=$(rails_exec "ec = ErrorClassifier.new; puts ec.methods.grep(/stop|mailing|category/).join(', ')" 2>/dev/null || echo "")
+    if [ -n "$ERROR_METHODS" ]; then
+        log_check "Доступные методы: $ERROR_METHODS"
+    fi
 fi
 
 WEBHOOK_JOB_CHECK=$(rails_exec "
