@@ -2,7 +2,8 @@
 # Детальная проверка рассылки с тестовой отправкой
 # Использует реальные API вызовы для проверки каждого этапа
 
-set -e
+# Не останавливаться на ошибках - проверять все этапы
+set +e
 
 # Цвета
 RED='\033[0;31m'
@@ -73,11 +74,17 @@ echo -e "${BLUE}=== ЭТАП 1: Получение письма от AMS ===${NC
 log_step "1.1" "Проверка SMTP Relay"
 
 # Проверка что SMTP Relay слушает порт
-if docker compose exec -T smtp-relay nc -z localhost 2587 2>/dev/null; then
-    log_success "SMTP Relay слушает порт 2587"
+if docker compose exec -T smtp-relay nc -z localhost 587 2>/dev/null || docker compose ps smtp-relay | grep -q "Up"; then
+    log_success "SMTP Relay контейнер работает"
 else
-    log_error "SMTP Relay не слушает порт 2587"
-    exit 1
+    log_error "SMTP Relay контейнер не работает"
+fi
+
+# Проверка что порт доступен снаружи
+if nc -z localhost 2587 2>/dev/null || timeout 1 bash -c "</dev/tcp/localhost/2587" 2>/dev/null; then
+    log_success "SMTP Relay порт 2587 доступен снаружи"
+else
+    log_error "SMTP Relay порт 2587 недоступен снаружи (проверьте docker-compose.yml)"
 fi
 
 # Проверка что плагины загружены
@@ -313,3 +320,9 @@ echo -e "${GREEN}Проверка завершена${NC}"
 echo ""
 echo -e "${CYAN}Для полной проверки с реальной отправкой используйте:${NC}"
 echo -e "${YELLOW}  ./scripts/test_email_send.sh ${TEST_EMAIL} ${CAMPAIGN_ID}${NC}"
+echo ""
+
+# Подсчет результатов
+TOTAL_CHECKS=$(grep -c "\[ШАГ\|log_step\|log_check" "$0" 2>/dev/null || echo "0")
+echo -e "${CYAN}Всего проверок выполнено${NC}"
+echo -e "${YELLOW}Проверьте вывод выше для деталей${NC}"

@@ -2,7 +2,8 @@
 # Скрипт проверки рассылки на каждом этапе
 # Проверяет весь flow от получения письма от AMS до остановки рассылки при ошибках
 
-set -e
+# Не останавливаться на ошибках - проверять все этапы
+set +e
 
 # Цвета для вывода
 RED='\033[0;31m'
@@ -81,9 +82,13 @@ rails_check() {
 
 echo -e "${BLUE}=== ЭТАП 1: Получение письма от AMS ===${NC}"
 
-# 1.1 Проверка что SMTP Relay принимает соединения
-check_step "SMTP Relay принимает соединения" \
-    "docker compose exec -T smtp-relay nc -z localhost 2587"
+# 1.1 Проверка что SMTP Relay контейнер работает
+check_step "SMTP Relay контейнер работает" \
+    "docker compose ps smtp-relay | grep -q 'Up'"
+
+# 1.1.1 Проверка что порт доступен снаружи
+check_step "SMTP Relay порт 2587 доступен" \
+    "timeout 1 bash -c '</dev/tcp/localhost/2587' 2>/dev/null || nc -z localhost 2587 2>/dev/null"
 
 # 1.2 Проверка что API endpoint /api/v1/smtp/receive доступен
 check_step "API endpoint /api/v1/smtp/receive доступен" \
