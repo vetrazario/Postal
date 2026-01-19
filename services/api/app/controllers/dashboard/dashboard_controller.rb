@@ -52,9 +52,12 @@ module Dashboard
     end
 
     def redis_healthy?
-      Redis.new(url: ENV['REDIS_URL']).ping == 'PONG'
+      redis = Redis.new(url: ENV['REDIS_URL'])
+      redis.ping == 'PONG'
     rescue
       false
+    ensure
+      redis&.close
     end
 
     def sidekiq_healthy?

@@ -135,7 +135,9 @@ module Api
 
         # Check timestamp is not too old (5 minutes)
         request_time = timestamp.to_i
-        return false if (Time.now.to_i - request_time / 1000).abs > 300
+        # Convert milliseconds to seconds if timestamp is in milliseconds (JavaScript timestamps)
+        request_time = request_time / 1000 if request_time > 1_000_000_000_000
+        return false if (Time.now.to_i - request_time).abs > 300
 
         # Reconstruct payload for verification
         payload = {
