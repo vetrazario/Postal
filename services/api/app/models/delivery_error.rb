@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class DeliveryError < ApplicationRecord
-  belongs_to :email_log
+  belongs_to :email_log, optional: true
 
   CATEGORIES = %w[
     rate_limit
@@ -11,11 +11,14 @@ class DeliveryError < ApplicationRecord
     temporary
     authentication
     connection
+    send_failed
     unknown
   ].freeze
 
-  validates :category, presence: true, inclusion: { in: CATEGORIES }
-  validates :campaign_id, presence: true
+  validates :category, presence: true, inclusion: { in: CATEGORIES, allow_blank: true }
+
+  # Set defaults before validation
+  before_validation :set_defaults
 
   scope :by_campaign, ->(campaign_id) { where(campaign_id: campaign_id) }
   scope :by_category, ->(category) { where(category: category) }
@@ -28,5 +31,12 @@ class DeliveryError < ApplicationRecord
     scope = scope.by_category(category) if category.present?
     scope.group(:category).count
   end
-end
 
+  private
+
+  def set_defaults
+    self.category ||= 'unknown'
+    self.campaign_id ||= email_log&.campaign_id || 'unknown'
+    self.occurred_at ||= Time.current
+  end
+end

@@ -99,11 +99,12 @@ class Api::V1::WebhooksController < Api::V1::ApplicationController
       if email_log.campaign_id.present?
         DeliveryError.create!(
           email_log: email_log,
-          campaign_id: email_log.campaign_id,
-          category: error_info[:category].to_s,
+          campaign_id: email_log.campaign_id || 'unknown',
+          category: error_info[:category].to_s.presence || 'unknown',
           smtp_code: error_info[:smtp_code],
           smtp_message: error_info[:message],
-          recipient_domain: email_log.recipient&.split('@')&.last
+          recipient_domain: email_log.recipient&.split('@')&.last,
+          occurred_at: Time.current
         )
         
         # Проверить пороги асинхронно (останавливает рассылку если нужно)

@@ -100,10 +100,10 @@ class SendSmtpEmailJob < ApplicationJob
 
       # Create delivery error record
       DeliveryError.create!(
-        email: email_log.recipient,
-        campaign_id: email_log.campaign_id,
-        error_type: 'send_failed',
-        error_message: response[:error].to_s.truncate(500),
+        email_log: email_log,
+        campaign_id: email_log.campaign_id || 'unknown',
+        category: 'send_failed',
+        smtp_message: response[:error].to_s.truncate(500),
         occurred_at: Time.current
       )
 
@@ -127,10 +127,10 @@ class SendSmtpEmailJob < ApplicationJob
 
       # Create delivery error record
       DeliveryError.create!(
-        email: email_log.recipient,
-        campaign_id: email_log.campaign_id,
-        error_type: 'job_exception',
-        error_message: "#{e.class.name}: #{e.message}".truncate(500),
+        email_log: email_log,
+        campaign_id: email_log.campaign_id || 'unknown',
+        category: 'unknown',
+        smtp_message: "#{e.class.name}: #{e.message}".truncate(500),
         occurred_at: Time.current
       )
     rescue StandardError => update_error
