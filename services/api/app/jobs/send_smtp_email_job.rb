@@ -100,6 +100,7 @@ class SendSmtpEmailJob < ApplicationJob
 
       # Create delivery error record
       DeliveryError.create!(
+        email_log: email_log,
         recipient_domain: email_log.recipient.split('@').last,
         campaign_id: email_log.campaign_id,
         category: 'connection',
@@ -127,6 +128,7 @@ class SendSmtpEmailJob < ApplicationJob
 
       # Create delivery error record
       DeliveryError.create!(
+        email_log: email_log,
         recipient_domain: email_log.recipient.split('@').last,
         campaign_id: email_log.campaign_id,
         category: 'connection',
