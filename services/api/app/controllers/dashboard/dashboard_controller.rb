@@ -22,14 +22,7 @@ module Dashboard
     private
 
     def calculate_stats(period)
-      logs = EmailLog.where(created_at: period).select(:id)
-      log_ids = logs.pluck(:id)
-
-      # Single query with aggregation to avoid N+1 problem
-      event_counts = TrackingEvent
-        .where(email_log_id: log_ids)
-        .group(:event_type)
-        .count
+      logs = EmailLog.where(created_at: period)
 
       {
         total: logs.count,
@@ -38,8 +31,8 @@ module Dashboard
         delivered: logs.where(status: 'delivered').count,
         bounced: logs.where(status: 'bounced').count,
         failed: logs.where(status: 'failed').count,
-        opened: event_counts['open'] || 0,
-        clicked: event_counts['click'] || 0
+        opened: TrackingEvent.where(email_log_id: logs.ids, event_type: 'open').count,
+        clicked: TrackingEvent.where(email_log_id: logs.ids, event_type: 'click').count
       }
     end
 

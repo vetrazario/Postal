@@ -2,35 +2,26 @@
 
 class AiSetting < ApplicationRecord
   # Encryption for API key
-  encrypts :api_key_encrypted, deterministic: false
-
-  # Alias for convenience
-  alias_attribute :api_key, :api_key_encrypted
-  alias_attribute :openrouter_api_key, :api_key_encrypted
-  alias_attribute :ai_model, :model
+  encrypts :openrouter_api_key
 
   # Validations
-  validates :provider, presence: true
-  validates :model, presence: true
+  validates :ai_model, presence: true, format: { with: /\A[\w\-]+\/[\w\-\.:]+\z/, message: "must be in OpenRouter format (e.g., anthropic/claude-sonnet-4)" }
+  validates :temperature, numericality: { greater_than_or_equal_to: 0, less_than_or_equal_to: 2 }
+  validates :max_tokens, numericality: { greater_than: 0, less_than_or_equal_to: 100000 }
 
   # Singleton pattern - only one settings record
   def self.instance
     first_or_create!(id: 1) do |settings|
-      settings.provider = 'openrouter'
-      settings.model = 'anthropic/claude-sonnet-4'
+      settings.ai_model = 'anthropic/claude-sonnet-4'
+      settings.temperature = 0.7
+      settings.max_tokens = 4000
       settings.enabled = false
-      settings.settings = {
-        'temperature' => 0.7,
-        'max_tokens' => 4000,
-        'total_tokens_used' => 0,
-        'total_estimated_cost' => 0.0
-      }
     end
   end
 
   # Check if AI is configured
   def configured?
-    api_key.present?
+    openrouter_api_key.present?
   end
 
   # Check if AI is ready to use
@@ -38,61 +29,36 @@ class AiSetting < ApplicationRecord
     configured? && enabled?
   end
 
-  # Get setting value
-  def get_setting(key, default = nil)
-    settings&.dig(key.to_s) || default
+  # Increment analysis counters
+  def increment_analysis!(tokens_used)
+    increment!(:total_analyses)
+    increment!(:total_tokens_used, tokens_used)
+    update_column(:last_analysis_at, Time.current)
   end
 
-  # Set setting value
-  def set_setting(key, value)
-    self.settings ||= {}
-    settings[key.to_s] = value
-    save!
+  # Cost estimation (approximate)
+  def estimated_cost_per_1k_tokens
+    case ai_model
+    when /claude-3.5-sonnet/
+      0.003 # $0.003 per 1K tokens
+    when /claude-3-opus/
+      0.015 # $0.015 per 1K tokens
+    when /gpt-4-turbo/
+      0.01 # $0.01 per 1K tokens
+    when /gpt-4/
+      0.03 # $0.03 per 1K tokens
+    else
+      0.001 # Default estimate
+    end
   end
 
-  # JSONB settings accessors
-  def temperature
-    get_setting('temperature', 0.7)
-  end
-
-  def temperature=(value)
-    set_setting('temperature', value.to_f)
-  end
-
-  def max_tokens
-    get_setting('max_tokens', 4000)
-  end
-
-  def max_tokens=(value)
-    set_setting('max_tokens', value.to_i)
-  end
-
-  def total_tokens_used
-    get_setting('total_tokens_used', 0)
-  end
-
-  def total_tokens_used=(value)
-    set_setting('total_tokens_used', value.to_i)
-  end
-
+  # Total estimated cost
   def total_estimated_cost
-    get_setting('total_estimated_cost', 0.0)
+    (total_tokens_used / 1000.0 * estimated_cost_per_1k_tokens).round(2)
   end
 
-  def total_estimated_cost=(value)
-    set_setting('total_estimated_cost', value.to_f)
-  end
-
-  # Increment tokens used
-  def increment_tokens!(amount)
-    current = total_tokens_used
-    self.settings ||= {}
-    settings['total_tokens_used'] = current + amount.to_i
-    save!
-  end
-
-  # Model display name
+  # Model display name (just return the model ID)
   def model_display_name
-    model
+    ai_model
   end
 end

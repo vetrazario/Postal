@@ -8,21 +8,32 @@ class WebhookLog < ApplicationRecord
   validates :event_type, presence: true
 
   # Scopes
-  scope :successful, -> { where('status_code BETWEEN 200 AND 299') }
-  scope :failed, -> { where('status_code IS NULL OR status_code NOT BETWEEN 200 AND 299') }
+  scope :successful, -> { where(success: true) }
+  scope :failed, -> { where(success: false) }
   scope :for_event, ->(event_type) { where(event_type: event_type) }
   scope :recent, -> { order(created_at: :desc) }
 
-  # Check if delivery was successful
-  def success?
-    status_code.present? && status_code.between?(200, 299)
+  # Check if should retry
+  def should_retry?
+    !success && webhook_endpoint.retry_count > 0
+  end
+
+  # Retry webhook delivery
+  def retry!
+    return false unless should_retry?
+
+    webhook_endpoint.send_webhook(event_type, {
+      message_id: message_id,
+      retried: true,
+      original_attempt_id: id
+    })
   end
 
   # Response status
   def response_status
-    return 'error' unless status_code
+    return 'error' unless response_code
 
-    case status_code
+    case response_code
     when 200..299
       'success'
     when 400..499
@@ -34,20 +45,10 @@ class WebhookLog < ApplicationRecord
     end
   end
 
-  # Should retry?
-  def should_retry?
-    !success? && retry_count < 3
-  end
+  # Duration in seconds
+  def duration_seconds
+    return nil unless duration_ms
 
-  # Retry webhook delivery
-  def retry!
-    return false unless should_retry?
-
-    increment!(:retry_count)
-
-    webhook_endpoint.send_webhook(event_type, payload.merge(
-      retried: true,
-      retry_attempt: retry_count
-    ))
+    (duration_ms / 1000.0).round(3)
   end
 end

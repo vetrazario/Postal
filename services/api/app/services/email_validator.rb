@@ -22,10 +22,6 @@ class EmailValidator
       domain = from_email.split('@').last
       return error('From email domain is invalid') if domain.blank?
 
-      # Проверить MX запись домена (опционально, для production)
-      mx_validation = validate_mx_record(domain)
-      return mx_validation unless mx_validation[:valid]
-
       allowed = allowed_domains
 
       # Handle empty ALLOWED_SENDER_DOMAINS
@@ -42,18 +38,6 @@ class EmailValidator
       return error('AMS domain not allowed as sender') if domain.downcase.include?('ams')
 
       success
-    end
-
-    # Проверить MX запись домена (зашита от отправки на несуществующие домены)
-    def validate_mx_record(domain)
-      return success if Rails.env.test? || Rails.env.development? # пропустить в тестах и разработке
-
-      mx_records = Resolv::DNS.open.getresources(domain, Resolv::DNS::Resource::IN::MX) rescue []
-      return error('Domain has no MX records') if mx_records.empty?
-
-      success
-    rescue Resolv::ResolvError => e
-      error("DNS lookup failed: #{e.message}")
     end
 
     private

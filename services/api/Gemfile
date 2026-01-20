@@ -5,7 +5,7 @@
 
 source 'https://rubygems.org'
 
-ruby '>= 3.2.0'
+ruby '~> 3.2.0'
 
 # Rails
 gem 'rails', '~> 7.1.0'
@@ -28,9 +28,6 @@ gem 'liquid', '~> 5.4'
 
 # HTTP Clients
 gem 'httparty', '~> 0.21'  # For Postal API and OpenRouter API
-
-# HTML Processing
-gem 'nokogiri', '~> 1.16'  # For HTML parsing in LinkTracker
 
 # JSON
 gem 'oj', '~> 3.16'

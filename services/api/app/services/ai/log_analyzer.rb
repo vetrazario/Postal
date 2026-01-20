@@ -85,16 +85,12 @@ module Ai
 
       AiAnalysis.create!(
         analysis_type: 'campaign_analysis',
-        provider: 'openrouter',
-        model: result[:model],
-        result: analysis_result.to_json,
-        metadata: {
-          prompt_tokens: result[:prompt_tokens],
-          completion_tokens: result[:completion_tokens],
-          total_tokens: result[:total_tokens]
-        },
-        status: 'completed',
-        analyzed_at: Time.current
+        prompt_tokens: result[:prompt_tokens],
+        completion_tokens: result[:completion_tokens],
+        total_tokens: result[:total_tokens],
+        model_used: result[:model],
+        analysis_result: analysis_result,
+        status: 'completed'
       )
 
       analysis_result
@@ -158,16 +154,12 @@ module Ai
       # Save analysis
       AiAnalysis.create!(
         analysis_type: 'bounce_analysis',
-        provider: 'openrouter',
-        model: result[:model],
-        result: analysis_result.to_json,
-        metadata: {
-          prompt_tokens: result[:prompt_tokens],
-          completion_tokens: result[:completion_tokens],
-          total_tokens: result[:total_tokens]
-        },
-        status: 'completed',
-        analyzed_at: Time.current
+        prompt_tokens: result[:prompt_tokens],
+        completion_tokens: result[:completion_tokens],
+        total_tokens: result[:total_tokens],
+        model_used: result[:model],
+        analysis_result: analysis_result,
+        status: 'completed'
       )
 
       analysis_result
@@ -231,17 +223,12 @@ module Ai
 
       AiAnalysis.create!(
         analysis_type: 'send_time_optimization',
-        provider: 'openrouter',
-        model: result[:model],
-        result: analysis_result.to_json,
-        metadata: {
-          campaign_id: campaign_id,
-          prompt_tokens: result[:prompt_tokens],
-          completion_tokens: result[:completion_tokens],
-          total_tokens: result[:total_tokens]
-        },
-        status: 'completed',
-        analyzed_at: Time.current
+        campaign_id: campaign_id,
+        prompt_tokens: result[:prompt_tokens],
+        completion_tokens: result[:completion_tokens],
+        total_tokens: result[:total_tokens],
+        model_used: result[:model],
+        analysis_result: analysis_result
       )
 
       analysis_result
@@ -303,16 +290,11 @@ module Ai
 
       AiAnalysis.create!(
         analysis_type: 'campaign_comparison',
-        provider: 'openrouter',
-        model: result[:model],
-        result: analysis_result.to_json,
-        metadata: {
-          prompt_tokens: result[:prompt_tokens],
-          completion_tokens: result[:completion_tokens],
-          total_tokens: result[:total_tokens]
-        },
-        status: 'completed',
-        analyzed_at: Time.current
+        prompt_tokens: result[:prompt_tokens],
+        completion_tokens: result[:completion_tokens],
+        total_tokens: result[:total_tokens],
+        model_used: result[:model],
+        analysis_result: analysis_result
       )
 
       analysis_result

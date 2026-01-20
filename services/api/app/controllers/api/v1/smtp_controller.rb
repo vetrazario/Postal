@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# EmailMasker is autoloaded from app/lib/email_masker.rb
-
 module Api
   module V1
     class SmtpController < ApplicationController
@@ -51,7 +49,7 @@ module Api
           external_message_id: message['headers']&.dig('message-id'),
           campaign_id: campaign_id,
           recipient: recipient,  # Rails Encryption handles this automatically via `encrypts :recipient`
-          recipient_masked: EmailMasker.mask_email(recipient),
+          recipient_masked: mask_email(recipient),
           sender: envelope['from'],
           subject: message['subject'],
           status: 'queued',
@@ -184,6 +182,14 @@ module Api
 
       def generate_message_id
         "smtp_#{SecureRandom.hex(12)}"
+      end
+
+      def mask_email(email)
+        return email unless email.include?('@')
+
+        local, domain = email.split('@')
+        masked_local = local[0] + ('*' * (local.length - 1))
+        "#{masked_local}@#{domain}"
       end
     end
   end

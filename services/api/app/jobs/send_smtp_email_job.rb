@@ -25,10 +25,15 @@ class SendSmtpEmailJob < ApplicationJob
     end
 
     # Check if email is blocked (unsubscribed or bounced)
-    block_result = EmailBlocker.blocked?(email: email_log.recipient, campaign_id: email_log.campaign_id)
-    if block_result[:blocked]
-      email_log.update!(status: 'failed', status_details: { reason: block_result[:reason] })
-      Rails.logger.warn "Email #{email_log.recipient_masked} is #{block_result[:reason]}, skipping send"
+    if Unsubscribe.blocked?(email: email_log.recipient, campaign_id: email_log.campaign_id)
+      email_log.update!(status: 'failed', status_details: { reason: 'unsubscribed' })
+      Rails.logger.warn "Email #{email_log.recipient_masked} is unsubscribed, skipping send"
+      return
+    end
+
+    if BouncedEmail.blocked?(email: email_log.recipient, campaign_id: email_log.campaign_id)
+      email_log.update!(status: 'failed', status_details: { reason: 'bounced' })
+      Rails.logger.warn "Email #{email_log.recipient_masked} is bounced, skipping send"
       return
     end
 
@@ -95,10 +100,10 @@ class SendSmtpEmailJob < ApplicationJob
 
       # Create delivery error record
       DeliveryError.create!(
-        email_log: email_log,
-        error_type: 'connection',
-        error_message: response[:error].to_s.truncate(500),
         recipient_domain: email_log.recipient.split('@').last,
+        campaign_id: email_log.campaign_id,
+        category: 'connection',
+        smtp_message: response[:error].to_s.truncate(500),
         occurred_at: Time.current
       )
 
@@ -122,10 +127,10 @@ class SendSmtpEmailJob < ApplicationJob
 
       # Create delivery error record
       DeliveryError.create!(
-        email_log: email_log,
-        error_type: 'connection',
-        error_message: "#{e.class.name}: #{e.message}".truncate(500),
         recipient_domain: email_log.recipient.split('@').last,
+        campaign_id: email_log.campaign_id,
+        category: 'connection',
+        smtp_message: "#{e.class.name}: #{e.message}".truncate(500),
         occurred_at: Time.current
       )
     rescue StandardError => update_error

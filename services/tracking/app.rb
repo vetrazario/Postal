@@ -10,7 +10,7 @@ require_relative 'lib/webhook_sender'
 
 class TrackingApp < Sinatra::Base
   configure do
-    set :database_url, ENV.fetch("DATABASE_URL", "postgresql://email_sender:password@localhost:5432/email_sender")
+    set :database_url, ENV.fetch("DATABASE_URL", "postgres://email_sender:password@localhost:5432/email_sender")
     set :redis_url, ENV.fetch("REDIS_URL", "redis://localhost:6379/0")
   end
 

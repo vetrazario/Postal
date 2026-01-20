@@ -1,19 +1,13 @@
 # frozen_string_literal: true
 
 class AiAnalysis < ApplicationRecord
-  # Associations
-  belongs_to :email_log, optional: true
-
   # Validations
   validates :analysis_type, presence: true
-  validates :provider, presence: true
-  validates :model, presence: true
-  validates :status, presence: true, inclusion: { in: %w[pending processing completed failed] }
+  validates :status, presence: true, inclusion: { in: %w[processing completed failed] }
 
   # Scopes
   scope :completed, -> { where(status: 'completed') }
   scope :failed, -> { where(status: 'failed') }
-  scope :pending, -> { where(status: 'pending') }
   scope :processing, -> { where(status: 'processing') }
   scope :recent, -> { order(created_at: :desc) }
   scope :by_type, ->(type) { where(analysis_type: type) }
@@ -33,20 +27,25 @@ class AiAnalysis < ApplicationRecord
   end
 
   # Mark as completed
-  def mark_completed!(analysis_result)
+  def mark_completed!(analysis_result:, prompt_tokens:, completion_tokens:, total_tokens:, model_used:)
     update!(
       status: 'completed',
-      result: analysis_result.is_a?(String) ? analysis_result : analysis_result.to_json,
-      analyzed_at: Time.current
+      analysis_result: analysis_result,
+      prompt_tokens: prompt_tokens,
+      completion_tokens: completion_tokens,
+      total_tokens: total_tokens,
+      model_used: model_used
     )
+
+    # Update AiSetting counters
+    AiSetting.instance.increment_analysis!(total_tokens)
   end
 
   # Mark as failed
   def mark_failed!(error_message)
     update!(
       status: 'failed',
-      result: { error: error_message }.to_json,
-      analyzed_at: Time.current
+      analysis_result: { error: error_message }
     )
   end
 
@@ -55,38 +54,35 @@ class AiAnalysis < ApplicationRecord
     ANALYSIS_TYPES[analysis_type] || analysis_type.titleize
   end
 
-  # Parsed result
-  def parsed_result
-    return nil if result.blank?
-
-    JSON.parse(result)
-  rescue JSON::ParserError
-    result
-  end
-
   # Result summary
   def result_summary
-    parsed = parsed_result
-    return nil unless parsed
+    return nil unless analysis_result.present?
 
-    if parsed.is_a?(Hash) && parsed['summary']
-      parsed['summary']
-    elsif parsed.is_a?(String)
-      parsed.truncate(200)
+    if analysis_result.is_a?(Hash) && analysis_result['summary']
+      analysis_result['summary']
+    elsif analysis_result.is_a?(String)
+      analysis_result.truncate(200)
     else
-      parsed.to_json.truncate(200)
+      analysis_result.to_json.truncate(200)
     end
+  end
+
+  # Cost estimation
+  def estimated_cost
+    return 0 unless total_tokens.to_i.positive?
+
+    ai_setting = AiSetting.instance
+    (total_tokens.to_f / 1000 * ai_setting.estimated_cost_per_1k_tokens).round(4)
   end
 
   # Format result as markdown
   def formatted_result
-    return 'No result available' if result.blank?
+    return 'No result available' unless analysis_result.present?
 
-    parsed = parsed_result
-    if parsed.is_a?(Hash)
-      JSON.pretty_generate(parsed)
+    if analysis_result.is_a?(Hash)
+      JSON.pretty_generate(analysis_result)
     else
-      parsed.to_s
+      analysis_result.to_s
     end
   end
 end

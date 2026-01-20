@@ -7,7 +7,6 @@ class ApplicationController < ActionController::API
   rescue_from StandardError, with: :handle_error
   rescue_from ActiveRecord::RecordNotFound, with: :handle_not_found
   rescue_from ActiveRecord::RecordInvalid, with: :handle_validation_error
-  rescue_from ActionController::ParameterMissing, with: :handle_parameter_missing
 
   private
 
@@ -65,17 +64,6 @@ class ApplicationController < ActionController::API
       },
       request_id: @request_id
     }, status: :unprocessable_entity
-  end
-
-  def handle_parameter_missing(exception)
-    render json: {
-      error: {
-        code: "parameter_missing",
-        message: "Missing required parameter",
-        details: exception.param
-      },
-      request_id: @request_id
-    }, status: :bad_request
   end
 end
 
