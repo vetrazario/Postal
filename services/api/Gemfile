@@ -29,6 +29,9 @@ gem 'liquid', '~> 5.4'
 # HTTP Clients
 gem 'httparty', '~> 0.21'  # For Postal API and OpenRouter API
 
+# HTML Processing
+gem 'nokogiri', '~> 1.16'  # For HTML parsing in LinkTracker
+
 # JSON
 gem 'oj', '~> 3.16'
 

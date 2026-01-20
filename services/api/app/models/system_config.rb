@@ -384,8 +384,48 @@ class SystemConfig < ApplicationRecord
     nil
   end
 
+  # Set configuration value (for use in code)
+  def self.set(key, value)
+    config = instance
+    if config.respond_to?("#{key}=")
+      config.send("#{key}=", value)
+      config.save!
+    else
+      # Store in changed_fields JSONB for dynamic values
+      config.changed_fields ||= {}
+      config.changed_fields[key.to_s] = value
+      config.save!
+    end
+    value
+  end
+
   # Check if restart is required
   def restart_required?
     restart_required == true
+  end
+
+  # Alias for daily_limit (some code uses daily_send_limit)
+  alias_attribute :daily_send_limit, :daily_limit
+
+  # Dynamic fields stored in changed_fields JSONB
+  def warmup_mode
+    changed_fields&.dig('warmup_mode') || false
+  end
+
+  def warmup_mode=(value)
+    self.changed_fields ||= {}
+    changed_fields['warmup_mode'] = value
+  end
+
+  def warmup_start_date
+    date_str = changed_fields&.dig('warmup_start_date')
+    date_str.present? ? Date.parse(date_str) : nil
+  rescue ArgumentError
+    nil
+  end
+
+  def warmup_start_date=(value)
+    self.changed_fields ||= {}
+    changed_fields['warmup_start_date'] = value.to_s
   end
 end

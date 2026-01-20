@@ -169,11 +169,11 @@ module Dashboard
         {
           id: a.id,
           analysis_type: a.analysis_type,
-          prompt_tokens: a.prompt_tokens,
-          completion_tokens: a.completion_tokens,
-          total_tokens: a.total_tokens,
-          model_used: a.model_used,
-          analysis_result: a.analysis_result,
+          prompt_tokens: a.metadata&.dig('prompt_tokens'),
+          completion_tokens: a.metadata&.dig('completion_tokens'),
+          total_tokens: a.metadata&.dig('total_tokens'),
+          model_used: a.model,
+          analysis_result: a.parsed_result,
           created_at: a.created_at.iso8601
         }
       }
