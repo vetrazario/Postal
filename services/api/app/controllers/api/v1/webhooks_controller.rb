@@ -41,9 +41,9 @@ class Api::V1::WebhooksController < Api::V1::ApplicationController
         status: 'delivered',  # Postal Sent = наш Delivered
         sent_at: Time.current,
         delivered_at: Time.current,
-        smtp_code: smtp_code,
-        smtp_message: "#{smtp_output}\n---\n#{smtp_details}",
         status_details: payload.merge(
+          smtp_code: smtp_code,
+          smtp_message: "#{smtp_output}\n---\n#{smtp_details}",
           delivery_time_seconds: delivery_time,
           sent_with_ssl: sent_with_ssl
         )
@@ -77,12 +77,11 @@ class Api::V1::WebhooksController < Api::V1::ApplicationController
       # Обновить email_log с классификацией
       # MessageDeliveryFailed должен быть 'failed', а не 'bounced'
       status = event == 'MessageDeliveryFailed' ? 'failed' : 'bounced'
-      email_log.update_status(status, details: payload)
-      email_log.update(
+      email_log.update_status(status, details: payload.merge(
         bounce_category: error_info[:category].to_s,
         smtp_code: error_info[:smtp_code],
         smtp_message: error_info[:message]
-      )
+      ))
       
       # Добавить в bounce list ТОЛЬКО если нужно
       if error_info[:should_add_to_bounce]
@@ -99,11 +98,11 @@ class Api::V1::WebhooksController < Api::V1::ApplicationController
       if email_log.campaign_id.present?
         DeliveryError.create!(
           email_log: email_log,
-          campaign_id: email_log.campaign_id,
-          category: error_info[:category].to_s,
-          smtp_code: error_info[:smtp_code],
-          smtp_message: error_info[:message],
-          recipient_domain: email_log.recipient&.split('@')&.last
+          error_type: error_info[:category].to_s,
+          error_code: error_info[:smtp_code],
+          error_message: error_info[:message],
+          recipient_domain: email_log.recipient&.split('@')&.last,
+          occurred_at: Time.current
         )
         
         # Проверить пороги асинхронно (останавливает рассылку если нужно)

@@ -13,9 +13,11 @@ class CheckMailingThresholdsJob < ApplicationJob
 
     # Проверить критические bounce категории за последние 5 минут
     stop_categories = ErrorClassifier.stop_mailing_categories
-    critical_bounce_exists = DeliveryError.where(campaign_id: campaign_id)
-                                         .where(category: stop_categories)
-                                         .where('created_at > ?', 5.minutes.ago)
+    critical_bounce_exists = DeliveryError
+                                         .joins(:email_log)
+                                         .where(email_logs: { campaign_id: campaign_id })
+                                         .where(error_type: stop_categories)
+                                         .where('delivery_errors.created_at > ?', 5.minutes.ago)
                                          .exists?
     
     if critical_bounce_exists

@@ -95,10 +95,10 @@ class SendSmtpEmailJob < ApplicationJob
 
       # Create delivery error record
       DeliveryError.create!(
+        email_log: email_log,
+        error_type: 'connection',
+        error_message: response[:error].to_s.truncate(500),
         recipient_domain: email_log.recipient.split('@').last,
-        campaign_id: email_log.campaign_id,
-        category: 'connection',
-        smtp_message: response[:error].to_s.truncate(500),
         occurred_at: Time.current
       )
 
@@ -122,10 +122,10 @@ class SendSmtpEmailJob < ApplicationJob
 
       # Create delivery error record
       DeliveryError.create!(
+        email_log: email_log,
+        error_type: 'connection',
+        error_message: "#{e.class.name}: #{e.message}".truncate(500),
         recipient_domain: email_log.recipient.split('@').last,
-        campaign_id: email_log.campaign_id,
-        category: 'connection',
-        smtp_message: "#{e.class.name}: #{e.message}".truncate(500),
         occurred_at: Time.current
       )
     rescue StandardError => update_error
