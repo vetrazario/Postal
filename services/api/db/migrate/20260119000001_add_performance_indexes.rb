@@ -9,7 +9,7 @@ class AddPerformanceIndexes < ActiveRecord::Migration[7.1]
     add_index :email_opens, :campaign_id, name: 'idx_email_opens_campaign'
     add_index :email_clicks, :campaign_id, name: 'idx_email_clicks_campaign'
     
-    # Индексы для ошибок доставки
-    add_index :delivery_errors, [:campaign_id, :category, :occurred_at], name: 'idx_delivery_errors_lookup'
+    # Индексы для ошибок доставки (через email_log_id для связи с campaign_id)
+    add_index :delivery_errors, [:email_log_id, :error_type, :occurred_at], name: 'idx_delivery_errors_lookup'
   end
 end
