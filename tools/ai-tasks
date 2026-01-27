@@ -1,0 +1,336 @@
+#!/usr/bin/env python3
+"""
+AI Tasks - простая система управления задачами для AI агентов.
+
+Хранит задачи в JSON файлах, поддерживает зависимости между задачами,
+позволяет нескольким агентам работать с общим списком.
+
+Использование:
+    ai-tasks list [PROJECT]           - показать все задачи
+    ai-tasks add PROJECT "TITLE"      - добавить задачу
+    ai-tasks start PROJECT ID         - начать задачу (in_progress)
+    ai-tasks done PROJECT ID          - завершить задачу
+    ai-tasks fail PROJECT ID          - пометить как failed
+    ai-tasks block PROJECT ID --by X  - задача ID зависит от X
+    ai-tasks next PROJECT             - следующая доступная задача
+    ai-tasks clear PROJECT            - удалить завершённые задачи
+    ai-tasks reset PROJECT ID         - сбросить задачу в pending
+
+Примеры:
+    ai-tasks add myproject "Реализовать API endpoint"
+    ai-tasks add myproject "Написать тесты" --blocked-by 1
+    ai-tasks list myproject
+    ai-tasks start myproject 1
+    ai-tasks done myproject 1
+    ai-tasks next myproject
+"""
+
+import json
+import os
+import sys
+import fcntl
+from datetime import datetime
+from pathlib import Path
+
+# Директория для хранения задач
+TASKS_DIR = Path.home() / ".ai-tasks" / "projects"
+
+
+def ensure_dir():
+    """Создать директорию если не существует."""
+    TASKS_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def get_project_file(project: str) -> Path:
+    """Получить путь к файлу проекта."""
+    return TASKS_DIR / f"{project}.json"
+
+
+def load_tasks(project: str) -> dict:
+    """Загрузить задачи проекта с блокировкой файла."""
+    ensure_dir()
+    filepath = get_project_file(project)
+
+    if not filepath.exists():
+        return {"tasks": [], "next_id": 1}
+
+    with open(filepath, "r") as f:
+        fcntl.flock(f.fileno(), fcntl.LOCK_SH)
+        try:
+            return json.load(f)
+        finally:
+            fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+
+
+def save_tasks(project: str, data: dict):
+    """Сохранить задачи с блокировкой файла."""
+    ensure_dir()
+    filepath = get_project_file(project)
+
+    with open(filepath, "w") as f:
+        fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+        try:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        finally:
+            fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+
+
+def now() -> str:
+    """Текущее время в ISO формате."""
+    return datetime.now().isoformat()
+
+
+def cmd_list(project: str = None):
+    """Показать список задач."""
+    if project:
+        projects = [project]
+    else:
+        ensure_dir()
+        projects = [f.stem for f in TASKS_DIR.glob("*.json")]
+
+    if not projects:
+        print("Нет проектов. Создайте задачу: ai-tasks add PROJECT \"TITLE\"")
+        return
+
+    for proj in sorted(projects):
+        data = load_tasks(proj)
+        tasks = data.get("tasks", [])
+
+        if not tasks:
+            print(f"\n[{proj}] Нет задач")
+            continue
+
+        print(f"\n[{proj}]")
+        print("-" * 50)
+
+        # Группировка по статусу
+        by_status = {"in_progress": [], "pending": [], "completed": [], "failed": []}
+        for t in tasks:
+            by_status.get(t["status"], by_status["pending"]).append(t)
+
+        for status in ["in_progress", "pending", "completed", "failed"]:
+            for t in by_status[status]:
+                # Символ статуса
+                symbols = {
+                    "pending": "○",
+                    "in_progress": "◐",
+                    "completed": "●",
+                    "failed": "✗"
+                }
+                sym = symbols.get(t["status"], "?")
+
+                # Зависимости
+                blocked = ""
+                if t.get("blocked_by"):
+                    blocked = f" [blocked by: {','.join(map(str, t['blocked_by']))}]"
+
+                # Проверить, разблокирована ли задача
+                is_blocked = False
+                if t.get("blocked_by"):
+                    completed_ids = {x["id"] for x in tasks if x["status"] == "completed"}
+                    is_blocked = not all(b in completed_ids for b in t["blocked_by"])
+
+                lock = " 🔒" if is_blocked else ""
+
+                print(f"  {sym} #{t['id']}: {t['title']}{blocked}{lock}")
+
+
+def cmd_add(project: str, title: str, blocked_by: list = None):
+    """Добавить новую задачу."""
+    data = load_tasks(project)
+
+    task = {
+        "id": data["next_id"],
+        "title": title,
+        "status": "pending",
+        "blocked_by": blocked_by or [],
+        "created_at": now(),
+        "updated_at": now()
+    }
+
+    data["tasks"].append(task)
+    data["next_id"] += 1
+
+    save_tasks(project, data)
+    print(f"Добавлена задача #{task['id']}: {title}")
+
+    if blocked_by:
+        print(f"  Зависит от: {', '.join(map(str, blocked_by))}")
+
+
+def cmd_update_status(project: str, task_id: int, status: str):
+    """Обновить статус задачи."""
+    data = load_tasks(project)
+
+    for task in data["tasks"]:
+        if task["id"] == task_id:
+            old_status = task["status"]
+            task["status"] = status
+            task["updated_at"] = now()
+            save_tasks(project, data)
+            print(f"#{task_id}: {old_status} → {status}")
+            return
+
+    print(f"Задача #{task_id} не найдена")
+    sys.exit(1)
+
+
+def cmd_block(project: str, task_id: int, blocked_by: list):
+    """Добавить зависимость."""
+    data = load_tasks(project)
+
+    for task in data["tasks"]:
+        if task["id"] == task_id:
+            existing = set(task.get("blocked_by", []))
+            existing.update(blocked_by)
+            task["blocked_by"] = list(existing)
+            task["updated_at"] = now()
+            save_tasks(project, data)
+            print(f"#{task_id} теперь зависит от: {', '.join(map(str, task['blocked_by']))}")
+            return
+
+    print(f"Задача #{task_id} не найдена")
+    sys.exit(1)
+
+
+def cmd_next(project: str):
+    """Найти следующую доступную задачу."""
+    data = load_tasks(project)
+    tasks = data.get("tasks", [])
+
+    if not tasks:
+        print("Нет задач")
+        return
+
+    completed_ids = {t["id"] for t in tasks if t["status"] == "completed"}
+
+    for task in tasks:
+        if task["status"] != "pending":
+            continue
+
+        # Проверить зависимости
+        blocked_by = task.get("blocked_by", [])
+        if all(b in completed_ids for b in blocked_by):
+            print(f"Следующая задача: #{task['id']}: {task['title']}")
+            return
+
+    # Проверить есть ли заблокированные
+    pending = [t for t in tasks if t["status"] == "pending"]
+    in_progress = [t for t in tasks if t["status"] == "in_progress"]
+
+    if in_progress:
+        print(f"В работе: {len(in_progress)} задач(и)")
+        for t in in_progress:
+            print(f"  ◐ #{t['id']}: {t['title']}")
+    elif pending:
+        print("Все pending задачи заблокированы зависимостями")
+    else:
+        print("Все задачи завершены!")
+
+
+def cmd_clear(project: str):
+    """Удалить завершённые задачи."""
+    data = load_tasks(project)
+
+    before = len(data["tasks"])
+    data["tasks"] = [t for t in data["tasks"] if t["status"] not in ("completed", "failed")]
+    after = len(data["tasks"])
+
+    save_tasks(project, data)
+    print(f"Удалено {before - after} задач")
+
+
+def cmd_reset(project: str, task_id: int):
+    """Сбросить задачу в pending."""
+    cmd_update_status(project, task_id, "pending")
+
+
+def print_help():
+    """Показать справку."""
+    print(__doc__)
+
+
+def main():
+    args = sys.argv[1:]
+
+    if not args or args[0] in ("-h", "--help", "help"):
+        print_help()
+        return
+
+    cmd = args[0]
+
+    if cmd == "list":
+        project = args[1] if len(args) > 1 else None
+        cmd_list(project)
+
+    elif cmd == "add":
+        if len(args) < 3:
+            print("Использование: ai-tasks add PROJECT \"TITLE\" [--blocked-by X,Y]")
+            sys.exit(1)
+
+        project = args[1]
+        title = args[2]
+        blocked_by = []
+
+        if "--blocked-by" in args:
+            idx = args.index("--blocked-by")
+            if idx + 1 < len(args):
+                blocked_by = [int(x) for x in args[idx + 1].split(",")]
+
+        cmd_add(project, title, blocked_by)
+
+    elif cmd == "start":
+        if len(args) < 3:
+            print("Использование: ai-tasks start PROJECT ID")
+            sys.exit(1)
+        cmd_update_status(args[1], int(args[2]), "in_progress")
+
+    elif cmd == "done":
+        if len(args) < 3:
+            print("Использование: ai-tasks done PROJECT ID")
+            sys.exit(1)
+        cmd_update_status(args[1], int(args[2]), "completed")
+
+    elif cmd == "fail":
+        if len(args) < 3:
+            print("Использование: ai-tasks fail PROJECT ID")
+            sys.exit(1)
+        cmd_update_status(args[1], int(args[2]), "failed")
+
+    elif cmd == "block":
+        if len(args) < 3 or "--by" not in args:
+            print("Использование: ai-tasks block PROJECT ID --by X,Y")
+            sys.exit(1)
+
+        project = args[1]
+        task_id = int(args[2])
+        idx = args.index("--by")
+        blocked_by = [int(x) for x in args[idx + 1].split(",")]
+        cmd_block(project, task_id, blocked_by)
+
+    elif cmd == "next":
+        if len(args) < 2:
+            print("Использование: ai-tasks next PROJECT")
+            sys.exit(1)
+        cmd_next(args[1])
+
+    elif cmd == "clear":
+        if len(args) < 2:
+            print("Использование: ai-tasks clear PROJECT")
+            sys.exit(1)
+        cmd_clear(args[1])
+
+    elif cmd == "reset":
+        if len(args) < 3:
+            print("Использование: ai-tasks reset PROJECT ID")
+            sys.exit(1)
+        cmd_reset(args[1], int(args[2]))
+
+    else:
+        print(f"Неизвестная команда: {cmd}")
+        print_help()
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
