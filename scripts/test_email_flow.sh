@@ -47,12 +47,16 @@ RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "${API_URL}/api/v1/send" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer ${API_KEY}" \
   -d "{
-    \"to\": \"${TO_EMAIL}\",
-    \"from\": \"test@${DOMAIN}\",
+    \"recipient\": \"${TO_EMAIL}\",
+    \"from_email\": \"test@${DOMAIN}\",
+    \"from_name\": \"Test Sender\",
     \"subject\": \"Test Email - ${TIMESTAMP}\",
-    \"html\": \"<h1>Test Email</h1><p>This is a test email sent at ${TIMESTAMP}</p><p>Message ID: ${MESSAGE_ID}</p>\",
-    \"plain\": \"Test Email\\n\\nThis is a test email sent at ${TIMESTAMP}\\n\\nMessage ID: ${MESSAGE_ID}\",
-    \"message_id\": \"${MESSAGE_ID}\"
+    \"template_id\": null,
+    \"variables\": {},
+    \"tracking\": {
+      \"message_id\": \"${MESSAGE_ID}\",
+      \"campaign_id\": \"test_campaign\"
+    }
   }")
 
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
