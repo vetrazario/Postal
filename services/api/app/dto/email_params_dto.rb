@@ -2,14 +2,14 @@
 
 # DTO (Data Transfer Object) для параметров отправки email
 # Позволяет валидировать и нормализовать параметры перед отправкой
-class EmailParamsDTO
+class EmailParamsDto
   attr_reader :recipient, :from_name, :from_email, :subject, :template_id,
               :variables, :tracking
 
   # Создать DTO из параметров запроса
   #
   # @param params [Hash] параметры из запроса
-  # @return [EmailParamsDTO] DTO с валидированными параметрами
+  # @return [EmailParamsDto] DTO с валидированными параметрами
   def self.from_params(params)
     new(
       recipient: params[:recipient],
