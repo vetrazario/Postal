@@ -17,6 +17,16 @@ class SystemConfig < ApplicationRecord
   alias_attribute :webhook_secret, :webhook_secret_encrypted
   alias_attribute :sidekiq_web_password, :sidekiq_web_password_encrypted
 
+  # SMTP Relay Secret: column was removed in migration 022 (stored only in ENV).
+  # Virtual attribute so Settings form can display it without 500.
+  def smtp_relay_secret
+    ENV['SMTP_RELAY_SECRET']
+  end
+
+  def smtp_relay_secret=(_value)
+    # Not persisted; change via .env on the server.
+  end
+
   # Validations
   validates :domain, presence: true,
             format: {
