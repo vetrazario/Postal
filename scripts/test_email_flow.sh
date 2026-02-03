@@ -62,7 +62,7 @@ RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "${API_URL}/api/v1/send" \
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 BODY=$(echo "$RESPONSE" | sed '$d')
 
-if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "201" ]; then
+if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "201" ] || [ "$HTTP_CODE" = "202" ]; then
   echo -e "${GREEN}✓ Email sent successfully${NC}"
   echo -e "Response: ${BODY}"
   
