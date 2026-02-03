@@ -35,9 +35,10 @@ echo -e "${CYAN}Test Recipient:${NC} ${TEST_RECIPIENT}"
 echo -e "${CYAN}Message ID:${NC} ${MESSAGE_ID}"
 echo ""
 
-# Получить API_KEY из .env
+# Получить API_KEY из .env (безопасно, без source)
 if [ -f .env ]; then
-    source .env
+    API_KEY=$(grep "^API_KEY=" .env | cut -d'=' -f2 | tr -d '\r\n"')
+    POSTAL_API_KEY=$(grep "^POSTAL_API_KEY=" .env | cut -d'=' -f2 | tr -d '\r\n"')
 fi
 
 if [ -z "$API_KEY" ]; then
