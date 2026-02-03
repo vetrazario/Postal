@@ -45,7 +45,7 @@ TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "${API_URL}/api/v1/send" \
   -H "Content-Type: application/json" \
-  -H "X-API-Key: ${API_KEY}" \
+  -H "Authorization: Bearer ${API_KEY}" \
   -d "{
     \"to\": \"${TO_EMAIL}\",
     \"from\": \"test@${DOMAIN}\",
@@ -85,7 +85,7 @@ echo -e "${BLUE}[2/3] Checking email status...${NC}"
 sleep 3
 
 STATUS_RESPONSE=$(curl -s -w "\n%{http_code}" -X GET "${API_URL}/api/v1/status/${MESSAGE_ID}" \
-  -H "X-API-Key: ${API_KEY}")
+  -H "Authorization: Bearer ${API_KEY}")
 
 STATUS_HTTP_CODE=$(echo "$STATUS_RESPONSE" | tail -n1)
 STATUS_BODY=$(echo "$STATUS_RESPONSE" | sed '$d')
