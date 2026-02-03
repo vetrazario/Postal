@@ -137,6 +137,7 @@ services:
     build:
       context: ./services/api
       dockerfile: Dockerfile
+    image: email-sender-api
     container_name: email_api
     hostname: ${DOMAIN}
     restart: unless-stopped
@@ -196,9 +197,7 @@ services:
       - backend
 
   sidekiq:
-    build:
-      context: ./services/api
-      dockerfile: Dockerfile
+    image: email-sender-api
     container_name: email_sidekiq
     hostname: ${DOMAIN}
     restart: unless-stopped
