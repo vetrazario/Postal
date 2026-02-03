@@ -305,6 +305,8 @@ services:
       - "587:587"
       - "5000:5000"
     environment:
+      # Bind web server to all interfaces (required for nginx proxy)
+      WEB_SERVER_DEFAULT_BIND_ADDRESS: "0.0.0.0"
       RAILS_DEVELOPMENT_HOSTS: postal,${DOMAIN},postal.${DOMAIN}
       DISABLE_HOST_CHECK: "true"
       POSTAL_SIGNING_KEY: ${POSTAL_SIGNING_KEY}
