@@ -175,7 +175,10 @@ class Api::V1::WebhooksController < Api::V1::ApplicationController
 
   def verify_postal_signature
     raw_body = read_raw_body
-    signature_header = request.headers['X-Postal-Signature'].to_s
+    # Postal sends SHA256 signature in 'X-Postal-Signature-256' header
+    # and SHA1 signature in 'X-Postal-Signature' header
+    # We use SHA256 as it's more secure
+    signature_header = request.headers['X-Postal-Signature-256'].to_s
 
     # Skip verification if disabled via ENV (for testing only)
     if ENV['SKIP_POSTAL_WEBHOOK_VERIFICATION'] == 'true'

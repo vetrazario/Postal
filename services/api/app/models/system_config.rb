@@ -7,7 +7,6 @@ class SystemConfig < ApplicationRecord
   encrypts :postal_signing_key_encrypted, deterministic: false
   encrypts :postal_webhook_public_key_encrypted, deterministic: false
   encrypts :webhook_secret_encrypted, deterministic: false
-  encrypts :smtp_relay_secret_encrypted, deterministic: false
   encrypts :sidekiq_web_password_encrypted, deterministic: false
 
   # Virtual attributes for convenience (without _encrypted suffix)
@@ -16,8 +15,17 @@ class SystemConfig < ApplicationRecord
   alias_attribute :postal_signing_key, :postal_signing_key_encrypted
   alias_attribute :postal_webhook_public_key, :postal_webhook_public_key_encrypted
   alias_attribute :webhook_secret, :webhook_secret_encrypted
-  alias_attribute :smtp_relay_secret, :smtp_relay_secret_encrypted
   alias_attribute :sidekiq_web_password, :sidekiq_web_password_encrypted
+
+  # SMTP Relay Secret: column was removed in migration 022 (stored only in ENV).
+  # Virtual attribute so Settings form can display it without 500.
+  def smtp_relay_secret
+    ENV['SMTP_RELAY_SECRET']
+  end
+
+  def smtp_relay_secret=(_value)
+    # Not persisted; change via .env on the server.
+  end
 
   # Validations
   validates :domain, presence: true,
@@ -81,7 +89,6 @@ class SystemConfig < ApplicationRecord
       config.webhook_secret = ENV['WEBHOOK_SECRET']
 
       # SMTP Relay settings (credentials managed via SmtpCredential model)
-      config.smtp_relay_secret = ENV['SMTP_RELAY_SECRET']
       config.smtp_relay_port = ENV.fetch('SMTP_RELAY_PORT', 2587).to_i
       config.smtp_relay_auth_required = ENV.fetch('SMTP_AUTH_REQUIRED', 'true') == 'true'
       config.smtp_relay_tls_enabled = ENV.fetch('SMTP_RELAY_TLS', 'true') == 'true'
@@ -225,7 +232,6 @@ class SystemConfig < ApplicationRecord
     webhook_secret: ['api'],
 
     # SMTP Relay settings (credentials managed via SmtpCredential)
-    smtp_relay_secret: ['smtp-relay', 'api'],
     smtp_relay_port: ['smtp-relay'],
     smtp_relay_auth_required: ['smtp-relay'],
     smtp_relay_tls_enabled: ['smtp-relay'],
@@ -304,7 +310,6 @@ class SystemConfig < ApplicationRecord
 
     # SMTP Relay (credentials managed via SmtpCredential model in Dashboard)
     env_content << "# SMTP Relay"
-    env_content << "SMTP_RELAY_SECRET=#{smtp_relay_secret}" if smtp_relay_secret.present?
     env_content << "SMTP_RELAY_PORT=#{smtp_relay_port}"
     env_content << "SMTP_AUTH_REQUIRED=#{smtp_relay_auth_required}"
     env_content << "SMTP_RELAY_TLS=#{smtp_relay_tls_enabled}"
@@ -369,7 +374,6 @@ class SystemConfig < ApplicationRecord
   # Get SMTP Relay config as hash (for API endpoint)
   def smtp_relay_config
     {
-      secret: smtp_relay_secret,
       port: smtp_relay_port,
       auth_required: smtp_relay_auth_required,
       tls_enabled: smtp_relay_tls_enabled,

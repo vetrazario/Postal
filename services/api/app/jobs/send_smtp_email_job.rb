@@ -100,11 +100,11 @@ class SendSmtpEmailJob < ApplicationJob
 
       # Create delivery error record
       DeliveryError.create!(
+        email_log: email_log,
         recipient_domain: email_log.recipient.split('@').last,
         campaign_id: email_log.campaign_id,
         category: 'connection',
-        smtp_message: response[:error].to_s.truncate(500),
-        occurred_at: Time.current
+        smtp_message: response[:error].to_s.truncate(500)
       )
 
       Rails.logger.error "SMTP email failed: #{response[:error]}"
@@ -127,11 +127,11 @@ class SendSmtpEmailJob < ApplicationJob
 
       # Create delivery error record
       DeliveryError.create!(
+        email_log: email_log,
         recipient_domain: email_log.recipient.split('@').last,
         campaign_id: email_log.campaign_id,
         category: 'connection',
-        smtp_message: "#{e.class.name}: #{e.message}".truncate(500),
-        occurred_at: Time.current
+        smtp_message: "#{e.class.name}: #{e.message}".truncate(500)
       )
     rescue StandardError => update_error
       Rails.logger.error "Failed to update email log: #{update_error.message}"

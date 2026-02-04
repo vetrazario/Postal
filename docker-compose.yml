@@ -137,6 +137,7 @@ services:
     build:
       context: ./services/api
       dockerfile: Dockerfile
+    image: email-sender-api
     container_name: email_api
     hostname: ${DOMAIN}
     restart: unless-stopped
@@ -196,9 +197,7 @@ services:
       - backend
 
   sidekiq:
-    build:
-      context: ./services/api
-      dockerfile: Dockerfile
+    image: email-sender-api
     container_name: email_sidekiq
     hostname: ${DOMAIN}
     restart: unless-stopped
@@ -306,35 +305,32 @@ services:
       - "587:587"
       - "5000:5000"
     environment:
+      # Bind web server to all interfaces (required for nginx proxy)
+      WEB_SERVER_DEFAULT_BIND_ADDRESS: "0.0.0.0"
       RAILS_DEVELOPMENT_HOSTS: postal,${DOMAIN},postal.${DOMAIN}
       DISABLE_HOST_CHECK: "true"
       POSTAL_SIGNING_KEY: ${POSTAL_SIGNING_KEY}
-      POSTAL_MAIN_DB_HOST: mariadb
-      POSTAL_MAIN_DB_PORT: "3306"
-      POSTAL_MAIN_DB_USERNAME: postal
-      POSTAL_MAIN_DB_PASSWORD: ${MARIADB_PASSWORD}
-      POSTAL_MAIN_DB_DATABASE: postal
-      POSTAL_MESSAGE_DB_HOST: mariadb
-      POSTAL_MESSAGE_DB_PORT: "3306"
-      POSTAL_MESSAGE_DB_USERNAME: postal
-      POSTAL_MESSAGE_DB_PASSWORD: ${MARIADB_PASSWORD}
-      POSTAL_MESSAGE_DB_PREFIX: postal
-      POSTAL_RABBITMQ_HOST: rabbitmq
-      POSTAL_RABBITMQ_PORT: "5672"
-      POSTAL_RABBITMQ_USERNAME: postal
-      POSTAL_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
-      POSTAL_RABBITMQ_VHOST: postal
-      POSTAL_WEB_HOST: ${DOMAIN}
+      # Postal 3.x uses MAIN_DB_* and MESSAGE_DB_* (no POSTAL_ prefix)
+      MAIN_DB_HOST: mariadb
+      MAIN_DB_PORT: "3306"
+      MAIN_DB_USERNAME: postal
+      MAIN_DB_PASSWORD: ${MARIADB_PASSWORD}
+      MAIN_DB_DATABASE: postal
+      MESSAGE_DB_HOST: mariadb
+      MESSAGE_DB_PORT: "3306"
+      MESSAGE_DB_USERNAME: postal
+      MESSAGE_DB_PASSWORD: ${MARIADB_PASSWORD}
+      MESSAGE_DB_DATABASE_NAME_PREFIX: postal
+      POSTAL_WEB_HOSTNAME: ${DOMAIN}
       POSTAL_WEB_PROTOCOL: https
-      POSTAL_DNS_MX_RECORDS: ${DOMAIN}
-      POSTAL_DNS_SMTP_SERVER_HOSTNAME: ${DOMAIN}
-      POSTAL_DNS_RETURN_PATH: rp.${DOMAIN}
-      POSTAL_DNS_ROUTE_DOMAIN: routes.${DOMAIN}
-      POSTAL_DNS_TRACK_DOMAIN: ${DOMAIN}
-      POSTAL_RAILS_SECRET_KEY: ${SECRET_KEY_BASE}
+      POSTAL_SMTP_HOSTNAME: ${DOMAIN}
+      DNS_MX_RECORDS: ${DOMAIN}
+      DNS_RETURN_PATH_DOMAIN: rp.${DOMAIN}
+      DNS_ROUTE_DOMAIN: routes.${DOMAIN}
+      DNS_TRACK_DOMAIN: ${DOMAIN}
+      RAILS_SECRET_KEY: ${SECRET_KEY_BASE}
     volumes:
-      - ./config/postal.yml:/config/postal.yml:ro
-      - ./config/postal.yml:/opt/postal/config/postal.yml:ro
+      # postal.yml removed: Postal 3.x uses POSTAL_* env vars from docker-compose
       - postal_data:/opt/postal/data
     deploy:
       resources:
@@ -343,7 +339,7 @@ services:
         reservations:
           memory: 300M
     healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://localhost:5000 || exit 1"]
+      test: ["CMD-SHELL", "nc -z localhost 5000 || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
