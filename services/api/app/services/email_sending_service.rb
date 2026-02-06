@@ -97,8 +97,9 @@ class EmailSendingService
 
   def process_single_message(msg, batch_id)
     validation = validate_email(msg[:recipient], @params[:from_email])
-    
+
     unless validation[:valid]
+      track_validation_failure(msg, batch_id, validation[:error])
       return {
         success: false,
         data: { recipient: msg[:recipient], message_id: msg[:message_id], error: validation[:error] }
@@ -115,6 +116,35 @@ class EmailSendingService
   rescue StandardError => e
     Rails.logger.error "Batch message error: #{e.message}"
     { success: false, data: { recipient: msg[:recipient], message_id: msg[:message_id], error: 'Internal error' } }
+  end
+
+  def track_validation_failure(msg, batch_id, error)
+    campaign_id = @params[:campaign_id] || 'unknown'
+    return if campaign_id == 'unknown'
+
+    # Create EmailLog with failed status to track the validation failure
+    email_log = EmailLog.create!(
+      message_id: MessageIdGenerator.generate.delete('<>'),
+      external_message_id: msg[:message_id] || SecureRandom.hex(12),
+      campaign_id: campaign_id,
+      recipient: msg[:recipient].presence || 'invalid@unknown',
+      sender: build_sender,
+      subject: @params[:subject] || 'No Subject',
+      status: 'failed',
+      status_details: { reason: 'validation_failed', error: error, batch_id: batch_id }
+    )
+
+    DeliveryError.create!(
+      email_log: email_log,
+      campaign_id: campaign_id,
+      category: 'user_not_found',
+      smtp_message: "Validation failed: #{error}"
+    )
+
+    CampaignStats.find_or_initialize_for(campaign_id).increment_failed
+    CheckMailingThresholdsJob.perform_later(campaign_id)
+  rescue StandardError => e
+    Rails.logger.error "Failed to track validation failure: #{e.message}"
   end
 
   def create_batch_email_log(msg, batch_id)

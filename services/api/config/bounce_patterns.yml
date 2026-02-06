@@ -13,6 +13,7 @@ non_bounce_categories:
 stop_mailing_categories:
   - rate_limit
   - spam_block
+  - user_not_found
   - mailbox_full
   - temporary
   - connection

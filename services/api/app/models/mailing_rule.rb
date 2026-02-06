@@ -7,6 +7,7 @@ class MailingRule < ApplicationRecord
   validates :max_bounce_rate, numericality: { greater_than_or_equal_to: 0, less_than_or_equal_to: 100 }
   validates :max_rate_limit_errors, numericality: { greater_than_or_equal_to: 0 }
   validates :max_spam_blocks, numericality: { greater_than_or_equal_to: 0 }
+  validates :max_user_not_found_errors, numericality: { greater_than_or_equal_to: 0 }
   validates :check_window_minutes, numericality: { greater_than: 0 }
   validates :notification_email, format: { with: URI::MailTo::EMAIL_REGEXP }, allow_blank: true
   validates :ams_api_url, format: { with: URI::DEFAULT_PARSER.make_regexp(%w[http https]) }, allow_blank: true
@@ -43,6 +44,7 @@ class MailingRule < ApplicationRecord
 
     rate_limit_count = errors.by_category('rate_limit').count
     spam_block_count = errors.by_category('spam_block').count
+    user_not_found_count = errors.by_category('user_not_found').count
 
     violations = []
 
@@ -70,6 +72,15 @@ class MailingRule < ApplicationRecord
         value: spam_block_count,
         threshold: max_spam_blocks,
         message: "Spam blocks: #{spam_block_count} (threshold: #{max_spam_blocks})"
+      }
+    end
+
+    if user_not_found_count > max_user_not_found_errors
+      violations << {
+        type: :user_not_found,
+        value: user_not_found_count,
+        threshold: max_user_not_found_errors,
+        message: "User not found errors: #{user_not_found_count} (threshold: #{max_user_not_found_errors})"
       }
     end
 

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_01_19_000001) do
+ActiveRecord::Schema[7.1].define(version: 2026_02_06_000002) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -53,10 +53,14 @@ ActiveRecord::Schema[7.1].define(version: 2026_01_19_000001) do
     t.string "postal_message_id", limit: 255
     t.string "status", limit: 20, default: "queued", null: false
     t.jsonb "status_details"
+    t.string "bounce_category", limit: 30
+    t.string "smtp_code", limit: 10
+    t.text "smtp_message"
     t.datetime "sent_at"
     t.datetime "delivered_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.index ["campaign_id", "bounce_category"], name: "idx_email_logs_campaign_bounce_category", where: "bounce_category IS NOT NULL"
     t.index ["campaign_id", "status"], name: "idx_email_logs_campaign_status"
     t.index ["campaign_id"], name: "index_email_logs_on_campaign_id"
     t.index ["created_at"], name: "idx_email_logs_pending", where: "(status IN ('queued', 'processing', 'sent'))"
@@ -198,6 +202,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_01_19_000001) do
     t.integer "max_bounce_rate", default: 10
     t.integer "max_rate_limit_errors", default: 5
     t.integer "max_spam_blocks", default: 3
+    t.integer "max_user_not_found_errors", default: 3
     t.integer "check_window_minutes", default: 60
     t.boolean "auto_stop_mailing", default: true
     t.boolean "notify_email", default: false
