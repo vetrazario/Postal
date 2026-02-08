@@ -173,6 +173,7 @@ const serverOptions = {
   // Server options
   banner: 'Email Sender SMTP Relay',
   size: 14680064, // 14MB max message size
+  logger: true, // Log raw SMTP commands for debugging
 
   // TLS Configuration - enable STARTTLS if certificates available
   ...(tlsEnabled ? {
