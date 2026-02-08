@@ -14,6 +14,38 @@ const axios = require('axios');
 const path = require('path');
 const fs = require('fs');
 
+// Normalize MAIL FROM so strict parser accepts AMS clients that send display-name or invalid syntax
+function normalizeMailFromCommand(command) {
+  if (!command || typeof command !== 'string') return command;
+  const match = command.match(/^MAIL\s+FROM\s*:\s*(.+)$/i);
+  if (!match) return command;
+  const rest = match[1].trim();
+  const firstToken = rest.split(/\s+/)[0];
+  const remainder = rest.slice(firstToken.length).trim();
+  const suffix = remainder ? ' ' + remainder : '';
+  if (firstToken === '<>' || firstToken === '') return 'MAIL FROM:<>' + suffix;
+  const inAngle = firstToken.match(/<([^>]*)>/);
+  const inner = inAngle ? inAngle[1].trim() : firstToken;
+  const addrSpec = inner.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+  if (addrSpec) return 'MAIL FROM:<' + addrSpec[0] + '>' + suffix;
+  if (/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(inner)) return 'MAIL FROM:<' + inner + '>' + suffix;
+  return 'MAIL FROM:<>' + suffix;
+}
+
+try {
+  const pkgRoot = path.dirname(require.resolve('smtp-server'));
+  const SMTPConnection = require(path.join(pkgRoot, 'lib', 'smtp-connection.js'));
+  const originalParse = SMTPConnection.prototype._parseAddressCommand;
+  SMTPConnection.prototype._parseAddressCommand = function (name, command) {
+    if (name === 'MAIL FROM' && command) {
+      command = normalizeMailFromCommand(command);
+    }
+    return originalParse.call(this, name, command);
+  };
+} catch (e) {
+  console.warn('Could not patch smtp-server MAIL FROM parser:', e.message);
+}
+
 // Load environment variables
 require('dotenv').config({ path: path.join(__dirname, '../../.env') });
 
@@ -227,8 +259,7 @@ const serverOptions = {
         console.log(`[${session.id}] Parsed email:`);
         console.log(`  From: ${email.from?.text}`);
         console.log(`  To: ${email.to?.text}`);
-        console.log(`  Subject: ${email.subject}`);
-        console.log(`  X-ID-mail: ${email.headers.get('x-id-mail')}`)
+        console.log(`  Subject: ${email.subject}`)
 
         // Forward to API
         await forwardToAPI(session, email, buffer);
