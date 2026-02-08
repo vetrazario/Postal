@@ -249,15 +249,16 @@ const server = new SMTPServer(serverOptions);
 async function forwardToAPI(session, parsed, raw) {
   try {
     const timestamp = Date.now().toString();
-    
-    // Convert headers Map to plain object
+
+    // Convert headers from Map to plain object (mailparser returns Map,
+    // which JSON.stringify serializes as "{}" losing all headers)
     const headersObj = {};
     if (parsed.headers) {
       for (const [key, value] of parsed.headers) {
         headersObj[key.toLowerCase()] = value;
       }
     }
-    
+
     const payload = {
       envelope: {
         from: session.envelope.mailFrom?.address,
