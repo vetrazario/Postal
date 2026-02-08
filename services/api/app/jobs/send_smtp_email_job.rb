@@ -53,9 +53,14 @@ class SendSmtpEmailJob < ApplicationJob
                      "<pre>#{message[:text]}</pre>"
                    end
 
-    # Apply our own tracking (replace links + add pixel)
-    tracker = LinkTracker.new(email_log: email_log)
-    html_with_tracking = tracker.process_html(html_content, track_clicks: true, track_opens: true)
+    # Apply standalone tracking (TrackingInjector → Node.js tracking service)
+    html_with_tracking = TrackingInjector.inject_all(
+      html: html_content,
+      recipient: email_log.recipient,
+      campaign_id: email_log.campaign_id,
+      message_id: email_log.external_message_id || email_log.message_id,
+      domain: SystemConfig.get(:domain) || 'localhost'
+    )
 
     postal_payload = {
       to: envelope[:to].is_a?(Array) ? envelope[:to].first : envelope[:to],

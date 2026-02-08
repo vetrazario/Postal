@@ -32,14 +32,21 @@ module Api
             user_agent: data[:user_agent]
           )
 
-          # Send webhook to AMS if configured
-          if SystemConfig.get(:ams_callback_url).present?
-            ReportToAmsJob.perform_later(
-              email_log.id,
-              event_type,
-              data
-            )
+          # Update campaign stats
+          if email_log.campaign_id.present?
+            stats = CampaignStats.find_or_initialize_for(email_log.campaign_id)
+            case event_type
+            when 'opened'  then stats.increment_opened
+            when 'clicked' then stats.increment_clicked
+            when 'unsubscribed' then stats.increment_unsubscribed
+            end
           end
+
+          # Send webhook to AMS
+          ReportToAmsJob.perform_later(
+            email_log.external_message_id,
+            event_type
+          )
 
           render json: { success: true }
         rescue StandardError => e

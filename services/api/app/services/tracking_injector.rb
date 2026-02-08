@@ -61,6 +61,28 @@ class TrackingInjector
     end
   end
 
+  def self.inject_unsubscribe_footer(html:, recipient:, campaign_id:, domain:)
+    return html if html.blank? || recipient.blank? || campaign_id.blank?
+
+    encoded_email = Base64.urlsafe_encode64(recipient)
+    encoded_cid = Base64.urlsafe_encode64(campaign_id)
+    unsubscribe_url = "https://#{domain}/unsubscribe?eid=#{encoded_email}&cid=#{encoded_cid}"
+
+    footer_html = <<~HTML
+      <div style="margin-top: 30px; padding-top: 15px; border-top: 1px solid #eee; font-size: 11px; color: #999; text-align: center;">
+        <p>
+          <a href="#{unsubscribe_url}" style="color: #999; text-decoration: underline;">Отписаться от рассылки</a>
+        </p>
+      </div>
+    HTML
+
+    if html.include?("</body>")
+      html.sub("</body>", "#{footer_html}</body>")
+    else
+      html + footer_html
+    end
+  end
+
   def self.inject_all(html:, recipient:, campaign_id:, message_id:, domain:)
     html = inject_tracking_links(
       html: html,
@@ -69,7 +91,7 @@ class TrackingInjector
       message_id: message_id,
       domain: domain
     )
-    
+
     html = inject_tracking_pixel(
       html: html,
       recipient: recipient,
@@ -77,7 +99,14 @@ class TrackingInjector
       message_id: message_id,
       domain: domain
     )
-    
+
+    html = inject_unsubscribe_footer(
+      html: html,
+      recipient: recipient,
+      campaign_id: campaign_id,
+      domain: domain
+    )
+
     html
   end
 end

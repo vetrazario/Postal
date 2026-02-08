@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_02_06_000002) do
+ActiveRecord::Schema[7.1].define(version: 2026_02_08_000001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -96,6 +96,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_02_06_000002) do
     t.integer "total_failed", default: 0, null: false
     t.integer "unique_opened", default: 0, null: false
     t.integer "unique_clicked", default: 0, null: false
+    t.integer "total_unsubscribed", default: 0, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["campaign_id"], name: "index_campaign_stats_on_campaign_id", unique: true

@@ -7,6 +7,7 @@ class CampaignStats < ApplicationRecord
   validates :total_bounced, presence: true, numericality: { greater_than_or_equal_to: 0 }
   validates :total_complained, presence: true, numericality: { greater_than_or_equal_to: 0 }
   validates :total_failed, presence: true, numericality: { greater_than_or_equal_to: 0 }
+  validates :total_unsubscribed, presence: true, numericality: { greater_than_or_equal_to: 0 }
 
   # Find or initialize stats for campaign
   def self.find_or_initialize_for(campaign_id)
@@ -20,6 +21,7 @@ class CampaignStats < ApplicationRecord
       s.total_failed = 0
       s.unique_opened = 0
       s.unique_clicked = 0
+      s.total_unsubscribed = 0
     end
     
     # Сохранить запись, если она новая (нужно для increment!)
@@ -54,6 +56,10 @@ class CampaignStats < ApplicationRecord
 
   def increment_failed
     increment!(:total_failed)
+  end
+
+  def increment_unsubscribed
+    increment!(:total_unsubscribed)
   end
 end
 

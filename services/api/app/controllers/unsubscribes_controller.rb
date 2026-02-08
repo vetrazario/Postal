@@ -17,9 +17,36 @@ class UnsubscribesController < ActionController::Base
     campaign_id = decode_param(params[:cid])
 
     if email.present?
-      Unsubscribe.find_or_create_by!(email: email, campaign_id: campaign_id) do |unsub|
-        unsub.unsubscribed_at = Time.current
-        unsub.reason = params[:reason] || 'User requested'
+      Unsubscribe.record_unsubscribe(
+        email: email,
+        campaign_id: campaign_id,
+        ip_address: request.remote_ip,
+        user_agent: request.user_agent,
+        reason: params[:reason] || 'user_request'
+      )
+
+      # Create tracking event and notify AMS
+      email_log = EmailLog.where(recipient: email, campaign_id: campaign_id)
+                          .order(created_at: :desc).first
+
+      if email_log
+        TrackingEvent.create(
+          email_log: email_log,
+          event_type: 'unsubscribe',
+          event_data: { campaign_id: campaign_id, reason: params[:reason] || 'user_request' },
+          ip_address: request.remote_ip,
+          user_agent: request.user_agent
+        )
+
+        ReportToAmsJob.perform_later(email_log.external_message_id, 'unsubscribed', nil, {
+          campaign_id: campaign_id,
+          reason: params[:reason] || 'user_request'
+        })
+      end
+
+      # Update campaign stats
+      if campaign_id.present?
+        CampaignStats.find_or_initialize_for(campaign_id).increment_unsubscribed
       end
 
       Rails.logger.info "Unsubscribe: #{email} from campaign #{campaign_id}"
