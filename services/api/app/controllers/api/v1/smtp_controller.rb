@@ -37,12 +37,13 @@ module Api
         # Get recipient (first to address)
         recipient = envelope['to'].is_a?(Array) ? envelope['to'].first : envelope['to']
 
+        # Log received headers for debugging campaign_id extraction
+        Rails.logger.info "SMTP headers received: #{message['headers']&.keys&.join(', ')}"
+
         # Create EmailLog record
-        # Extract campaign_id from headers (AMS sends it as X-Campaign-ID or x-campaign-id)
-        campaign_id = message['headers']&.dig('x-campaign-id') || 
-                      message['headers']&.dig('X-Campaign-ID') ||
-                      message['headers']&.dig('x-mailing-id') ||
-                      message['headers']&.dig('X-Mailing-ID')
+        # Extract campaign_id from headers
+        # AMS sends mailing ID as X-ID-mail header (lowercased to x-id-mail by server.js)
+        campaign_id = extract_campaign_id(message['headers'])
         
         email_log = EmailLog.create!(
           message_id: message_id,
@@ -178,6 +179,24 @@ module Api
 
       def valid_smtp_payload?
         params[:envelope].present? && params[:message].present?
+      end
+
+      def extract_campaign_id(headers)
+        return nil if headers.blank?
+
+        # AMS sends mailing ID as X-ID-mail (lowercased to x-id-mail by server.js)
+        raw_value = headers['x-id-mail'] ||
+                    headers['x-campaign-id'] ||
+                    headers['x-mailing-id']
+
+        return nil if raw_value.blank?
+
+        # Clean up value: strip brackets, whitespace, template markers
+        # AMS may send "[12345]" or "12345" or "[%%MailingID%%]"
+        cleaned = raw_value.to_s.strip.gsub(/\A\[|\]\z/, '').strip
+
+        Rails.logger.info "SMTP campaign_id extracted: '#{cleaned}' (raw: '#{raw_value}')"
+        cleaned.presence
       end
 
       def generate_message_id
