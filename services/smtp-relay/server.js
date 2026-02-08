@@ -228,11 +228,7 @@ const serverOptions = {
         console.log(`  From: ${email.from?.text}`);
         console.log(`  To: ${email.to?.text}`);
         console.log(`  Subject: ${email.subject}`);
-        
-        // DEBUG: Log all headers to find campaign ID
-        if (email.headers) {
-          console.log(`[${session.id}] Headers:`, Array.from(email.headers.keys()));
-        }
+        console.log(`  X-ID-mail: ${email.headers.get('x-id-mail')}`)
 
         // Forward to API
         await forwardToAPI(session, email, buffer);
