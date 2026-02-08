@@ -34,19 +34,26 @@ function normalizeMailFromCommand(command) {
 
 try {
   const pkgRoot = path.dirname(require.resolve('smtp-server'));
-  const SMTPConnection = require(path.join(pkgRoot, 'smtp-connection.js'));
-  const originalParse = SMTPConnection.prototype._parseAddressCommand;
-  SMTPConnection.prototype._parseAddressCommand = function (name, command) {
-    if (name === 'MAIL FROM' && command) {
-      const normalized = normalizeMailFromCommand(command);
-      if (normalized !== command) {
-        console.log(`Normalized MAIL FROM: "${command}" -> "${normalized}"`);
+  const connModule = require(path.join(pkgRoot, 'smtp-connection.js'));
+  // Handle both `module.exports = Class` and `module.exports = { SMTPConnection: Class }`
+  const SMTPConnection = connModule.SMTPConnection || connModule;
+  if (typeof SMTPConnection === 'function' && SMTPConnection.prototype._parseAddressCommand) {
+    const originalParse = SMTPConnection.prototype._parseAddressCommand;
+    SMTPConnection.prototype._parseAddressCommand = function (name, command) {
+      if (name === 'MAIL FROM' && command) {
+        const normalized = normalizeMailFromCommand(command);
+        if (normalized !== command) {
+          console.log(`Normalized MAIL FROM: "${command}" -> "${normalized}"`);
+        }
+        command = normalized;
       }
-      command = normalized;
-    }
-    return originalParse.call(this, name, command);
-  };
-  console.log('✓ MAIL FROM parser patched successfully');
+      return originalParse.call(this, name, command);
+    };
+    console.log('✓ MAIL FROM parser patched successfully');
+  } else {
+    console.warn('⚠ SMTPConnection class found but _parseAddressCommand not available');
+    console.warn('  Module type:', typeof SMTPConnection, '| Keys:', Object.keys(connModule));
+  }
 } catch (e) {
   console.warn('Could not patch smtp-server MAIL FROM parser:', e.message);
 }
