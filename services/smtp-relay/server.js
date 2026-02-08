@@ -34,14 +34,19 @@ function normalizeMailFromCommand(command) {
 
 try {
   const pkgRoot = path.dirname(require.resolve('smtp-server'));
-  const SMTPConnection = require(path.join(pkgRoot, 'lib', 'smtp-connection.js'));
+  const SMTPConnection = require(path.join(pkgRoot, 'smtp-connection.js'));
   const originalParse = SMTPConnection.prototype._parseAddressCommand;
   SMTPConnection.prototype._parseAddressCommand = function (name, command) {
     if (name === 'MAIL FROM' && command) {
-      command = normalizeMailFromCommand(command);
+      const normalized = normalizeMailFromCommand(command);
+      if (normalized !== command) {
+        console.log(`Normalized MAIL FROM: "${command}" -> "${normalized}"`);
+      }
+      command = normalized;
     }
     return originalParse.call(this, name, command);
   };
+  console.log('✓ MAIL FROM parser patched successfully');
 } catch (e) {
   console.warn('Could not patch smtp-server MAIL FROM parser:', e.message);
 }
