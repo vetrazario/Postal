@@ -95,31 +95,15 @@ module Dashboard
       config = SystemConfig.instance
       services = params[:services] || config.restart_services
 
-      results = {}
-      success = true
+      # Reset restart flag - actual restart must be done manually via:
+      # docker compose restart api sidekiq
+      config.update_columns(restart_required: false, restart_services: [], changed_fields: {})
 
-      services.each do |service|
-        result = restart_service(service)
-        results[service] = result
-        success = false unless result[:success]
-      end
-
-      if success
-        # Reset restart flag
-        config.update_columns(restart_required: false, restart_services: [], changed_fields: {})
-
-        render json: {
-          success: true,
-          message: "Services restarted: #{services.join(', ')}",
-          results: results
-        }
-      else
-        render json: {
-          success: false,
-          message: 'Some services failed to restart',
-          results: results
-        }, status: :unprocessable_entity
-      end
+      render json: {
+        success: true,
+        message: "Configuration applied. Please restart services manually: docker compose restart #{services.join(' ')}",
+        services: services
+      }
     end
 
     private
