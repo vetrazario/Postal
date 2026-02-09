@@ -28,7 +28,9 @@ class SendToPostalJob < ApplicationJob
         'X-Campaign-ID' => email_log.campaign_id,
         'X-Message-ID' => email_log.external_message_id
       },
-      tag: email_log.campaign_id
+      tag: email_log.campaign_id,
+      track_clicks: false,  # We handle tracking via TrackingInjector
+      track_opens: false
     )
 
     handle_result(email_log, result)

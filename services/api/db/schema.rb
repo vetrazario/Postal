@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_02_08_000001) do
+ActiveRecord::Schema[7.1].define(version: 2026_02_08_000002) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -120,7 +120,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_02_08_000001) do
     t.string "url", null: false
     t.string "secret_key"
     t.boolean "active", default: true, null: false
-    t.json "events", default: ["delivered", "opened", "clicked", "bounced", "failed", "complained"]
+    t.json "events", default: ["delivered", "opened", "clicked", "bounced", "failed", "complained", "unsubscribed"]
     t.integer "retry_count", default: 3, null: false
     t.integer "timeout", default: 30, null: false, comment: "Timeout in seconds"
     t.integer "successful_deliveries", default: 0, null: false

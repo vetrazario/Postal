@@ -69,7 +69,9 @@ class SendSmtpEmailJob < ApplicationJob
       html_body: html_with_tracking,
       headers: build_custom_headers(message),
       tag: 'smtp-relay',
-      campaign_id: email_log.campaign_id
+      campaign_id: email_log.campaign_id,
+      track_clicks: false,  # We handle tracking via TrackingInjector
+      track_opens: false
     }
 
     # Send to Postal

@@ -23,14 +23,8 @@ module Api
             return render json: { error: 'Message not found' }, status: :not_found
           end
 
-          # Create tracking event
-          TrackingEvent.create!(
-            email_log: email_log,
-            event_type: event_type,
-            event_data: data,
-            ip_address: data[:ip],
-            user_agent: data[:user_agent]
-          )
+          # Note: TrackingEvent is already created by Node.js tracking service
+          # directly in the database. Here we only update stats and notify AMS.
 
           # Update campaign stats
           if email_log.campaign_id.present?

@@ -1,7 +1,7 @@
 class TrackingInjector
   def self.inject_tracking_links(html:, recipient:, campaign_id:, message_id:, domain:)
-    return html if html.blank?
-    
+    return html if html.blank? || recipient.blank? || campaign_id.blank? || message_id.blank?
+
     encoded_email = Base64.urlsafe_encode64(recipient)
     encoded_cid = Base64.urlsafe_encode64(campaign_id)
     encoded_mid = Base64.urlsafe_encode64(message_id)
@@ -44,8 +44,8 @@ class TrackingInjector
   end
 
   def self.inject_tracking_pixel(html:, recipient:, campaign_id:, message_id:, domain:)
-    return html if html.blank?
-    
+    return html if html.blank? || recipient.blank? || campaign_id.blank? || message_id.blank?
+
     encoded_email = Base64.urlsafe_encode64(recipient)
     encoded_cid = Base64.urlsafe_encode64(campaign_id)
     encoded_mid = Base64.urlsafe_encode64(message_id)
