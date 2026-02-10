@@ -19,6 +19,20 @@ module Api
           email_log = EmailLog.find_by(external_message_id: message_id)
 
           unless email_log
+            # For unsubscribes via footer link (no mid), Sinatra sends synthetic
+            # message_id like "unsub_12345". Handle stats + AMS without email_log.
+            if event_type == 'unsubscribed'
+              campaign_id = data[:campaign_id] || data['campaign_id']
+              if campaign_id.present?
+                CampaignStats.find_or_initialize_for(campaign_id).increment_unsubscribed
+              end
+
+              ReportToAmsJob.perform_later(message_id, event_type, nil, data.to_unsafe_h)
+
+              Rails.logger.info "Unsubscribe tracked without email_log: #{message_id}"
+              return render json: { success: true }
+            end
+
             Rails.logger.warn "Tracking event for unknown message: #{message_id}"
             return render json: { error: 'Message not found' }, status: :not_found
           end
@@ -27,8 +41,9 @@ module Api
           # directly in the database. Here we only update stats and notify AMS.
 
           # Update campaign stats
-          if email_log.campaign_id.present?
-            stats = CampaignStats.find_or_initialize_for(email_log.campaign_id)
+          campaign_id = email_log.campaign_id
+          if campaign_id.present?
+            stats = CampaignStats.find_or_initialize_for(campaign_id)
             case event_type
             when 'opened'  then stats.increment_opened
             when 'clicked' then stats.increment_clicked
@@ -36,10 +51,12 @@ module Api
             end
           end
 
-          # Send webhook to AMS
+          # Send webhook to AMS (with tracking data as additional_data)
           ReportToAmsJob.perform_later(
             email_log.external_message_id,
-            event_type
+            event_type,
+            nil,
+            data.respond_to?(:to_unsafe_h) ? data.to_unsafe_h : data.to_h
           )
 
           render json: { success: true }
