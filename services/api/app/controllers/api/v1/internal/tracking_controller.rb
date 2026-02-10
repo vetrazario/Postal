@@ -27,7 +27,7 @@ module Api
                 CampaignStats.find_or_initialize_for(campaign_id).increment_unsubscribed
               end
 
-              ReportToAmsJob.perform_later(message_id, event_type, nil, data.to_unsafe_h)
+              ReportToAmsJob.perform_later(message_id, event_type, nil, data.respond_to?(:to_unsafe_h) ? data.to_unsafe_h : data.to_h)
 
               Rails.logger.info "Unsubscribe tracked without email_log: #{message_id}"
               return render json: { success: true }
