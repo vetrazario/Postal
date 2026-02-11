@@ -271,7 +271,42 @@ docker compose exec redis redis-cli FLUSHDB
 
 ---
 
-### 8. SSL сертификат истёк
+### 8. Redis: Bad file format (AOF) / Memory overcommit
+
+**Симптомы в логах Redis:**
+- `Bad file format reading the append only file appendonly.aof.6.incr.aof`
+- `WARNING Memory overcommit must be enabled!`
+
+**Решение 1 — починить AOF (скрипт):**
+
+```bash
+cd /opt/email-sender
+chmod +x scripts/fix-redis-aof.sh
+./scripts/fix-redis-aof.sh
+```
+
+Если починка не удалась, скрипт предложит удалить том и поднять Redis с пустой БД (очереди Sidekiq очистятся).
+
+**Решение 2 — вручную сбросить Redis:**
+
+```bash
+docker compose stop redis
+docker volume rm email_redis_data
+docker compose up -d redis
+```
+
+**Устранить предупреждение Memory overcommit (на хосте):**
+
+```bash
+sudo sysctl vm.overcommit_memory=1
+echo 'vm.overcommit_memory = 1' | sudo tee -a /etc/sysctl.conf
+```
+
+После изменения `sysctl` перезагрузка не обязательна; для постоянного применения при перезагрузке достаточно добавления в `/etc/sysctl.conf`.
+
+---
+
+### 9. SSL сертификат истёк
 
 **Симптомы:**
 - Браузер показывает "Not Secure"
@@ -299,7 +334,7 @@ echo | openssl s_client -connect DOMAIN:443 2>/dev/null | openssl x509 -noout -d
 
 ---
 
-### 9. Tracking не работает
+### 10. Tracking не работает
 
 **Симптомы:**
 - Нет данных об открытиях
@@ -328,7 +363,7 @@ docker compose exec api rails runner "
 
 ---
 
-### 10. Webhook'и не доходят до AMS
+### 11. Webhook'и не доходят до AMS
 
 **Симптомы:**
 - AMS не получает статусы
@@ -449,7 +484,7 @@ groups:
 
 ---
 
-### 11. Миграции не применяются (bin/rails отсутствует)
+### 12. Миграции не применяются (bin/rails отсутствует)
 
 **Симптомы:**
 - Новые страницы Dashboard выдают 500 ошибку
