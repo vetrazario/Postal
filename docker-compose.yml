@@ -289,6 +289,11 @@ services:
     restart: unless-stopped
     command: >
       sh -c "
+        mkdir -p /config &&
+        test -n \"$POSTAL_SIGNING_KEY\" ||
+          (echo 'POSTAL_SIGNING_KEY is empty' && exit 1) &&
+        printf '%s' \"$POSTAL_SIGNING_KEY\" > /config/signing.key &&
+        chmod 600 /config/signing.key &&
         postal initialize-db || true &&
         postal web-server &
         postal smtp-server &
