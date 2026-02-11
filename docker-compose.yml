@@ -289,11 +289,8 @@ services:
     restart: unless-stopped
     command: >
       sh -c "
-        mkdir -p /config &&
-        test -n \"$POSTAL_SIGNING_KEY\" ||
-          (echo 'POSTAL_SIGNING_KEY is empty' && exit 1) &&
-        printf '%s' \"$POSTAL_SIGNING_KEY\" > /config/signing.key &&
-        chmod 600 /config/signing.key &&
+        test -s /config/signing.key ||
+          (echo 'Missing /config/signing.key' && exit 1) &&
         postal initialize-db || true &&
         postal web-server &
         postal smtp-server &
@@ -337,6 +334,7 @@ services:
     volumes:
       # postal.yml removed: Postal 3.x uses POSTAL_* env vars from docker-compose
       - postal_data:/opt/postal/data
+      - ./config/signing.key:/config/signing.key:ro
     deploy:
       resources:
         limits:
