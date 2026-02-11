@@ -18,17 +18,25 @@ NC='\033[0m'
 
 cd /opt/email-sender
 
+# Подавляем предупреждения docker compose
+export COMPOSE_IGNORE_ORPHANS=1
+
+# Функция для запуска rails runner без мусора в выводе
+rails_run() {
+    docker compose exec -T api rails runner "$1" 2>/dev/null | grep -v -E "(Sidekiq|INFO:|WARN|pid=|tid=)"
+}
+
 # Если не передан аргумент — берём последнюю кампанию
 CAMPAIGN_ID="$1"
 if [ -z "$CAMPAIGN_ID" ]; then
     echo -e "${YELLOW}Определяю последнюю кампанию...${NC}"
-    CAMPAIGN_ID=$(docker compose exec -T api rails runner "
+    CAMPAIGN_ID=$(rails_run "
       cid = EmailLog.where.not(campaign_id: [nil, ''])
                     .order(created_at: :desc)
                     .limit(1)
                     .pick(:campaign_id)
       print cid || ''
-    " 2>/dev/null)
+    ")
     
     if [ -z "$CAMPAIGN_ID" ]; then
         echo -e "${RED}Не найдено ни одной кампании в базе${NC}"
@@ -46,7 +54,7 @@ echo ""
 
 # --- 1. Общая статистика по статусам ---
 echo -e "${CYAN}📊 Статусы писем:${NC}"
-docker compose exec -T api rails runner "
+rails_run "
   logs = EmailLog.where(campaign_id: '$CAMPAIGN_ID')
   total = logs.count
   if total == 0
@@ -64,7 +72,7 @@ echo ""
 
 # --- 2. CampaignStats (агрегированная статистика) ---
 echo -e "${CYAN}📈 Сводка (CampaignStats):${NC}"
-docker compose exec -T api rails runner "
+rails_run "
   s = CampaignStats.find_by(campaign_id: '$CAMPAIGN_ID')
   if s.nil?
     puts '  (статистика ещё не создана)'
@@ -82,7 +90,7 @@ echo ""
 
 # --- 3. Последние письма ---
 echo -e "${CYAN}📬 Последние 10 писем:${NC}"
-docker compose exec -T api rails runner "
+rails_run "
   logs = EmailLog.where(campaign_id: '$CAMPAIGN_ID').order(created_at: :desc).limit(10)
   if logs.empty?
     puts '  (нет писем)'
@@ -99,7 +107,7 @@ echo ""
 
 # --- 4. События трекинга ---
 echo -e "${CYAN}🔍 Последние события трекинга:${NC}"
-docker compose exec -T api rails runner "
+rails_run "
   events = TrackingEvent.joins(:email_log)
                         .where(email_logs: { campaign_id: '$CAMPAIGN_ID' })
                         .order(created_at: :desc)
@@ -128,7 +136,7 @@ echo ""
 
 # --- 5. Ошибки доставки (если есть) ---
 echo -e "${CYAN}⚠️  Ошибки доставки (последние 5):${NC}"
-docker compose exec -T api rails runner "
+rails_run "
   errors = DeliveryError.joins(:email_log)
                         .where(email_logs: { campaign_id: '$CAMPAIGN_ID' })
                         .order(created_at: :desc)
@@ -145,7 +153,7 @@ echo ""
 
 # --- 6. Отписки ---
 echo -e "${CYAN}🚫 Отписки по кампании:${NC}"
-docker compose exec -T api rails runner "
+rails_run "
   unsubs = Unsubscribe.where(campaign_id: '$CAMPAIGN_ID').order(created_at: :desc).limit(5)
   count = Unsubscribe.where(campaign_id: '$CAMPAIGN_ID').count
   if count == 0
