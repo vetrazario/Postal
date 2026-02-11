@@ -1,7 +1,9 @@
 #!/bin/bash
 # ===========================================
 # Проверка статуса кампании
-# Использование: ./check_campaign.sh CAMPAIGN_ID
+# Использование: 
+#   ./check_campaign.sh              - последняя кампания
+#   ./check_campaign.sh CAMPAIGN_ID  - конкретная кампания
 # ===========================================
 
 set -e
@@ -14,18 +16,27 @@ BLUE='\033[0;34m'
 CYAN='\033[0;36m'
 NC='\033[0m'
 
-# Проверка аргумента
+cd /opt/email-sender
+
+# Если не передан аргумент — берём последнюю кампанию
 CAMPAIGN_ID="$1"
 if [ -z "$CAMPAIGN_ID" ]; then
-    echo -e "${RED}Использование: $0 CAMPAIGN_ID${NC}"
+    echo -e "${YELLOW}Определяю последнюю кампанию...${NC}"
+    CAMPAIGN_ID=$(docker compose exec -T api rails runner "
+      cid = EmailLog.where.not(campaign_id: [nil, ''])
+                    .order(created_at: :desc)
+                    .limit(1)
+                    .pick(:campaign_id)
+      print cid || ''
+    " 2>/dev/null)
+    
+    if [ -z "$CAMPAIGN_ID" ]; then
+        echo -e "${RED}Не найдено ни одной кампании в базе${NC}"
+        exit 1
+    fi
+    echo -e "${GREEN}Найдена: ${CAMPAIGN_ID}${NC}"
     echo ""
-    echo "Примеры:"
-    echo "  $0 campaign_12345"
-    echo "  $0 test_1234567890"
-    exit 1
 fi
-
-cd /opt/email-sender
 
 echo ""
 echo -e "${BLUE}════════════════════════════════════════════════════════════${NC}"
