@@ -23,7 +23,8 @@ for manifest in appendonly.aof.manifest appendonly.aof.6.manifest; do
   path="/data/appendonlydir/$manifest"
   if docker compose run --rm redis sh -c "test -f $path" 2>/dev/null; then
     echo "  Найден манифест: $path"
-    docker compose run --rm redis redis-check-aof --fix "$path" && FIXED=1
+    # Автоматически подтверждаем fix (echo y)
+    docker compose run --rm redis sh -c "echo y | redis-check-aof --fix $path" && FIXED=1
     break
   fi
 done
@@ -31,7 +32,7 @@ done
 if [ "$FIXED" = "0" ]; then
   # Старый формат или один файл
   if docker compose run --rm redis sh -c "test -f /data/appendonly.aof" 2>/dev/null; then
-    docker compose run --rm redis redis-check-aof --fix /data/appendonly.aof && FIXED=1
+    docker compose run --rm redis sh -c "echo y | redis-check-aof --fix /data/appendonly.aof" && FIXED=1
   fi
 fi
 
