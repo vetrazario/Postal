@@ -15,8 +15,9 @@ module Api
           event_type = params[:event_type]
           data = params[:data] || {}
 
-          # Find email log
-          email_log = EmailLog.find_by(external_message_id: message_id)
+          # Find email log (search by external_message_id first, fall back to message_id)
+          email_log = EmailLog.find_by(external_message_id: message_id) ||
+                      EmailLog.find_by(message_id: message_id)
 
           unless email_log
             # For unsubscribes via footer link (no mid), Sinatra sends synthetic

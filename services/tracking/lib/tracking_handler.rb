@@ -35,23 +35,25 @@ class TrackingHandler
     conn = nil
     begin
       conn = PG.connect(@database_url)
+      # Search by external_message_id first, fall back to message_id
       result = conn.exec_params(
-        "SELECT id, external_message_id, campaign_id FROM email_logs WHERE external_message_id = $1",
+        "SELECT id, external_message_id, campaign_id FROM email_logs WHERE external_message_id = $1 OR message_id = $1 LIMIT 1",
         [message_id]
       )
-      
+
       return { success: false } if result.rows.empty?
-      
+
       email_log_id = result.rows.first[0]
-      
+      resolved_ext_id = result.rows.first[1] || message_id
+
       # Create tracking event (don't store decrypted email for PII protection)
       conn.exec_params(
         "INSERT INTO tracking_events (email_log_id, event_type, event_data, ip_address, user_agent, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, NOW(), NOW())",
         [email_log_id, 'open', { campaign_id: campaign_id }.to_json, ip, user_agent]
       )
-      
-      # Enqueue webhook job
-      enqueue_webhook_job(message_id, 'opened', { ip: ip, user_agent: user_agent })
+
+      # Enqueue webhook job (use resolved external_message_id for API lookup)
+      enqueue_webhook_job(resolved_ext_id, 'opened', { ip: ip, user_agent: user_agent })
       
       { success: true }
     rescue => e
@@ -84,14 +86,16 @@ class TrackingHandler
     conn = nil
     begin
       conn = PG.connect(@database_url)
+      # Search by external_message_id first, fall back to message_id
       result = conn.exec_params(
-        "SELECT id, external_message_id, campaign_id FROM email_logs WHERE external_message_id = $1",
+        "SELECT id, external_message_id, campaign_id FROM email_logs WHERE external_message_id = $1 OR message_id = $1 LIMIT 1",
         [message_id]
       )
 
       return { success: false, url: nil } if result.rows.empty?
 
       email_log_id = result.rows.first[0]
+      resolved_ext_id = result.rows.first[1] || message_id
 
       # Create tracking event (don't store decrypted email for PII protection)
       conn.exec_params(
@@ -99,8 +103,8 @@ class TrackingHandler
         [email_log_id, 'click', { url: validated_url, campaign_id: campaign_id }.to_json, ip, user_agent]
       )
 
-      # Enqueue webhook job
-      enqueue_webhook_job(message_id, 'clicked', { url: validated_url, ip: ip, user_agent: user_agent })
+      # Enqueue webhook job (use resolved external_message_id for API lookup)
+      enqueue_webhook_job(resolved_ext_id, 'clicked', { url: validated_url, ip: ip, user_agent: user_agent })
 
       { success: true, url: validated_url }
     rescue => e
@@ -141,7 +145,7 @@ class TrackingHandler
       # If we have message_id, also create tracking event
       if message_id.present?
         result = conn.exec_params(
-          "SELECT id FROM email_logs WHERE external_message_id = $1",
+          "SELECT id FROM email_logs WHERE external_message_id = $1 OR message_id = $1 LIMIT 1",
           [message_id]
         )
 
