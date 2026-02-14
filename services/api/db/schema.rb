@@ -241,6 +241,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_02_08_000002) do
     t.boolean "tracking_footer_enabled", default: true
     t.integer "daily_send_limit", default: 500
     t.boolean "warmup_mode", default: false
+    t.string "warmup_start_date"
     # SMTP Relay settings (from migration 020, partially removed by 022)
     t.integer "smtp_relay_port", default: 2587
     t.boolean "smtp_relay_auth_required", default: true

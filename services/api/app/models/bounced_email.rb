@@ -44,7 +44,7 @@ class BouncedEmail < ApplicationRecord
   def self.record_bounce_if_needed(email:, bounce_category: nil, smtp_code: nil, smtp_message: nil, campaign_id: nil)
     # Не добавлять для rate_limit, temporary, connection
     # NON_BOUNCE_CATEGORIES теперь в config/bounce_patterns.yml
-    non_bounce_categories = ErrorClassifier.send(:config)['non_bounce_categories'] || []
+    non_bounce_categories = ErrorClassifier.non_bounce_categories
     return nil if non_bounce_categories.include?(bounce_category.to_s)
     
     record_bounce(
