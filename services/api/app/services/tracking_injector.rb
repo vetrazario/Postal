@@ -55,7 +55,7 @@ class TrackingInjector
     
     # Insert before </body> or at the end
     if html.include?("</body>")
-      html.gsub("</body>", "#{pixel_html}\n</body>")
+      html.sub("</body>", "#{pixel_html}\n</body>")
     else
       html + pixel_html
     end
