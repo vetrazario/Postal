@@ -388,6 +388,11 @@ class SystemConfig < ApplicationRecord
     nil
   end
 
+  # Set configuration value
+  def self.set(key, value)
+    instance.update!(key => value)
+  end
+
   # Check if restart is required
   def restart_required?
     restart_required == true

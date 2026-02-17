@@ -40,6 +40,11 @@ class ErrorClassifier
       config['stop_mailing_categories'] || []
     end
 
+    # Get list of categories that should NOT be added to bounce list
+    def non_bounce_categories
+      config['non_bounce_categories'] || []
+    end
+
     private
 
     def extract_text(payload, key)
