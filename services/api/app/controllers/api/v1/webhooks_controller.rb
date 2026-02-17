@@ -158,12 +158,33 @@ class Api::V1::WebhooksController < Api::V1::ApplicationController
       # Email был открыт (tracking pixel загружен)
       email_log.update(delivered_at: Time.current) unless email_log.delivered_at
       TrackingEvent.create_event(email_log: email_log, event_type: 'open', event_data: payload)
+
+      # Обновить статистику кампании
+      if email_log.campaign_id.present?
+        CampaignStats.find_or_initialize_for(email_log.campaign_id).increment_opened
+      end
+
+      # Отправить webhook в AMS
+      ReportToAmsJob.perform_later(email_log.external_message_id, 'opened')
       Rails.logger.info "MessageLoaded (opened): #{email_log.recipient_masked}"
 
     when 'MessageLinkClicked'
       # Клик по ссылке
       url = payload['url'] || payload[:url]
       TrackingEvent.create_event(email_log: email_log, event_type: 'click', event_data: payload)
+
+      # Обновить статистику кампании
+      if email_log.campaign_id.present?
+        CampaignStats.find_or_initialize_for(email_log.campaign_id).increment_clicked
+      end
+
+      # Отправить webhook в AMS с URL клика
+      ReportToAmsJob.perform_later(
+        email_log.external_message_id,
+        'clicked',
+        nil,
+        { url: url }
+      )
       # Маскируем URL для безопасности (может содержать токены)
       url_masked = url&.split('?')&.first || url
       Rails.logger.info "MessageLinkClicked: #{email_log.recipient_masked} -> #{url_masked}"
