@@ -41,10 +41,11 @@ class TrackingHandler
         [message_id]
       )
 
-      return { success: false } if result.rows.empty?
+      return { success: false } if result.ntuples == 0
 
-      email_log_id = result.rows.first[0]
-      resolved_ext_id = result.rows.first[1] || message_id
+      row = result[0]
+      email_log_id = row['id']
+      resolved_ext_id = row['external_message_id'] || message_id
 
       # Create tracking event (don't store decrypted email for PII protection)
       conn.exec_params(
@@ -92,10 +93,11 @@ class TrackingHandler
         [message_id]
       )
 
-      return { success: false, url: nil } if result.rows.empty?
+      return { success: false, url: nil } if result.ntuples == 0
 
-      email_log_id = result.rows.first[0]
-      resolved_ext_id = result.rows.first[1] || message_id
+      row = result[0]
+      email_log_id = row['id']
+      resolved_ext_id = row['external_message_id'] || message_id
 
       # Create tracking event (don't store decrypted email for PII protection)
       conn.exec_params(
@@ -149,8 +151,8 @@ class TrackingHandler
           [message_id]
         )
 
-        if result.rows.any?
-          email_log_id = result.rows.first[0]
+        if result.ntuples > 0
+          email_log_id = result[0]['id']
           conn.exec_params(
             "INSERT INTO tracking_events (email_log_id, event_type, event_data, ip_address, user_agent, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, NOW(), NOW())",
             [email_log_id, 'unsubscribe', { campaign_id: campaign_id, reason: reason }.to_json, ip, user_agent]
