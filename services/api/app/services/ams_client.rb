@@ -34,6 +34,13 @@ class AmsClient
     call_api('getSendingJobResult', { jobID: job_id, mailingID: mailing_id })
   end
 
+  def post_open_clicks_data(mailing_id, opens_clicks_data)
+    call_api('postMailingOpenClicksData', {
+      mailingID: mailing_id.to_i,
+      opensClicksData: opens_clicks_data
+    })
+  end
+
   def send_threshold_alert(campaign_id:, violations:)
     # Отправка уведомления о превышении порогов в AMS
     # Если AMS API поддерживает такой метод, можно использовать его
