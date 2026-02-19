@@ -189,7 +189,8 @@ class TrackingController < ActionController::Base
     return unless email_log&.campaign_id.present?
 
     redis = Redis.new(url: ENV.fetch('REDIS_URL', 'redis://redis:6379/0'))
-    redis.lpush(
+    # Set — уникальность по (email, url)
+    redis.sadd(
       "ams_open_clicks:#{email_log.campaign_id}",
       { email: email_log.recipient, url: url }.to_json
     )

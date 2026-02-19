@@ -248,7 +248,8 @@ class TrackingHandler
     return if campaign_id.blank? || email.blank?
 
     redis = Redis.new(url: @redis_url)
-    redis.lpush("ams_open_clicks:#{campaign_id}", { email: email, url: url }.to_json)
+    # Set вместо List — уникальность по (email, url), повторные открытия/клики не дублируются
+    redis.sadd("ams_open_clicks:#{campaign_id}", { email: email, url: url }.to_json)
     redis.expire("ams_open_clicks:#{campaign_id}", 86400)
   rescue => e
     puts "AMS buffer push error: #{e.message}"

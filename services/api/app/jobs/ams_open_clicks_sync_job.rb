@@ -34,25 +34,19 @@ class AmsOpenClicksSyncJob < ApplicationJob
   private
 
   def flush_campaign(redis, client, campaign_id, key)
-    items = []
-    while items.size < MAX_BATCH_SIZE
-      raw = redis.rpop(key)
-      break unless raw
+    # Set: SMEMBERS возвращает уникальные элементы (дедупликация по email+url уже сделана при записи)
+    members = redis.smembers(key)
+    return if members.empty?
 
-      parsed = JSON.parse(raw)
-      items << parsed
-    end
-
-    return if items.empty?
-
-    client.post_open_clicks_data(campaign_id, items)
-    Rails.logger.info "AmsOpenClicksSyncJob: sent #{items.size} events for campaign #{campaign_id}"
+    raw_batch = members.first(MAX_BATCH_SIZE)
+    parsed = raw_batch.map { |raw| JSON.parse(raw) }
+    client.post_open_clicks_data(campaign_id, parsed)
+    redis.srem(key, *raw_batch)
+    Rails.logger.info "AmsOpenClicksSyncJob: sent #{parsed.size} unique events for campaign #{campaign_id}"
   rescue AmsClient::AmsError => e
-    # Push items back to Redis for retry
-    items.reverse_each { |item| redis.rpush(key, item.to_json) }
+    # Не удаляем — останутся в Set для повторной попытки
     Rails.logger.error "AmsOpenClicksSyncJob: AMS error for campaign #{campaign_id}: #{e.message}"
   rescue StandardError => e
-    items.reverse_each { |item| redis.rpush(key, item.to_json) }
     Rails.logger.error "AmsOpenClicksSyncJob: error for campaign #{campaign_id}: #{e.message}"
   end
 
