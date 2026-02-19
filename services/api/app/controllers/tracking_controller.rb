@@ -47,6 +47,7 @@ class TrackingController < ActionController::Base
       # Only increment stats if we actually updated (were first)
       if rows_updated > 0
         update_campaign_stats(click_record.campaign_id, :clicks)
+        push_to_ams_buffer(click_record.email_log, click_record.url)
         Rails.logger.info "Click tracked: #{click_record.id}, URL: #{click_record.url}, IP: #{request.remote_ip}"
       end
 
@@ -89,6 +90,7 @@ class TrackingController < ActionController::Base
       # Only increment stats if we actually updated (were first)
       if rows_updated > 0
         update_campaign_stats(open_record.campaign_id, :opens)
+        push_to_ams_buffer(open_record.email_log, 'open_trace')
         Rails.logger.info "Open tracked: #{open_record.id}, IP: #{request.remote_ip}"
       end
     else
@@ -180,6 +182,22 @@ class TrackingController < ActionController::Base
     end
   rescue StandardError => e
     Rails.logger.error "Failed to update campaign stats: #{e.message}"
+  end
+
+  # Push tracking event to Redis buffer for AMS postMailingOpenClicksData
+  def push_to_ams_buffer(email_log, url)
+    return unless email_log&.campaign_id.present?
+
+    redis = Redis.new(url: ENV.fetch('REDIS_URL', 'redis://redis:6379/0'))
+    redis.lpush(
+      "ams_open_clicks:#{email_log.campaign_id}",
+      { email: email_log.recipient, url: url }.to_json
+    )
+    redis.expire("ams_open_clicks:#{email_log.campaign_id}", 86400)
+  rescue StandardError => e
+    Rails.logger.error "AMS buffer push error: #{e.message}"
+  ensure
+    redis&.close
   end
 
   # Validate URL to prevent open redirect attacks

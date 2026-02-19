@@ -24,6 +24,11 @@ class TrackingInjector
       # Skip unsubscribe links (they should already be from Send Server)
       next match if original_url.include?("unsubscribe")
 
+      # Skip AMS Enterprise tracking links (amsweb.php) - AMS uses its own
+      # tracking mechanism through amsweb.php for open/click statistics.
+      # Replacing these links breaks AMS's ability to receive tracking data.
+      next match if original_url.include?("amsweb.php")
+
       # Validate URL format (only http/https)
       begin
         uri = URI.parse(original_url)

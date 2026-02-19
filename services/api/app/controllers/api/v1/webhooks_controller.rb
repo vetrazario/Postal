@@ -164,6 +164,9 @@ class Api::V1::WebhooksController < Api::V1::ApplicationController
         CampaignStats.find_or_initialize_for(email_log.campaign_id).increment_opened
       end
 
+      # Buffer for AMS postMailingOpenClicksData
+      push_to_ams_open_clicks_buffer(email_log, 'open_trace')
+
       # Отправить webhook в AMS
       ReportToAmsJob.perform_later(email_log.external_message_id, 'opened')
       Rails.logger.info "MessageLoaded (opened): #{email_log.recipient_masked}"
@@ -177,6 +180,9 @@ class Api::V1::WebhooksController < Api::V1::ApplicationController
       if email_log.campaign_id.present?
         CampaignStats.find_or_initialize_for(email_log.campaign_id).increment_clicked
       end
+
+      # Buffer for AMS postMailingOpenClicksData
+      push_to_ams_open_clicks_buffer(email_log, url)
 
       # Отправить webhook в AMS с URL клика
       ReportToAmsJob.perform_later(
@@ -192,6 +198,21 @@ class Api::V1::WebhooksController < Api::V1::ApplicationController
     else
       Rails.logger.warn "Unknown webhook event: #{event}"
     end
+  end
+
+  def push_to_ams_open_clicks_buffer(email_log, url)
+    return unless email_log.campaign_id.present?
+
+    redis = Redis.new(url: ENV.fetch('REDIS_URL', 'redis://redis:6379/0'))
+    redis.lpush(
+      "ams_open_clicks:#{email_log.campaign_id}",
+      { email: email_log.recipient, url: url }.to_json
+    )
+    redis.expire("ams_open_clicks:#{email_log.campaign_id}", 86400)
+  rescue StandardError => e
+    Rails.logger.error "AMS buffer push error: #{e.message}"
+  ensure
+    redis&.close
   end
 
   def verify_postal_signature

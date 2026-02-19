@@ -35,27 +35,27 @@ class TrackingHandler
     conn = nil
     begin
       conn = PG.connect(@database_url)
-      # Search by external_message_id first, fall back to message_id
       result = conn.exec_params(
-        "SELECT id, external_message_id, campaign_id FROM email_logs WHERE external_message_id = $1 OR message_id = $1 LIMIT 1",
+        "SELECT id, external_message_id, campaign_id FROM email_logs WHERE external_message_id = $1",
         [message_id]
       )
-
-      return { success: false } if result.ntuples == 0
-
-      row = result[0]
-      email_log_id = row['id']
-      resolved_ext_id = row['external_message_id'] || message_id
-
+      
+      return { success: false } if result.rows.empty?
+      
+      email_log_id = result.rows.first[0]
+      
       # Create tracking event (don't store decrypted email for PII protection)
       conn.exec_params(
         "INSERT INTO tracking_events (email_log_id, event_type, event_data, ip_address, user_agent, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, NOW(), NOW())",
         [email_log_id, 'open', { campaign_id: campaign_id }.to_json, ip, user_agent]
       )
-
-      # Enqueue webhook job (use resolved external_message_id for API lookup)
-      enqueue_webhook_job(resolved_ext_id, 'opened', { ip: ip, user_agent: user_agent })
       
+      # Buffer for AMS postMailingOpenClicksData
+      push_to_ams_buffer(campaign_id, email, 'open_trace')
+
+      # Enqueue webhook job
+      enqueue_webhook_job(message_id, 'opened', { ip: ip, user_agent: user_agent })
+
       { success: true }
     rescue => e
       puts "TrackingHandler error: #{e.message}"
@@ -87,17 +87,14 @@ class TrackingHandler
     conn = nil
     begin
       conn = PG.connect(@database_url)
-      # Search by external_message_id first, fall back to message_id
       result = conn.exec_params(
-        "SELECT id, external_message_id, campaign_id FROM email_logs WHERE external_message_id = $1 OR message_id = $1 LIMIT 1",
+        "SELECT id, external_message_id, campaign_id FROM email_logs WHERE external_message_id = $1",
         [message_id]
       )
 
-      return { success: false, url: nil } if result.ntuples == 0
+      return { success: false, url: nil } if result.rows.empty?
 
-      row = result[0]
-      email_log_id = row['id']
-      resolved_ext_id = row['external_message_id'] || message_id
+      email_log_id = result.rows.first[0]
 
       # Create tracking event (don't store decrypted email for PII protection)
       conn.exec_params(
@@ -105,8 +102,11 @@ class TrackingHandler
         [email_log_id, 'click', { url: validated_url, campaign_id: campaign_id }.to_json, ip, user_agent]
       )
 
-      # Enqueue webhook job (use resolved external_message_id for API lookup)
-      enqueue_webhook_job(resolved_ext_id, 'clicked', { url: validated_url, ip: ip, user_agent: user_agent })
+      # Buffer for AMS postMailingOpenClicksData
+      push_to_ams_buffer(campaign_id, email, validated_url)
+
+      # Enqueue webhook job
+      enqueue_webhook_job(message_id, 'clicked', { url: validated_url, ip: ip, user_agent: user_agent })
 
       { success: true, url: validated_url }
     rescue => e
@@ -147,18 +147,21 @@ class TrackingHandler
       # If we have message_id, also create tracking event
       if message_id.present?
         result = conn.exec_params(
-          "SELECT id FROM email_logs WHERE external_message_id = $1 OR message_id = $1 LIMIT 1",
+          "SELECT id FROM email_logs WHERE external_message_id = $1",
           [message_id]
         )
 
-        if result.ntuples > 0
-          email_log_id = result[0]['id']
+        if result.rows.any?
+          email_log_id = result.rows.first[0]
           conn.exec_params(
             "INSERT INTO tracking_events (email_log_id, event_type, event_data, ip_address, user_agent, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, NOW(), NOW())",
             [email_log_id, 'unsubscribe', { campaign_id: campaign_id, reason: reason }.to_json, ip, user_agent]
           )
         end
       end
+
+      # Buffer for AMS postMailingOpenClicksData
+      push_to_ams_buffer(campaign_id, email, 'Unsubscribe_Click:DC,AE{|;')
 
       # Enqueue webhook job to notify AMS
       enqueue_webhook_job(message_id || "unsub_#{campaign_id}", 'unsubscribed', {
@@ -239,6 +242,18 @@ class TrackingHandler
     return true if host == '0.0.0.0'
     return true if host == '::1'
     false
+  end
+
+  def push_to_ams_buffer(campaign_id, email, url)
+    return if campaign_id.blank? || email.blank?
+
+    redis = Redis.new(url: @redis_url)
+    redis.lpush("ams_open_clicks:#{campaign_id}", { email: email, url: url }.to_json)
+    redis.expire("ams_open_clicks:#{campaign_id}", 86400)
+  rescue => e
+    puts "AMS buffer push error: #{e.message}"
+  ensure
+    redis&.close
   end
 
   def enqueue_webhook_job(message_id, event_type, data)
