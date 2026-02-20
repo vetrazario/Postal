@@ -159,6 +159,16 @@ class TrackingHandler
         [email, campaign_id, reason, ip, user_agent]
       )
 
+      # Global unsubscribe (campaign_id = NULL) — одна запись на email для блокировки по всем кампаниям
+      conn.exec_params(
+        <<~SQL,
+          INSERT INTO unsubscribes (email, campaign_id, reason, ip_address, user_agent, unsubscribed_at, created_at, updated_at)
+          SELECT $1, NULL, $2, $3, $4, NOW(), NOW(), NOW()
+          WHERE NOT EXISTS (SELECT 1 FROM unsubscribes WHERE email = $1 AND campaign_id IS NULL)
+        SQL
+        [email, reason, ip, user_agent]
+      )
+
       # If we have message_id, also create tracking event
       if message_id.present?
         result = conn.exec_params(

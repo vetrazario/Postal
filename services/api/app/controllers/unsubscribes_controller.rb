@@ -7,8 +7,8 @@ class UnsubscribesController < ActionController::Base
     @email = decode_param(params[:eid])
     @campaign_id = decode_param(params[:cid])
 
-    # Check if already unsubscribed
-    @already_unsubscribed = Unsubscribe.exists?(email: @email, campaign_id: @campaign_id)
+    # Check if already unsubscribed (campaign-specific or global)
+    @already_unsubscribed = Unsubscribe.blocked?(email: @email, campaign_id: @campaign_id)
   end
 
   # POST /unsubscribe
@@ -24,6 +24,15 @@ class UnsubscribesController < ActionController::Base
         user_agent: request.user_agent,
         reason: params[:reason] || 'user_request'
       )
+      Unsubscribe.record_unsubscribe(
+        email: email,
+        campaign_id: nil,
+        ip_address: request.remote_ip,
+        user_agent: request.user_agent,
+        reason: params[:reason] || 'user_request'
+      )
+
+      push_unsubscribe_to_ams_buffer(email: email, campaign_id: campaign_id)
 
       # Create tracking event and notify AMS
       email_log = EmailLog.where(recipient: email, campaign_id: campaign_id)
@@ -58,6 +67,18 @@ class UnsubscribesController < ActionController::Base
   end
 
   private
+
+  def push_unsubscribe_to_ams_buffer(email:, campaign_id: nil)
+    redis = Redis.new(url: ENV.fetch('REDIS_URL', 'redis://redis:6379/0'))
+    key = campaign_id.present? ? "ams_open_clicks:#{campaign_id}" : 'ams_unsubscribes_global'
+    payload = { email: email, url: 'Unsubscribe_Click:DC,AE{|;', campaign_id: campaign_id }.to_json
+    redis.sadd(key, payload)
+    redis.expire(key, 86400)
+  rescue StandardError => e
+    Rails.logger.error "AMS unsubscribe buffer push error: #{e.message}"
+  ensure
+    redis&.close
+  end
 
   def decode_param(param)
     return nil if param.blank?
