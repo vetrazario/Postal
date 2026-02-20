@@ -15,6 +15,11 @@ class TrackingHandler
     tinyurl.com
   ].freeze
 
+  BOT_PATTERNS = [
+    /\bbot\b/, /\bcrawl/, /\bspider/, /\bslurp\b/, /mediapartners/, /facebookexternalhit/,
+    /twitterbot/, /whatsapp/, /googlebot/, /bingbot/, /yandexbot/, /\bscanner\b/, /\bpreview\b.*\bbot/
+  ].freeze
+
   def initialize(database_url:, redis_url:, allowed_domains: nil)
     @database_url = database_url
     @redis_url = redis_url
@@ -30,6 +35,9 @@ class TrackingHandler
     message_id = Base64.urlsafe_decode64(mid) rescue nil
     
     return { success: false } unless email && campaign_id && message_id
+
+    # Пропускаем ботов (возвращаем success чтобы отдать пиксель, но не пишем в БД)
+    return { success: true } if bot_request?(user_agent)
     
     # Find email log
     conn = nil
@@ -43,6 +51,13 @@ class TrackingHandler
       return { success: false } if result.rows.empty?
       
       email_log_id = result.rows.first[0]
+
+      # Только первое открытие на письмо — повторные загрузки пикселя не считаем
+      existing = conn.exec_params(
+        "SELECT 1 FROM tracking_events WHERE email_log_id = $1 AND event_type = 'open' LIMIT 1",
+        [email_log_id]
+      )
+      return { success: true } if existing.ntuples > 0
       
       # Create tracking event (don't store decrypted email for PII protection)
       conn.exec_params(
@@ -181,6 +196,11 @@ class TrackingHandler
   end
 
   private
+
+  def bot_request?(user_agent)
+    ua = (user_agent || '').to_s.downcase
+    BOT_PATTERNS.any? { |pattern| ua.match?(pattern) }
+  end
 
   # Mask email for display (privacy protection)
   def mask_email(email)
