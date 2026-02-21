@@ -38,7 +38,7 @@ module Api
             return render json: { success: false, error: 'Invalid credentials' }, status: :unauthorized
           end
 
-          unless credential.verify_password(password)
+          unless safe_verify_password(credential, password)
             Rails.logger.warn "SMTP auth: Invalid password for #{username}"
             return render json: { success: false, error: 'Invalid credentials' }, status: :unauthorized
           end
@@ -55,6 +55,13 @@ module Api
         end
 
         private
+
+        def safe_verify_password(credential, password)
+          credential.verify_password(password)
+        rescue ::BCrypt::Errors::BCryptError => e
+          Rails.logger.warn "SMTP auth: BCrypt error for #{credential.username}: #{e.message}"
+          false
+        end
 
         def verify_internal_request
           # Check if request comes from internal Docker network

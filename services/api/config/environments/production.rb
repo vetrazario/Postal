@@ -35,7 +35,8 @@ Rails.application.configure do
   # config.action_cable.allowed_request_origins = [ "http://example.com", /http:\/\/example.*/ ]
 
   # Force all access to the app over SSL, use Strict-Transport-Security, and use secure cookies.
-  config.force_ssl = ENV.fetch("DISABLE_FORCE_SSL", "false") != "true"
+  # Disabled: internal HTTP calls (smtp-relay, batch API) received 308 redirects instead of JSON.
+  config.force_ssl = false
   config.ssl_options = { hsts: { subdomains: true, preload: true, expires: 1.year } }
 
   # Include generic and useful information about system operation, but avoid logging too much

@@ -11,6 +11,7 @@
 const { SMTPServer } = require('smtp-server');
 const { simpleParser } = require('mailparser');
 const axios = require('axios');
+const http = require('http');
 const path = require('path');
 const fs = require('fs');
 
@@ -65,6 +66,7 @@ const crypto = require('crypto');
 
 const PORT = process.env.SMTP_RELAY_PORT || 587;
 const API_URL = process.env.API_URL || 'http://api:3000';
+const INTERNAL_API_URL = (process.env.INTERNAL_API_URL || API_URL).replace(/^https:/i, 'http:');
 const DOMAIN = process.env.DOMAIN || 'localhost';
 
 // Authentication settings
@@ -104,6 +106,7 @@ console.log('Starting SMTP Relay Server');
 console.log('='.repeat(60));
 console.log('Port:', PORT);
 console.log('API URL:', API_URL);
+console.log('Internal API URL (smtp_auth):', INTERNAL_API_URL);
 console.log('Domain:', DOMAIN);
 console.log('TLS:', tlsEnabled ? 'ENABLED' : 'DISABLED');
 console.log('Auth Required:', SMTP_AUTH_REQUIRED ? 'YES' : 'NO');
@@ -111,31 +114,69 @@ console.log('Auth Mode: API (credentials managed via Dashboard)');
 console.log('HMAC Secret:', SMTP_RELAY_SECRET ? 'CONFIGURED' : 'NOT SET (WARNING!)');
 console.log('='.repeat(60));
 
-// Async function to authenticate against API
+// Parse URL for native http request
+function parseInternalApiUrl() {
+  const u = new URL('/api/v1/internal/smtp_auth', INTERNAL_API_URL);
+  return { hostname: u.hostname, port: u.port || (u.protocol === 'https:' ? 443 : 80), path: u.pathname };
+}
+
+// Async function to authenticate against API (native http to avoid HTTPS/SSL mismatch with api:3000)
 async function authenticateViaAPI(username, password) {
-  try {
-    const response = await axios.post(`${API_URL}/api/v1/internal/smtp_auth`, {
-      username: username,
-      password: password
-    }, {
-      timeout: 5000
+  const { hostname, port, path: pathname } = parseInternalApiUrl();
+  const postData = JSON.stringify({ username, password });
+
+  const options = {
+    hostname,
+    port: port || 3000,
+    path: pathname,
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Content-Length': Buffer.byteLength(postData)
+    },
+    timeout: 5000
+  };
+
+  return new Promise((resolve) => {
+    const req = http.request(options, (res) => {
+      const isRedirect = res.statusCode >= 300 && res.statusCode < 400;
+      if (isRedirect) {
+        console.error('API auth: got redirect', res.statusCode, res.headers.location);
+        return resolve({ success: false, error: 'Authentication service unavailable (API redirect)' });
+      }
+
+      let body = '';
+      res.on('data', (chunk) => { body += chunk; });
+      res.on('end', () => {
+        try {
+          const data = JSON.parse(body);
+          if (data.success) {
+            return resolve({
+              success: true,
+              username: data.username,
+              rateLimit: data.rate_limit
+            });
+          }
+          resolve({ success: false, error: data.error || 'Authentication failed' });
+        } catch (e) {
+          resolve({ success: false, error: 'Authentication service unavailable' });
+        }
+      });
     });
 
-    if (response.data.success) {
-      return {
-        success: true,
-        username: response.data.username,
-        rateLimit: response.data.rate_limit
-      };
-    }
-    return { success: false, error: response.data.error || 'Authentication failed' };
-  } catch (error) {
-    if (error.response && error.response.status === 401) {
-      return { success: false, error: 'Invalid credentials' };
-    }
-    console.error('API auth error:', error.message);
-    return { success: false, error: 'Authentication service unavailable' };
-  }
+    req.on('error', (err) => {
+      console.error('API auth error:', err.message);
+      resolve({ success: false, error: 'Authentication service unavailable' });
+    });
+    req.on('timeout', () => {
+      req.destroy();
+      resolve({ success: false, error: 'Authentication service unavailable' });
+    });
+
+    req.setTimeout(5000);
+    req.write(postData);
+    req.end();
+  });
 }
 
 // Helper functions
