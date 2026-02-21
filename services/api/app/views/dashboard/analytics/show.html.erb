@@ -107,10 +107,11 @@
           </dd>
         </div>
         <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
-          <dt class="truncate text-sm font-medium text-gray-500">Click Rate</dt>
-          <dd class="mt-1 text-3xl font-semibold tracking-tight text-purple-600">
+          <dt class="truncate text-sm font-medium text-gray-500">Кликов</dt>
+          <dd class="mt-1 text-3xl font-semibold tracking-tight text-purple-600"><%= number_with_delimiter(@overview_stats[:total_clicks]) %></dd>
+          <dd class="text-sm text-purple-600">
             <% if @overview_stats[:total_delivered] > 0 %>
-              <%= ((@overview_stats[:total_clicks].to_f / @overview_stats[:total_delivered]) * 100).round(1) %>%
+              <%= ((@overview_stats[:total_clicks].to_f / @overview_stats[:total_delivered]) * 100).round(1) %>% от доставленных
             <% else %>
               0%
             <% end %>
@@ -609,20 +610,21 @@ function analyticsPage() {
       });
     },
     async loadDailyChart() {
-      const response = await fetch('<%= daily_dashboard_analytics_path %>', {
-        credentials: 'include'
-      });
-      const data = await response.json();
-      
-      const ctx = document.getElementById('mainChart');
-      if (!ctx) return;
-      
-      const chartContext = ctx.getContext('2d');
-      if (window.mainChartInstance) {
-        window.mainChartInstance.destroy();
-      }
-      
-      window.mainChartInstance = new Chart(chartContext, {
+      try {
+        const response = await fetch('<%= daily_dashboard_analytics_path %>', {
+          credentials: 'include'
+        });
+        const data = await response.json();
+        
+        const ctx = document.getElementById('mainChart');
+        if (!ctx) return;
+        
+        const chartContext = ctx.getContext('2d');
+        if (window.mainChartInstance) {
+          window.mainChartInstance.destroy();
+        }
+        
+        window.mainChartInstance = new Chart(chartContext, {
         type: 'line',
         data: {
           labels: data.map(d => d.label),
@@ -658,23 +660,27 @@ function analyticsPage() {
           }
         }
       });
+      } catch (e) {
+        console.error('Analytics chart load error:', e);
+      }
     },
     async loadHourlyChart() {
-      const date = new Date().toISOString().split('T')[0];
-      const response = await fetch(`<%= hourly_dashboard_analytics_path %>?date=${date}`, {
-        credentials: 'include'
-      });
-      const data = await response.json();
-      
-      const ctx = document.getElementById('mainChart');
-      if (!ctx) return;
-      
-      const chartContext = ctx.getContext('2d');
-      if (window.mainChartInstance) {
-        window.mainChartInstance.destroy();
-      }
-      
-      window.mainChartInstance = new Chart(chartContext, {
+      try {
+        const date = new Date().toISOString().split('T')[0];
+        const response = await fetch(`<%= hourly_dashboard_analytics_path %>?date=${date}`, {
+          credentials: 'include'
+        });
+        const data = await response.json();
+        
+        const ctx = document.getElementById('mainChart');
+        if (!ctx) return;
+        
+        const chartContext = ctx.getContext('2d');
+        if (window.mainChartInstance) {
+          window.mainChartInstance.destroy();
+        }
+        
+        window.mainChartInstance = new Chart(chartContext, {
         type: 'line',
         data: {
           labels: data.map(d => d.label),
@@ -710,22 +716,26 @@ function analyticsPage() {
           }
         }
       });
+      } catch (e) {
+        console.error('Analytics chart load error:', e);
+      }
     },
     async loadCampaignsChart() {
-      const response = await fetch('<%= campaigns_dashboard_analytics_path %>', {
-        credentials: 'include'
-      });
-      const data = await response.json();
-      
-      const ctx = document.getElementById('mainChart');
-      if (!ctx) return;
-      
-      const chartContext = ctx.getContext('2d');
-      if (window.mainChartInstance) {
-        window.mainChartInstance.destroy();
-      }
-      
-      window.mainChartInstance = new Chart(chartContext, {
+      try {
+        const response = await fetch('<%= campaigns_dashboard_analytics_path %>', {
+          credentials: 'include'
+        });
+        const data = await response.json();
+        
+        const ctx = document.getElementById('mainChart');
+        if (!ctx) return;
+        
+        const chartContext = ctx.getContext('2d');
+        if (window.mainChartInstance) {
+          window.mainChartInstance.destroy();
+        }
+        
+        window.mainChartInstance = new Chart(chartContext, {
         type: 'bar',
         data: {
           labels: data.map(d => d.campaign_id || 'Unknown'),
@@ -752,6 +762,9 @@ function analyticsPage() {
           }
         }
       });
+      } catch (e) {
+        console.error('Analytics chart load error:', e);
+      }
     }
   }
 }

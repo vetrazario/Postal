@@ -20,8 +20,10 @@ module Dashboard
         window_minutes: @hours * 60
       )
       
-      # Список кампаний для фильтра
-      @campaigns = DeliveryError.distinct.pluck(:campaign_id).compact.sort
+      # Список кампаний для фильтра (с ошибками + из EmailLog)
+      campaigns_with_errors = DeliveryError.distinct.pluck(:campaign_id).compact
+      campaigns_from_logs = EmailLog.where.not(campaign_id: [nil, '', 'unknown']).distinct.pluck(:campaign_id)
+      @campaigns = (campaigns_with_errors + campaigns_from_logs).uniq.sort
     end
 
     def stats

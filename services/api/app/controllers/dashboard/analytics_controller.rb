@@ -46,20 +46,17 @@ module Dashboard
 
         logs = EmailLog.where(created_at: hour_start...hour_end)
 
+        log_ids = logs.ids
         {
           hour: hour,
           label: hour_start.strftime('%H:%M'),
           sent: logs.where(status: 'sent').count,
           delivered: logs.where(status: 'delivered').count,
           bounced: logs.where(status: 'bounced').count,
-          opened: EmailOpen.where(
-            email_log_id: logs.ids,
-            opened_at: hour_start...hour_end
-          ).count,
-          clicked: EmailClick.where(
-            email_log_id: logs.ids,
-            clicked_at: hour_start...hour_end
-          ).count
+          opened: EmailOpen.where(email_log_id: log_ids, opened_at: hour_start...hour_end).count +
+                  TrackingEvent.where(email_log_id: log_ids, event_type: 'open', created_at: hour_start...hour_end).count,
+          clicked: EmailClick.where(email_log_id: log_ids, clicked_at: hour_start...hour_end).count +
+                   TrackingEvent.where(email_log_id: log_ids, event_type: 'click', created_at: hour_start...hour_end).count
         }
       end
 
@@ -76,6 +73,7 @@ module Dashboard
         day_end = day_start.end_of_day
 
         logs = EmailLog.where(created_at: day_start..day_end)
+        log_ids = logs.ids
 
         {
           date: day_start.to_date.iso8601,
@@ -84,8 +82,8 @@ module Dashboard
           delivered: logs.where(status: 'delivered').count,
           bounced: logs.where(status: 'bounced').count,
           failed: logs.where(status: 'failed').count,
-          opened: EmailOpen.where(email_log_id: logs.ids).count,
-          clicked: EmailClick.where(email_log_id: logs.ids).count
+          opened: EmailOpen.where(email_log_id: log_ids).count + TrackingEvent.where(email_log_id: log_ids, event_type: 'open').count,
+          clicked: EmailClick.where(email_log_id: log_ids).count + TrackingEvent.where(email_log_id: log_ids, event_type: 'click').count
         }
       end
 
@@ -107,10 +105,10 @@ module Dashboard
       campaigns_data = campaign_stats.map do |stat|
         email_log_ids = EmailLog.where(campaign_id: stat.campaign_id).pluck(:id)
 
-        opens = EmailOpen.where(email_log_id: email_log_ids).count
-        clicks = EmailClick.where(email_log_id: email_log_ids).count
-        unique_opens = EmailOpen.where(email_log_id: email_log_ids)
-                                 .select(:email_log_id).distinct.count
+        opens = EmailOpen.where(email_log_id: email_log_ids).count + TrackingEvent.where(email_log_id: email_log_ids, event_type: 'open').count
+        clicks = EmailClick.where(email_log_id: email_log_ids).count + TrackingEvent.where(email_log_id: email_log_ids, event_type: 'click').count
+        unique_opens = (EmailOpen.where(email_log_id: email_log_ids).distinct.pluck(:email_log_id) +
+                       TrackingEvent.where(email_log_id: email_log_ids, event_type: 'open').distinct.pluck(:email_log_id)).uniq.size
 
         {
           campaign_id: stat.campaign_id,
@@ -134,14 +132,15 @@ module Dashboard
     private
 
     def overview_statistics
+      open_log_ids = EmailOpen.distinct.pluck(:email_log_id) + TrackingEvent.where(event_type: 'open').distinct.pluck(:email_log_id)
       {
         total_sent: EmailLog.count,
         total_delivered: EmailLog.where(status: 'delivered').count,
         total_bounced: EmailLog.where(status: 'bounced').count,
         total_failed: EmailLog.where(status: 'failed').count,
-        total_opens: EmailOpen.count,
-        total_clicks: EmailClick.count,
-        unique_opens: EmailOpen.select(:email_log_id).distinct.count,
+        total_opens: EmailOpen.count + TrackingEvent.where(event_type: 'open').count,
+        total_clicks: EmailClick.count + TrackingEvent.where(event_type: 'click').count,
+        unique_opens: open_log_ids.uniq.size,
         unique_recipients: EmailLog.select(:recipient_masked).distinct.count,
         total_campaigns: EmailLog.select(:campaign_id).distinct.count
       }
@@ -549,8 +548,9 @@ module Dashboard
       bounced = logs.where(status: 'bounced').count
       failed = logs.where(status: 'failed').count
 
-      opens = EmailOpen.where(email_log_id: logs.ids).count
-      clicks = EmailClick.where(email_log_id: logs.ids).count
+      log_ids = logs.ids
+      opens = EmailOpen.where(email_log_id: log_ids).count + TrackingEvent.where(email_log_id: log_ids, event_type: 'open').count
+      clicks = EmailClick.where(email_log_id: log_ids).count + TrackingEvent.where(email_log_id: log_ids, event_type: 'click').count
 
       {
         total_sent: logs.count,
