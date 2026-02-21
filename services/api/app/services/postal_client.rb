@@ -58,25 +58,41 @@ class PostalClient
   private
 
   def build_headers(from, to, subject, domain, campaign_id = nil)
-    # Build unsubscribe URL with encoded parameters
-    unsubscribe_url = if campaign_id.present?
-      encoded_email = Base64.urlsafe_encode64(to)
-      encoded_cid = Base64.urlsafe_encode64(campaign_id)
-      "<https://#{domain}/unsubscribe?eid=#{encoded_email}&cid=#{encoded_cid}>"
-    else
-      "<mailto:unsubscribe@#{domain}>"
-    end
-
-    {
+    encoded_email = Base64.urlsafe_encode64(to)
+    headers = {
       'From' => from,
       'To' => to,
       'Subject' => subject,
       'Message-ID' => MessageIdGenerator.generate,
       'Date' => Time.current.rfc2822,
-      'Return-Path' => "bounce@#{domain}",
-      'Reply-To' => "reply@#{domain}",
-      'List-Unsubscribe' => unsubscribe_url
+      'MIME-Version' => '1.0',
+      'Reply-To' => from,
+      'X-Entity-Ref-ID' => SecureRandom.uuid,
+      'Auto-Submitted' => 'auto-generated',
+      'X-Auto-Response-Suppress' => 'OOF, AutoReply'
     }
+
+    if campaign_id.present?
+      encoded_cid = Base64.urlsafe_encode64(campaign_id)
+      unsub_https = "https://#{domain}/unsubscribe?eid=#{encoded_email}&cid=#{encoded_cid}"
+      unsub_mailto = "mailto:unsubscribe@#{domain}?subject=unsubscribe-#{encoded_cid}"
+
+      headers['List-Unsubscribe'] = "<#{unsub_https}>, <#{unsub_mailto}>"
+      headers['List-Unsubscribe-Post'] = 'List-Unsubscribe=One-Click'
+      headers['List-Id'] = "<campaign-#{campaign_id}.#{domain}>"
+      headers['Feedback-ID'] = "#{campaign_id}:bulk:postal:#{domain.split('.').first}"
+      headers['Precedence'] = 'bulk'
+    else
+      token = SecureRandom.urlsafe_base64(16)
+      unsub_https = "https://#{domain}/unsubscribe?eid=#{encoded_email}&token=#{token}"
+      unsub_mailto = "mailto:unsubscribe@#{domain}?subject=unsubscribe-#{encoded_email}"
+
+      headers['List-Unsubscribe'] = "<#{unsub_https}>, <#{unsub_mailto}>"
+      headers['List-Unsubscribe-Post'] = 'List-Unsubscribe=One-Click'
+      headers['Precedence'] = 'bulk'
+    end
+
+    headers
   end
 
   def parse_response(response, to)
@@ -104,12 +120,40 @@ class PostalClient
   end
 
   def html_to_text(html)
-    html.gsub(/<[^>]+>/, '')
-        .gsub(/&nbsp;/, ' ')
-        .gsub(/&amp;/, '&')
-        .gsub(/&lt;/, '<')
-        .gsub(/&gt;/, '>')
-        .gsub(/&quot;/, '"')
-        .strip
+    return '' if html.blank?
+
+    text = html.dup
+    text.gsub!(/\r\n?/, "\n")
+
+    # Block-level elements -> line breaks
+    text.gsub!(/<br\s*\/?>/i, "\n")
+    text.gsub!(/<\/p>/i, "\n\n")
+    text.gsub!(/<\/div>/i, "\n")
+    text.gsub!(/<\/h[1-6]>/i, "\n\n")
+    text.gsub!(/<\/tr>/i, "\n")
+    text.gsub!(/<\/li>/i, "\n")
+    text.gsub!(/<li[^>]*>/i, "  - ")
+
+    # Links -> text (URL)
+    text.gsub!(/<a\s[^>]*href=["']([^"']*)["'][^>]*>(.*?)<\/a>/im) { "#{Regexp.last_match(2)} (#{Regexp.last_match(1)})" }
+
+    # Strip remaining tags
+    text.gsub!(/<[^>]+>/, '')
+
+    # Decode entities
+    text.gsub!(/&nbsp;/, ' ')
+    text.gsub!(/&amp;/, '&')
+    text.gsub!(/&lt;/, '<')
+    text.gsub!(/&gt;/, '>')
+    text.gsub!(/&quot;/, '"')
+    text.gsub!(/&#39;/, "'")
+    text.gsub!(/&mdash;/, '—')
+    text.gsub!(/&ndash;/, '–')
+    text.gsub!(/&#(\d+);/) { ($1.to_i <= 0x10FFFF ? [$1.to_i].pack('U') : $&) rescue $& }
+
+    # Clean up whitespace
+    text.gsub!(/[ \t]+/, ' ')
+    text.gsub!(/\n{3,}/, "\n\n")
+    text.strip
   end
 end

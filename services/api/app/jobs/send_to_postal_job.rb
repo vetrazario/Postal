@@ -24,12 +24,10 @@ class SendToPostalJob < ApplicationJob
       from: email_log.sender,
       subject: email_log.subject,
       html_body: html_body,
-      headers: {
-        'X-Campaign-ID' => email_log.campaign_id,
-        'X-Message-ID' => email_log.external_message_id
-      },
+      headers: {},
       tag: email_log.campaign_id,
-      track_clicks: false,  # We handle tracking via TrackingInjector
+      campaign_id: email_log.campaign_id,
+      track_clicks: false,
       track_opens: false
     )
 

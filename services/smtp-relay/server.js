@@ -212,7 +212,7 @@ function generateHmacSignature(payload, secret) {
 // Create SMTP server options
 const serverOptions = {
   // Server options
-  banner: 'Email Sender SMTP Relay',
+  banner: `${DOMAIN} ESMTP`,
   size: 14680064, // 14MB max message size
   logger: true, // Log raw SMTP commands for debugging
 

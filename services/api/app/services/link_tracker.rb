@@ -60,8 +60,8 @@ class LinkTracker
       # opened_at: nil - заполнится в TrackingController при первом открытии
     )
 
-    # Gmail-friendly pixel: lazy loading, minimal size, no display
-    pixel_tag = %(<img src="#{pixel_url}" width="1" height="1" alt="" loading="lazy" style="position:absolute;opacity:0;pointer-events:none;" />)
+    # Tracking pixel: minimal, no display:none (SpamAssassin/Gmail-friendly)
+    pixel_tag = %(<img src="#{pixel_url}" width="1" height="1" alt="" style="border:0;width:1px;height:1px;" />)
 
     if html_body.include?('</body>')
       html_body.sub('</body>', "#{pixel_tag}</body>")

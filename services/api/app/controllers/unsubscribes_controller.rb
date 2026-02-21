@@ -11,10 +11,11 @@ class UnsubscribesController < ActionController::Base
     @already_unsubscribed = Unsubscribe.blocked?(email: @email, campaign_id: @campaign_id)
   end
 
-  # POST /unsubscribe
+  # POST /unsubscribe (supports RFC 8058 One-Click: body List-Unsubscribe=One-Click, eid/cid in query or body)
   def create
     email = decode_param(params[:eid])
     campaign_id = decode_param(params[:cid])
+    one_click = params['List-Unsubscribe'].to_s == 'One-Click'
 
     if email.present?
       Unsubscribe.record_unsubscribe(
@@ -34,7 +35,6 @@ class UnsubscribesController < ActionController::Base
 
       push_unsubscribe_to_ams_buffer(email: email, campaign_id: campaign_id)
 
-      # Create tracking event and notify AMS
       email_log = EmailLog.where(recipient: email, campaign_id: campaign_id)
                           .order(created_at: :desc).first
 
@@ -53,16 +53,23 @@ class UnsubscribesController < ActionController::Base
         })
       end
 
-      # Update campaign stats
       if campaign_id.present?
         CampaignStats.find_or_initialize_for(campaign_id).increment_unsubscribed
       end
 
       Rails.logger.info "Unsubscribe: #{email} from campaign #{campaign_id}"
 
-      redirect_to unsubscribe_page_path(eid: params[:eid], cid: params[:cid]), notice: 'Вы успешно отписались от рассылки.'
+      if one_click
+        head :ok
+      else
+        redirect_to unsubscribe_page_path(eid: params[:eid], cid: params[:cid]), notice: 'Вы успешно отписались от рассылки.'
+      end
     else
-      redirect_to root_path, alert: 'Неверная ссылка отписки.'
+      if one_click
+        head :bad_request
+      else
+        redirect_to root_path, alert: 'Неверная ссылка отписки.'
+      end
     end
   end
 

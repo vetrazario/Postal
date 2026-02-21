@@ -9,14 +9,12 @@ non_bounce_categories:
   - temporary
   - connection
 
-# Категории, при которых останавливать рассылку
+# Категории, при которых останавливать рассылку (temporary/connection не останавливают — retry позже)
 stop_mailing_categories:
   - rate_limit
   - spam_block
   - user_not_found
   - mailbox_full
-  - temporary
-  - connection
 
 # Паттерны для определения типа ошибки
 patterns:

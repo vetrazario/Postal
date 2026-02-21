@@ -137,6 +137,7 @@ class TrackingApp < Sinatra::Base
   end
 
   # POST /unsubscribe - One-Click Unsubscribe (RFC 8058)
+  # Accepts List-Unsubscribe=One-Click in body; eid/cid in query or body. Returns 200 OK, no redirect.
   post '/unsubscribe' do
     handler = TrackingHandler.new(
       database_url: settings.database_url,

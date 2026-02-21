@@ -44,30 +44,38 @@ exports.hook_data_post = function(next, connection) {
 
       // MIME headers
       mimeVersion: '1.0',
-      contentType: determineContentType(parsed),
-
-      // Our own identification (optional)
-      xMailer: 'Postal Mail Server'
+      contentType: determineContentType(parsed)
     };
 
-    // Remove AMS-specific headers
+    // Remove AMS-specific and fingerprinting headers
     const removedHeaders = [];
 
-    // List of headers to remove (AMS traces and internal tracking headers)
+    // List of headers to remove (AMS traces, internal tracking, fingerprinting)
     const headersToRemove = [
-      /^received$/i,           // All Received headers
-      /^x-ams-/i,             // X-AMS-* headers
-      /^x-campaign-id$/i,     // Campaign tracking (internal only)
-      /^x-campaign$/i,        // Campaign tracking (internal only)
-      /^x-mailing-id$/i,      // Mailing tracking (internal only)
-      /^x-affiliate-id$/i,    // Affiliate tracking (internal only)
-      /^x-recipient-id$/i,    // Recipient tracking (internal only)
-      /^x-original-/i,        // X-Original-* headers
-      /^return-path$/i,       // Will be set by Postal
+      /^received$/i,
+      /^x-ams-/i,
+      /^x-campaign-id$/i,
+      /^x-campaign$/i,
+      /^x-mailing-id$/i,
+      /^x-affiliate-id$/i,
+      /^x-recipient-id$/i,
+      /^x-original-/i,
+      /^return-path$/i,
       /^authentication-results$/i,
-      /^arc-/i,               // ARC headers
-      /^dkim-signature$/i,    // Old DKIM (Postal will re-sign)
-      /^domainkey-signature$/i
+      /^arc-/i,
+      /^dkim-signature$/i,
+      /^domainkey-signature$/i,
+      /^x-mailer$/i,
+      /^x-mimeole$/i,
+      /^x-msmail-priority$/i,
+      /^x-priority$/i,
+      /^x-originating-ip$/i,
+      /^x-spam-/i,
+      /^x-php-/i,
+      /^x-auto-response-suppress$/i,
+      /^list-unsubscribe$/i,
+      /^list-unsubscribe-post$/i,
+      /^feedback-id$/i
     ];
 
     // Check which headers were removed
@@ -108,12 +116,13 @@ exports.hook_data_post = function(next, connection) {
 
 /**
  * Generate new Message-ID
- * Format: <local_{random24hex}@domain>
+ * Format: <timestamp_base36.random_base64url@domain> (MTA-like, avoids SpamAssassin MSGID_RANDY)
  */
 function generateMessageId() {
-  const randomHex = crypto.randomBytes(12).toString('hex'); // 24 hex chars
+  const timestamp = Date.now().toString(36);
+  const random = crypto.randomBytes(16).toString('base64url');
   const domain = process.env.DOMAIN || 'localhost';
-  return `<local_${randomHex}@${domain}>`;
+  return `<${timestamp}.${random}@${domain}>`;
 }
 
 /**
