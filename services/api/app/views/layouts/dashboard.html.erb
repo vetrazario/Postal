@@ -7,9 +7,15 @@
   <%= csrf_meta_tags %>
   <%= csp_meta_tag %>
 
+  <!-- NOTE: Tailwind CDN is a dynamic build tool; SRI not applicable. Use Tailwind CLI for production. -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://unpkg.com/alpinejs@3.14.8/dist/cdn.min.js"
+          integrity="sha384-X9kJyAubVxnP0hcA+AMMs21U445qsnqhnUF8EBlEpP3a42Kh/JwWjlv2ZcvGfphb"
+          crossorigin="anonymous"
+          defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"
+          integrity="sha384-e6nUZLBkQ86NJ6TVVKAeSaK8jWa3NhkYWZFomE39AvDbQWeie9PlQqM3pmYW5d1g"
+          crossorigin="anonymous"></script>
 </head>
 <body class="h-full">
   <div x-data="{ mobileMenuOpen: false }" class="min-h-full">

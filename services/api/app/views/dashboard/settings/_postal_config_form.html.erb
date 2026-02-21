@@ -5,7 +5,7 @@
     this.testing = true;
     this.testResult = null;
 
-    fetch('/dashboard/settings/test_postal_connection', {
+    fetch('<%= test_postal_connection_dashboard_settings_path %>', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -72,7 +72,7 @@
           <div>
             <%= form.label :postal_api_key, "Postal API Key", class: "block text-sm font-medium text-gray-900" %>
             <div class="mt-2">
-              <%= form.text_field :postal_api_key,
+              <%= form.password_field :postal_api_key,
                   value: @system_config.postal_api_key,
                   placeholder: "Enter Postal API Key",
                   required: true,
@@ -91,7 +91,7 @@
           <div>
             <%= form.label :postal_signing_key, "Postal Signing Key", class: "block text-sm font-medium text-gray-900" %>
             <div class="mt-2">
-              <%= form.text_field :postal_signing_key,
+              <%= form.password_field :postal_signing_key,
                   value: @system_config.postal_signing_key,
                   placeholder: "Enter Postal Signing Key",
                   autocomplete: "off",

@@ -12,7 +12,7 @@
     this.testing = true;
     this.testResult = null;
 
-    fetch('/dashboard/settings/test_ams_connection', {
+    fetch('<%= test_ams_connection_dashboard_settings_path %>', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -93,7 +93,7 @@
           <div>
             <%= form.label :ams_api_key, "AMS API Key (optional)", class: "block text-sm font-medium text-gray-900" %>
             <div class="mt-2">
-              <%= form.text_field :ams_api_key,
+              <%= form.password_field :ams_api_key,
                   value: @system_config.ams_api_key,
                   placeholder: "Enter AMS API Key (optional)",
                   autocomplete: "off",

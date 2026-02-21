@@ -47,7 +47,7 @@
           <div>
             <%= form.label :webhook_secret, "Webhook Secret", class: "block text-sm font-medium text-gray-900" %>
             <div class="mt-2">
-              <%= form.text_field :webhook_secret,
+              <%= form.password_field :webhook_secret,
                   value: @system_config.webhook_secret,
                   placeholder: "Enter webhook secret",
                   autocomplete: "off",
@@ -65,7 +65,7 @@
           <div>
             <%= form.label :smtp_relay_secret, "SMTP Relay Secret", class: "block text-sm font-medium text-gray-900" %>
             <div class="mt-2">
-              <%= form.text_field :smtp_relay_secret,
+              <%= form.password_field :smtp_relay_secret,
                   value: @system_config.smtp_relay_secret,
                   placeholder: "Enter SMTP relay secret",
                   autocomplete: "off",

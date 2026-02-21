@@ -107,31 +107,28 @@
       <div class="rounded-lg bg-white p-6 shadow flex flex-col">
         <h3 class="text-lg font-medium text-gray-900">Analyze Bounces</h3>
         <p class="mt-2 text-sm text-gray-500">Get AI insights on why emails are bouncing and how to reduce bounce rates</p>
-        <form action="<%= analyze_bounces_dashboard_ai_analytics_path %>" method="post" class="mt-4 mt-auto">
-          <%= hidden_field_tag :authenticity_token, form_authenticity_token %>
+        <%= form_tag analyze_bounces_dashboard_ai_analytics_path, method: :post, class: "mt-4 mt-auto" do %>
           <button type="submit" class="w-full rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">Run Analysis</button>
-        </form>
+        <% end %>
       </div>
 
       <div class="rounded-lg bg-white p-6 shadow flex flex-col">
         <h3 class="text-lg font-medium text-gray-900">Optimize Send Time</h3>
         <p class="mt-2 text-sm text-gray-500">Discover the best times to send emails for maximum engagement</p>
-        <form action="<%= optimize_timing_dashboard_ai_analytics_path %>" method="post" class="mt-4 mt-auto">
-          <%= hidden_field_tag :authenticity_token, form_authenticity_token %>
+        <%= form_tag optimize_timing_dashboard_ai_analytics_path, method: :post, class: "mt-4 mt-auto" do %>
           <input type="text" name="campaign_id" placeholder="Campaign ID" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm mb-2" required>
           <button type="submit" class="w-full rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">Run Analysis</button>
-        </form>
+        <% end %>
       </div>
 
       <div class="rounded-lg bg-white p-6 shadow flex flex-col">
         <h3 class="text-lg font-medium text-gray-900">Compare Campaigns</h3>
         <p class="mt-2 text-sm text-gray-500">Compare multiple campaigns to identify success factors</p>
-        <form action="<%= compare_campaigns_dashboard_ai_analytics_path %>" method="post" class="mt-4 mt-auto">
-          <%= hidden_field_tag :authenticity_token, form_authenticity_token %>
+        <%= form_tag compare_campaigns_dashboard_ai_analytics_path, method: :post, class: "mt-4 mt-auto" do %>
           <input type="text" name="campaign_ids[]" placeholder="Campaign ID 1" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm mb-2" required>
           <input type="text" name="campaign_ids[]" placeholder="Campaign ID 2" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm mb-2" required>
           <button type="submit" class="w-full rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">Run Analysis</button>
-        </form>
+        <% end %>
       </div>
     </div>
 

@@ -220,31 +220,28 @@
         <div class="rounded-lg bg-white p-6 shadow flex flex-col">
           <h3 class="text-lg font-medium text-gray-900">🔍 Анализ отказов</h3>
           <p class="mt-2 text-sm text-gray-500">AI-анализ причин баунсов и рекомендации</p>
-          <form action="<%= analyze_bounces_dashboard_analytics_path %>" method="post" class="mt-4 mt-auto">
-            <%= hidden_field_tag :authenticity_token, form_authenticity_token %>
+          <%= form_tag analyze_bounces_dashboard_analytics_path, method: :post, class: "mt-4 mt-auto" do %>
             <button type="submit" class="w-full rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">Запустить анализ</button>
-          </form>
+          <% end %>
         </div>
 
         <div class="rounded-lg bg-white p-6 shadow flex flex-col">
           <h3 class="text-lg font-medium text-gray-900">⏱️ Оптимизация времени</h3>
           <p class="mt-2 text-sm text-gray-500">Лучшее время для максимальной вовлеченности</p>
-          <form action="<%= optimize_timing_dashboard_analytics_path %>" method="post" class="mt-4 mt-auto">
-            <%= hidden_field_tag :authenticity_token, form_authenticity_token %>
+          <%= form_tag optimize_timing_dashboard_analytics_path, method: :post, class: "mt-4 mt-auto" do %>
             <input type="text" name="campaign_id" value="<%= @selected_campaign %>" placeholder="Campaign ID" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm mb-2" required>
             <button type="submit" class="w-full rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">Оптимизировать</button>
-          </form>
+          <% end %>
         </div>
 
         <div class="rounded-lg bg-white p-6 shadow flex flex-col">
           <h3 class="text-lg font-medium text-gray-900">🔍 Сравнение кампаний</h3>
           <p class="mt-2 text-sm text-gray-500">Сравнить эффективность нескольких кампаний</p>
-          <form action="<%= compare_campaigns_dashboard_analytics_path %>" method="post" class="mt-4 mt-auto">
-            <%= hidden_field_tag :authenticity_token, form_authenticity_token %>
+          <%= form_tag compare_campaigns_dashboard_analytics_path, method: :post, class: "mt-4 mt-auto" do %>
             <input type="text" name="campaign_ids[]" placeholder="Campaign ID 1" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm mb-2" required>
             <input type="text" name="campaign_ids[]" placeholder="Campaign ID 2" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm mb-2" required>
             <button type="submit" class="w-full rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">Сравнить</button>
-          </form>
+          <% end %>
         </div>
       </div>
 

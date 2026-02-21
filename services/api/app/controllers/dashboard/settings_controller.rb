@@ -6,6 +6,14 @@ module Dashboard
       @ai_settings = AiSetting.instance
       @system_config = SystemConfig.instance
       @total_cost = @ai_settings.total_estimated_cost
+      @api_keys_count = ApiKey.count rescue 0
+      @smtp_credentials_count = SmtpCredential.count rescue 0
+      @webhooks_count = WebhookEndpoint.count rescue 0
+      @tracking_events_count = begin
+        (EmailClick.count + EmailOpen.count)
+      rescue
+        0
+      end
     end
 
     # AI Settings (existing)
@@ -16,6 +24,11 @@ module Dashboard
         redirect_to dashboard_settings_path, notice: 'AI settings updated successfully'
       else
         @system_config = SystemConfig.instance
+        @total_cost = @ai_settings.total_estimated_cost
+        @api_keys_count = ApiKey.count rescue 0
+        @smtp_credentials_count = SmtpCredential.count rescue 0
+        @webhooks_count = WebhookEndpoint.count rescue 0
+        @tracking_events_count = (EmailClick.count + EmailOpen.count) rescue 0
         render :show
       end
     end
@@ -38,6 +51,11 @@ module Dashboard
         redirect_to dashboard_settings_path
       else
         @ai_settings = AiSetting.instance
+        @total_cost = @ai_settings.total_estimated_cost
+        @api_keys_count = ApiKey.count rescue 0
+        @smtp_credentials_count = SmtpCredential.count rescue 0
+        @webhooks_count = WebhookEndpoint.count rescue 0
+        @tracking_events_count = (EmailClick.count + EmailOpen.count) rescue 0
         flash.now[:error] = @system_config.errors.full_messages.join(', ')
         render :show
       end
