@@ -28,7 +28,7 @@ class PostalClient
         plain_body: html_to_text(html_body),
         headers: message_headers,
         tag: tag,
-        bounce: true,
+        bounce: false,
         track_clicks: track_clicks,
         track_opens: track_opens
       }.to_json,
