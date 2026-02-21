@@ -10,7 +10,7 @@ services:
   
   postgres:
     image: postgres:15-alpine
-    container_name: email_postgres
+    container_name: db_pg
     restart: unless-stopped
     environment:
       POSTGRES_DB: email_sender
@@ -49,7 +49,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: email_redis
+    container_name: db_redis
     restart: unless-stopped
     command: >
       redis-server
@@ -75,7 +75,7 @@ services:
 
   mariadb:
     image: mariadb:10.11
-    container_name: email_mariadb
+    container_name: db_maria
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${MARIADB_PASSWORD}
@@ -106,7 +106,7 @@ services:
 
   rabbitmq:
     image: rabbitmq:3-management-alpine
-    container_name: email_rabbitmq
+    container_name: mq
     restart: unless-stopped
     environment:
       RABBITMQ_DEFAULT_USER: postal
@@ -138,7 +138,7 @@ services:
       context: ./services/api
       dockerfile: Dockerfile
     image: email-sender-api
-    container_name: email_api
+    container_name: app
     hostname: ${DOMAIN}
     restart: unless-stopped
     depends_on:
@@ -200,7 +200,7 @@ services:
 
   sidekiq:
     image: email-sender-api
-    container_name: email_sidekiq
+    container_name: worker
     hostname: ${DOMAIN}
     restart: unless-stopped
     command: bundle exec sidekiq -C config/sidekiq.yml
@@ -250,7 +250,7 @@ services:
     build:
       context: ./services/tracking
       dockerfile: Dockerfile
-    container_name: email_tracking
+    container_name: tracker
     restart: unless-stopped
     depends_on:
       redis:
@@ -287,7 +287,7 @@ services:
 
   postal:
     image: ghcr.io/postalserver/postal:latest
-    container_name: email_postal
+    container_name: mta
     hostname: ${DOMAIN}
     restart: unless-stopped
     command: >
@@ -362,7 +362,7 @@ services:
     build:
       context: ./services/smtp-relay
       dockerfile: Dockerfile
-    container_name: email_smtp_relay
+    container_name: relay
     restart: unless-stopped
     depends_on:
       postgres:
@@ -412,7 +412,7 @@ services:
 
   nginx:
     image: nginx:1.25-alpine
-    container_name: email_nginx
+    container_name: proxy
     restart: unless-stopped
     depends_on:
       - api
@@ -438,7 +438,7 @@ services:
 
   certbot:
     image: certbot/certbot:latest
-    container_name: email_certbot
+    container_name: certbot
     volumes:
       - certbot_certs:/etc/letsencrypt
       - certbot_www:/var/www/certbot
@@ -476,7 +476,7 @@ volumes:
 
 networks:
   frontend:
-    name: email_frontend
+    name: mailnet
   backend:
-    name: email_backend
+    name: appnet
     internal: true
