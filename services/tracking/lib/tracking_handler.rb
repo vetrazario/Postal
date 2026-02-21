@@ -44,7 +44,7 @@ class TrackingHandler
     begin
       conn = PG.connect(@database_url)
       result = conn.exec_params(
-        "SELECT id, external_message_id, campaign_id FROM email_logs WHERE external_message_id = $1",
+        "SELECT id, external_message_id, campaign_id FROM email_logs WHERE external_message_id = $1 OR message_id = $1 LIMIT 1",
         [message_id]
       )
       
@@ -103,7 +103,7 @@ class TrackingHandler
     begin
       conn = PG.connect(@database_url)
       result = conn.exec_params(
-        "SELECT id, external_message_id, campaign_id FROM email_logs WHERE external_message_id = $1",
+        "SELECT id, external_message_id, campaign_id FROM email_logs WHERE external_message_id = $1 OR message_id = $1 LIMIT 1",
         [message_id]
       )
 

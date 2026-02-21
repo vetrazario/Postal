@@ -50,7 +50,7 @@ class BuildEmailJob < ApplicationJob
       html: html,
       recipient: email_log.recipient,
       campaign_id: email_log.campaign_id,
-      message_id: email_log.external_message_id,
+      message_id: email_log.external_message_id.presence || email_log.message_id,
       domain: SystemConfig.get(:domain) || 'localhost'
     )
   end

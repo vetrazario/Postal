@@ -23,6 +23,7 @@ module Dashboard
 
     def calculate_stats(period)
       logs = EmailLog.where(created_at: period)
+      log_ids = logs.ids
 
       {
         total: logs.count,
@@ -31,8 +32,8 @@ module Dashboard
         delivered: logs.where(status: 'delivered').count,
         bounced: logs.where(status: 'bounced').count,
         failed: logs.where(status: 'failed').count,
-        opened: TrackingEvent.where(email_log_id: logs.ids, event_type: 'open').count,
-        clicked: TrackingEvent.where(email_log_id: logs.ids, event_type: 'click').count
+        opened: EmailOpen.where(email_log_id: log_ids).count + TrackingEvent.where(email_log_id: log_ids, event_type: 'open').count,
+        clicked: EmailClick.where(email_log_id: log_ids).count + TrackingEvent.where(email_log_id: log_ids, event_type: 'click').count
       }
     end
 
