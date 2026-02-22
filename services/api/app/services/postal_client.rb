@@ -67,9 +67,7 @@ class PostalClient
       'Date' => Time.current.rfc2822,
       'MIME-Version' => '1.0',
       'Reply-To' => from,
-      'X-Entity-Ref-ID' => SecureRandom.uuid,
-      'Auto-Submitted' => 'auto-generated',
-      'X-Auto-Response-Suppress' => 'OOF, AutoReply'
+      'X-Entity-Ref-ID' => SecureRandom.uuid
     }
 
     if campaign_id.present?
