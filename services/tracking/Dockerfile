@@ -22,7 +22,7 @@ WORKDIR /app
 # Копирование Gemfile (require Gemfile.lock for stable dependencies)
 COPY Gemfile Gemfile.lock ./
 
-# Установка gems
+# Установка gems (production: без development/test)
 RUN bundle config set --local without 'development test' && \
     bundle install --jobs 4 --retry 3
 
@@ -41,3 +41,31 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
 
 # Запуск
 CMD ["bundle", "exec", "puma", "-p", "3001", "config.ru"]
+
+# ===========================================
+# Target: test — для запуска RSpec (с rspec, rack-test)
+# ===========================================
+FROM ruby:3.2-slim AS test
+
+RUN apt-get update -qq && \
+    apt-get install -y --no-install-recommends \
+        build-essential \
+        libpq-dev \
+        libyaml-dev \
+        libffi-dev \
+        curl \
+        git \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY Gemfile Gemfile.lock ./
+
+# Установка всех gems, включая development/test (rspec, rack-test)
+RUN bundle install --jobs 4 --retry 3
+
+COPY . .
+
+RUN mkdir -p public log
+
+CMD ["bundle", "exec", "rspec"]

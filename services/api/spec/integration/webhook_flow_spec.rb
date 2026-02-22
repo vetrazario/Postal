@@ -30,7 +30,7 @@ RSpec.describe 'Webhook Flow Integration', type: :request do
       params: {},
       headers: {
         'Content-Type' => 'application/json',
-        'X-Postal-Signature' => signature
+        'X-Postal-Signature-256' => signature
       },
       env: { 'RAW_POST_DATA' => raw_body }
 

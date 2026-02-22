@@ -51,6 +51,20 @@ RSpec.configure do |config|
   # https://rspec.info/features/6-0/rspec-rails
   config.infer_spec_type_from_file_location!
 
+  # Rack::Attack: disable for all tests except rate_limiting_spec
+  config.before(:each) do |example|
+    if example.metadata[:file_path].to_s.include?('rate_limiting_spec')
+      Rack::Attack.enabled = true
+      Rack::Attack.cache.store.clear
+    else
+      Rack::Attack.enabled = false
+    end
+  end
+
+  config.after(:each) do
+    Rack::Attack.enabled = true
+  end
+
   # Filter lines from Rails gems in backtraces.
   config.filter_rails_from_backtrace!
   # arbitrary gems may also be filtered via:

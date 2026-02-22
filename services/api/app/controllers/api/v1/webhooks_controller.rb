@@ -220,8 +220,9 @@ class Api::V1::WebhooksController < Api::V1::ApplicationController
     raw_body = read_raw_body
     # Postal sends SHA256 signature in 'X-Postal-Signature-256' header
     # and SHA1 signature in 'X-Postal-Signature' header
-    # We use SHA256 as it's more secure
+    # Prefer SHA256, fallback to X-Postal-Signature for compatibility
     signature_header = request.headers['X-Postal-Signature-256'].to_s
+    signature_header = request.headers['X-Postal-Signature'].to_s if signature_header.blank?
 
     # Skip verification if disabled via ENV (for testing only)
     if ENV['SKIP_POSTAL_WEBHOOK_VERIFICATION'] == 'true'
@@ -317,35 +318,42 @@ class Api::V1::WebhooksController < Api::V1::ApplicationController
 
   def load_public_key
     file_path = ENV.fetch('POSTAL_WEBHOOK_PUBLIC_KEY_FILE', nil)
-    
+
+    # Fallback: read PEM string from env if file path is empty
     if file_path.blank?
-      Rails.logger.error "POSTAL_WEBHOOK_PUBLIC_KEY_FILE not configured"
+      pem = ENV['POSTAL_WEBHOOK_PUBLIC_KEY'].to_s.strip
+      if pem.present?
+        key = OpenSSL::PKey.read(pem)
+        Rails.logger.info "Postal public key loaded from POSTAL_WEBHOOK_PUBLIC_KEY env"
+        return key
+      end
+      Rails.logger.error "POSTAL_WEBHOOK_PUBLIC_KEY_FILE and POSTAL_WEBHOOK_PUBLIC_KEY not configured"
       return nil
     end
-    
+
     unless File.exist?(file_path)
       Rails.logger.error "Postal public key file not found: #{file_path}"
       return nil
     end
 
     pem = File.read(file_path)
-    
+
     if pem.blank?
       Rails.logger.error "Postal public key file is empty: #{file_path}"
       return nil
     end
-    
+
     key = OpenSSL::PKey.read(pem)
     Rails.logger.info "Postal public key loaded successfully from #{file_path}"
     key
   rescue OpenSSL::PKey::PKeyError => e
-    Rails.logger.error "Invalid Postal public key format in #{file_path}: #{e.class.name} - #{e.message}"
+    Rails.logger.error "Invalid Postal public key format: #{e.class.name} - #{e.message}"
     nil
   rescue Errno::ENOENT => e
     Rails.logger.error "Postal public key file not found: #{file_path} - #{e.message}"
     nil
   rescue StandardError => e
-    Rails.logger.error "Error loading Postal public key from #{file_path}: #{e.class.name} - #{e.message}"
+    Rails.logger.error "Error loading Postal public key: #{e.class.name} - #{e.message}"
     nil
   end
 

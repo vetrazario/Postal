@@ -100,7 +100,22 @@ REDIS_URL             # URL для подключения к Redis
 LOG_LEVEL             # Уровень логирования (debug/info/warn/error/fatal)
 ```
 
-## Тестирование
+## Локальный запуск тестов
+
+```bash
+cd services/tracking
+bundle install
+bundle exec rspec
+```
+
+Запуск тестов в Docker (сборка образа с тестовыми гемами):
+
+```bash
+docker build --target test -t tracking-test .
+docker run --rm tracking-test
+```
+
+## Тестирование (ручные проверки)
 
 ```bash
 # Health check

@@ -40,7 +40,7 @@ RSpec.describe "Webhooks", type: :request do
           params: {},
           headers: {
             "Content-Type" => "application/json",
-            "X-Postal-Signature" => signature
+            "X-Postal-Signature-256" => signature
           },
           env: { 'RAW_POST_DATA' => raw_body }
         
@@ -68,7 +68,7 @@ RSpec.describe "Webhooks", type: :request do
           params: {},
           headers: {
             "Content-Type" => "application/json",
-            "X-Postal-Signature" => bounced_signature
+            "X-Postal-Signature-256" => bounced_signature
           },
           env: { 'RAW_POST_DATA' => bounced_body }
         
@@ -94,7 +94,7 @@ RSpec.describe "Webhooks", type: :request do
           params: {},
           headers: {
             "Content-Type" => "application/json",
-            "X-Postal-Signature" => held_signature
+            "X-Postal-Signature-256" => held_signature
           },
           env: { 'RAW_POST_DATA' => held_body }
         
@@ -113,7 +113,7 @@ RSpec.describe "Webhooks", type: :request do
           params: {},
           headers: {
             "Content-Type" => "application/json",
-            "X-Postal-Signature" => invalid_signature
+            "X-Postal-Signature-256" => invalid_signature
           },
           env: { 'RAW_POST_DATA' => raw_body }
         
@@ -125,7 +125,7 @@ RSpec.describe "Webhooks", type: :request do
           params: {},
           headers: {
             "Content-Type" => "application/json",
-            "X-Postal-Signature" => ""
+            "X-Postal-Signature-256" => ""
           },
           env: { 'RAW_POST_DATA' => raw_body }
         
@@ -151,7 +151,7 @@ RSpec.describe "Webhooks", type: :request do
           params: {},
           headers: {
             "Content-Type" => "application/json",
-            "X-Postal-Signature" => different_signature
+            "X-Postal-Signature-256" => different_signature
           },
           env: { 'RAW_POST_DATA' => raw_body }
         
@@ -166,7 +166,7 @@ RSpec.describe "Webhooks", type: :request do
           params: {},
           headers: {
             "Content-Type" => "application/json",
-            "X-Postal-Signature" => other_signature
+            "X-Postal-Signature-256" => other_signature
           },
           env: { 'RAW_POST_DATA' => raw_body }
         
@@ -183,7 +183,7 @@ RSpec.describe "Webhooks", type: :request do
           params: {},
           headers: {
             "Content-Type" => "application/json",
-            "X-Postal-Signature" => signature
+            "X-Postal-Signature-256" => signature
           },
           env: { 'RAW_POST_DATA' => raw_body }
         
@@ -200,7 +200,7 @@ RSpec.describe "Webhooks", type: :request do
           params: {},
           headers: {
             "Content-Type" => "application/json",
-            "X-Postal-Signature" => signature
+            "X-Postal-Signature-256" => signature
           },
           env: { 'RAW_POST_DATA' => raw_body }
         
@@ -225,7 +225,7 @@ RSpec.describe "Webhooks", type: :request do
           params: {},
           headers: {
             "Content-Type" => "application/json",
-            "X-Postal-Signature" => unknown_signature
+            "X-Postal-Signature-256" => unknown_signature
           },
           env: { 'RAW_POST_DATA' => body_with_unknown_id }
         

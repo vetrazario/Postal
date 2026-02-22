@@ -4,7 +4,7 @@ RSpec.describe "Rate Limiting", type: :request do
   include ActiveSupport::Testing::TimeHelpers
 
   before do
-    # Очищаем кэш Rack::Attack перед каждым тестом
+    Rack::Attack.enabled = true
     Rack::Attack.cache.store.clear
   end
 
