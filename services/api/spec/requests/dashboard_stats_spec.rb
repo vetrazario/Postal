@@ -21,7 +21,7 @@ RSpec.describe 'Dashboard stats include EmailOpen and EmailClick', type: :reques
     create(:email_click, email_log: log, clicked_at: Time.current)
     create(:tracking_event, email_log: log, event_type: 'open')
 
-    get dashboard_path, headers: basic_auth_header(username, password)
+    get '/dashboard', headers: basic_auth_header(username, password)
     expect(response).to have_http_status(:ok)
 
     # Stats are rendered in the page; we have 2 opens (EmailOpen + TrackingEvent) and 1 click (EmailClick)

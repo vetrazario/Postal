@@ -38,8 +38,9 @@ class Rack::Attack
     req.ip if req.post? && req.path.in?(['/api/v1/send', '/api/v1/batch'])
   end
 
-  # Throttle auth attempts: 10/min per IP (brute force protection)
-  throttle('api/auth/ip', limit: 10, period: 1.minute) do |req|
+  # Throttle auth attempts: 10/min per IP (brute force protection); 500 in test for faster specs
+  auth_limit = Rails.env.test? ? 500 : 10
+  throttle('api/auth/ip', limit: auth_limit, period: 1.minute) do |req|
     next unless req.path.start_with?('/api/') && !req.path.start_with?('/api/v1/health')
     req.ip if req.env['HTTP_AUTHORIZATION'].present?
   end

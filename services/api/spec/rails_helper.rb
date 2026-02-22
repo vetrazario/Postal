@@ -51,6 +51,12 @@ RSpec.configure do |config|
   # https://rspec.info/features/6-0/rspec-rails
   config.infer_spec_type_from_file_location!
 
+  # ENV stubs: allow original by default, so specific stubs work correctly
+  config.before(:each) do |example|
+    allow(ENV).to receive(:[]).and_call_original
+    allow(ENV).to receive(:fetch).and_call_original
+  end
+
   # Rack::Attack: disable for all tests except rate_limiting_spec
   config.before(:each) do |example|
     if example.metadata[:file_path].to_s.include?('rate_limiting_spec')

@@ -55,9 +55,11 @@ class TrackingInjector
     tracking_url = "https://#{domain}/track/o?eid=#{encoded_email}&cid=#{encoded_cid}&mid=#{encoded_mid}"
     pixel_html = "<img src=\"#{tracking_url}\" width=\"1\" height=\"1\" alt=\"\" style=\"border:0;width:1px;height:1px;\" />"
     
-    # Insert before </body> or at the end
+    # Insert before </body>, or before </html> if no </body>, or at the end
     if html.include?("</body>")
       html.sub("</body>", "#{pixel_html}\n</body>")
+    elsif html =~ %r{</html>}i
+      html.sub(%r{</html>}i, "#{pixel_html}\n</html>")
     else
       html + pixel_html
     end

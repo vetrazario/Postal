@@ -13,8 +13,8 @@ non_bounce_categories:
 stop_mailing_categories:
   - rate_limit
   - spam_block
-  - user_not_found
   - mailbox_full
+  - connection
 
 # Паттерны для определения типа ошибки
 patterns:
@@ -23,13 +23,27 @@ patterns:
     patterns:
       - 'rate limit'
       - 'too many connections'
-      - '421'
+      - 'receiving mail at a rate'
       - '429'
       - 'throttl'
       - 'connection rate limit'
       - 'too many messages'
-      - 'receiving mail at a rate'
       - '5.7.1.*rate.*limit'
+
+  temporary:
+    description: "Temporary delivery failures"
+    patterns:
+      - 'try again'
+      - 'try again later'
+      - 'temporarily'
+      - '4.7.'
+      - 'greylisted'
+      - 'temporary failure'
+      - 'try later'
+      - '421 4.7.0'
+      - '450 4.2.1'
+      - '451 4.5.1'
+      - 'insufficient system storage'
 
   spam_block:
     description: "Spam blocks and blacklist rejections"
@@ -71,20 +85,6 @@ patterns:
       - '550 5.2.1'
       - '552 5.2.2'
       - 'exceeded storage allocation'
-
-  temporary:
-    description: "Temporary delivery failures"
-    patterns:
-      - 'try again'
-      - 'temporarily'
-      - '4.7.'
-      - 'greylisted'
-      - 'temporary failure'
-      - 'try later'
-      - '421 4.7.0'
-      - '450 4.2.1'
-      - '451 4.5.1'
-      - 'insufficient system storage'
 
   authentication:
     description: "SPF, DKIM, DMARC authentication failures"

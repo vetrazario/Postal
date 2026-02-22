@@ -84,7 +84,7 @@ RSpec.describe SendToPostalJob, type: :job do
 
       before do
         stub_request(:post, "#{postal_url}/api/v1/send/message")
-          .to_return(status: 500, body: { error: 'Internal server error' }.to_json)
+          .to_return(status: 500, body: { error: 'Internal server error' }.to_json, headers: { 'Content-Type' => 'application/json' })
       end
 
       it 'updates email_log to failed and enqueues ReportToAmsJob with error' do

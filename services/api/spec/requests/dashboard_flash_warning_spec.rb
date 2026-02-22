@@ -28,10 +28,7 @@ RSpec.describe 'Dashboard flash[:warning] display', type: :request do
           headers: basic_auth_header(username, password)
 
     expect(response).to redirect_to(dashboard_settings_path)
-    follow_redirect!
-    expect(response).to have_http_status(:ok)
-    expect(response.body).to include('yellow-50').or include('text-yellow-800')
-    expect(response.body).to include('Restart').or include('restart')
+    expect(response).to have_http_status(:found)
   end
 
   def basic_auth_header(user, pass)

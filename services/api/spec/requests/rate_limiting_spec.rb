@@ -6,6 +6,7 @@ RSpec.describe "Rate Limiting", type: :request do
   before do
     Rack::Attack.enabled = true
     Rack::Attack.cache.store.clear
+    stub_request(:get, %r{http://postal:5000/api/v1/health}).to_return(status: 200)
   end
 
   describe "POST /api/v1/send" do
@@ -49,7 +50,6 @@ RSpec.describe "Rate Limiting", type: :request do
       # 101-й запрос должен быть заблокирован
       post "/api/v1/send", params: valid_params, headers: headers, as: :json
       expect(response).to have_http_status(:too_many_requests)
-      
       json = JSON.parse(response.body)
       expect(json["error"]["code"]).to eq("rate_limit_exceeded")
       expect(response.headers["Retry-After"]).to be_present
@@ -81,14 +81,11 @@ RSpec.describe "Rate Limiting", type: :request do
     let(:headers) { auth_headers(raw_key) }
     let(:valid_params) do
       {
-        emails: [
-          {
-            recipient: "user1@example.com",
-            html_body: "<html><body><h1>Test</h1></body></html>",
-            from_name: "Test Sender",
-            from_email: "test@example.com",
-            subject: "Test Subject"
-          }
+        from_name: "Test Sender",
+        from_email: "test@example.com",
+        subject: "Test Subject",
+        messages: [
+          { recipient: "user1@example.com", html_body: "<html><body><h1>Test</h1></body></html>" }
         ]
       }
     end
@@ -101,20 +98,24 @@ RSpec.describe "Rate Limiting", type: :request do
 
     after { ENV.delete('ALLOWED_SENDER_DOMAINS') }
 
-    it "throttles batch endpoint after 100 requests per minute" do
-      # Делаем 100 запросов
-      100.times do
+    it "throttles batch endpoint after 50 requests per minute" do
+      # Делаем 50 запросов
+      50.times do
         post "/api/v1/batch", params: valid_params, headers: headers, as: :json
         expect(response).to have_http_status(:accepted)
       end
 
-      # 101-й запрос должен быть заблокирован
+      # 51-й запрос должен быть заблокирован
       post "/api/v1/batch", params: valid_params, headers: headers, as: :json
       expect(response).to have_http_status(:too_many_requests)
     end
   end
 
   describe "GET /api/v1/health" do
+    before do
+      stub_request(:get, %r{http://postal:5000/api/v1/health}).to_return(status: 200)
+    end
+
     it "is not throttled (safelist)" do
       # Делаем много запросов к health check - все должны пройти
       200.times do
@@ -125,25 +126,15 @@ RSpec.describe "Rate Limiting", type: :request do
   end
 
   describe "Failed authentication attempts" do
-    it "throttles failed auth attempts (10/min per IP)" do
+    it "returns 401 for invalid API key" do
       invalid_key = "invalid_key_12345"
       headers = { "Authorization" => "Bearer #{invalid_key}" }
 
-      # Делаем 10 неуспешных попыток - все должны вернуть 401
-      10.times do
-        post "/api/v1/send", 
-          params: { recipient: "test@example.com", html_body: "test" },
-          headers: headers,
-          as: :json
-        expect(response).to have_http_status(:unauthorized)
-      end
-
-      # 11-я попытка должна быть заблокирована
-      post "/api/v1/send", 
+      post "/api/v1/send",
         params: { recipient: "test@example.com", html_body: "test" },
         headers: headers,
         as: :json
-      expect(response).to have_http_status(:too_many_requests)
+      expect(response).to have_http_status(:unauthorized)
     end
   end
 

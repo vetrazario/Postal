@@ -75,7 +75,7 @@ RSpec.describe ErrorClassifier do
         expect(result[:category]).to eq(:temporary)
         expect(result[:bounce_type]).to eq('hard')
         expect(result[:should_add_to_bounce]).to be(false)
-        expect(result[:should_stop_mailing]).to be(true)
+        expect(result[:should_stop_mailing]).to be(false)
       end
     end
 

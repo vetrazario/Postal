@@ -58,7 +58,7 @@ RSpec.describe "Emails", type: :request do
       json = JSON.parse(response.body)
       expect(json["status"]).to eq("queued")
       expect(json["message_id"]).to be_present
-        expect(json["message_id"]).to match(/^local_[a-f0-9]{24}(?:@.+)?$/) # Allow domain suffix
+        expect(json["message_id"]).to match(/^[a-z0-9]+\.[a-zA-Z0-9]{24}(?:@.+)?$/)
     end
 
     it "requires authentication" do

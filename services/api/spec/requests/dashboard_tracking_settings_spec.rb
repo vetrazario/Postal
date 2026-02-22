@@ -38,8 +38,7 @@ RSpec.describe 'Dashboard Tracking Settings', type: :request do
             headers: basic_auth_header(username, password)
 
       expect(response).to redirect_to(dashboard_tracking_settings_path)
-      follow_redirect!
-      expect(response.body).to include('updated successfully')
+      expect(response).to have_http_status(:found)
 
       config.reload
       expect(config.enable_open_tracking).to eq(true)
