@@ -10,4 +10,8 @@ gem 'sidekiq', '~> 7.2'
 gem 'oj', '~> 3.16'
 gem 'activesupport', '~> 7.1'
 
+group :development, :test do
+  gem 'rspec', '~> 3.12'
+  gem 'rack-test', '~> 2.1'
+end
 

@@ -81,9 +81,79 @@ jobs:
       
       - name: Run RSpec
         working-directory: services/api
+        env:
+          COVERAGE: 1
         run: bundle exec rspec
+      
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: services/api/coverage/
+          if-no-files-found: ignore
       
       - name: Run Brakeman
         working-directory: services/api
         run: bundle exec brakeman --no-pager --quiet
+
+  tracking:
+    name: Tracking Service
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: email_sender_test
+          POSTGRES_USER: email_sender
+          POSTGRES_PASSWORD: test_password
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+    env:
+      DATABASE_URL: postgres://email_sender:test_password@localhost:5432/email_sender_test
+      REDIS_URL: redis://localhost:6379/0
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 3.2
+          bundler-cache: true
+          working-directory: services/tracking
+      - name: Setup database
+        run: |
+          cd services/api && bundle exec rails db:create db:schema:load RAILS_ENV=test
+        env:
+          RAILS_ENV: test
+          DATABASE_URL: postgres://email_sender:test_password@localhost:5432/email_sender_test
+      - name: Run RSpec
+        working-directory: services/tracking
+        run: bundle exec rspec
+
+  smtp-relay:
+    name: SMTP Relay
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: services/smtp-relay/package-lock.json
+      - name: Install and test
+        working-directory: services/smtp-relay
+        run: npm ci && npm test
 

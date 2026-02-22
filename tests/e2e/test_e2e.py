@@ -278,5 +278,119 @@ class TestEmailSending:
         assert response.status_code == 400  # Bad request for empty batch
 
 
+@pytest.mark.skipif(not TEST_API_KEY, reason="TEST_API_KEY not set")
+class TestEmailFullFlow:
+    """Full email flow: send -> poll status until delivered/failed"""
+
+    def test_send_and_poll_status(self):
+        """Send email and poll status endpoint until terminal state"""
+        headers = {'Authorization': f'Bearer {TEST_API_KEY}'}
+        msg_id = f"e2e_{int(time.time())}_{os.getpid()}"
+        payload = {
+            'recipient': 'test@example.com',
+            'from_name': 'E2E Flow Test',
+            'from_email': 'test@example.com',
+            'subject': f'E2E Flow Test {msg_id}',
+            'variables': {'body': '<p>E2E test</p>'},
+            'tracking': {'campaign_id': f'camp_{msg_id}', 'message_id': msg_id}
+        }
+        send_resp = requests.post(
+            urljoin(API_URL, '/api/v1/send'),
+            headers=headers,
+            json=payload,
+            timeout=30
+        )
+        assert send_resp.status_code in [200, 202]
+        data = send_resp.json()
+        external_id = data.get('external_message_id') or msg_id
+
+        # Poll status (max 30 seconds)
+        for _ in range(15):
+            status_resp = requests.get(
+                urljoin(API_URL, f'/api/v1/status/{external_id}'),
+                headers=headers,
+                timeout=10
+            )
+            if status_resp.status_code == 200:
+                status_data = status_resp.json()
+                status = status_data.get('status')
+                if status in ('delivered', 'sent', 'failed', 'bounced'):
+                    assert status in ('delivered', 'sent', 'failed', 'bounced')
+                    return
+            time.sleep(2)
+        pytest.fail("Status did not reach terminal state within timeout")
+
+
+@pytest.mark.skipif(not TEST_API_KEY, reason="TEST_API_KEY not set")
+class TestBatchFlow:
+    """Batch send flow"""
+
+    def test_batch_send_returns_batch_id(self):
+        """Batch send should return batch_id and queued count"""
+        headers = {'Authorization': f'Bearer {TEST_API_KEY}'}
+        batch_id = f"batch_{int(time.time())}"
+        payload = {
+            'from_name': 'E2E Batch',
+            'from_email': 'test@example.com',
+            'subject': f'Batch Test {batch_id}',
+            'html_body': '<p>Batch content</p>',
+            'campaign_id': f'camp_{batch_id}',
+            'messages': [
+                {'recipient': 'user1@example.com', 'message_id': f'msg1_{batch_id}',
+                 'html_body': '<p>User 1</p>'},
+                {'recipient': 'user2@example.com', 'message_id': f'msg2_{batch_id}',
+                 'html_body': '<p>User 2</p>'}
+            ]
+        }
+        response = requests.post(
+            urljoin(API_URL, '/api/v1/batch'),
+            headers=headers,
+            json=payload,
+            timeout=30
+        )
+        assert response.status_code in [200, 202]
+        data = response.json()
+        assert 'batch_id' in data or 'queued' in data or 'status' in data
+
+
+@pytest.mark.skipif(not TEST_API_KEY, reason="TEST_API_KEY not set")
+class TestTrackingOpenClick:
+    """Tracking open and click with valid params"""
+
+    def _encode_param(self, value: str) -> str:
+        return base64.urlsafe_b64encode(value.encode()).decode()
+
+    def test_track_open_with_valid_params(self):
+        """GET /track/o with valid base64 params should return 200 or 404"""
+        params = {
+            'eid': self._encode_param('test@example.com'),
+            'cid': self._encode_param('camp_e2e'),
+            'mid': self._encode_param('msg_e2e')
+        }
+        response = requests.get(
+            urljoin(TRACKING_URL, '/track/o'),
+            params=params,
+            timeout=10
+        )
+        # 200 = pixel returned, 404 = message not in DB (valid for E2E without DB)
+        assert response.status_code in [200, 404]
+
+    def test_track_click_with_valid_url(self):
+        """GET /track/c with valid http URL should redirect or 404"""
+        params = {
+            'url': self._encode_param('https://example.com/safe'),
+            'eid': self._encode_param('test@example.com'),
+            'cid': self._encode_param('camp_e2e'),
+            'mid': self._encode_param('msg_e2e')
+        }
+        response = requests.get(
+            urljoin(TRACKING_URL, '/track/c'),
+            params=params,
+            allow_redirects=False,
+            timeout=10
+        )
+        assert response.status_code in [302, 404]
+
+
 if __name__ == '__main__':
     pytest.main(['-v', __file__])
